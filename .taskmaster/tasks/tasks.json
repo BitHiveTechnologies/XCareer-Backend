@@ -1,0 +1,279 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Project Setup and Environment Configuration",
+        "description": "Set up the initial project structure, dependencies, and development environment for the NotifyX Backend",
+        "details": "Initialize Node.js project with TypeScript, set up Express.js framework, configure MongoDB connection, set up development environment with proper folder structure, and configure basic middleware like CORS, helmet, and body parser.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "complexity": 3,
+        "estimatedHours": 8,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "title": "Database Schema and Models Implementation",
+        "description": "Create MongoDB schemas and Mongoose models for all collections: Users, UserProfiles, Jobs, JobNotifications, Admins, and Subscriptions",
+        "details": "Implement TypeScript interfaces and Mongoose schemas for all database collections. Include proper validation, indexing, and relationships between collections. Set up database connection with proper error handling and connection pooling.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "complexity": 4,
+        "estimatedHours": 12,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 3,
+        "title": "Authentication and Authorization System",
+        "description": "Implement JWT-based authentication system with user registration, login, logout, and role-based access control",
+        "details": "Create authentication middleware, JWT token generation and validation, password hashing with bcrypt, user registration and login endpoints, refresh token mechanism, and role-based access control for admin APIs.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "2"
+        ],
+        "complexity": 5,
+        "estimatedHours": 16,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 4,
+        "title": "User Management Module",
+        "description": "Implement user profile management, subscription status tracking, and user data operations",
+        "details": "Create user profile CRUD operations, subscription status management, profile completion tracking, and user data validation. Implement proper error handling and input sanitization for all user operations.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "3"
+        ],
+        "complexity": 4,
+        "estimatedHours": 12,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 5,
+        "title": "Payment Integration with Razorpay",
+        "description": "Integrate Razorpay payment gateway for subscription plan purchases and payment verification",
+        "details": "Implement Razorpay order creation, payment verification with signature validation, webhook handling for payment status updates, and subscription management based on payment success. Include proper error handling for payment failures.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "4"
+        ],
+        "complexity": 6,
+        "estimatedHours": 20,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 6,
+        "title": "Subscription Management System",
+        "description": "Build subscription lifecycle management including plan creation, renewal, expiry handling, and status tracking",
+        "details": "Implement subscription plan management, automatic renewal logic, expiry date calculations, subscription status updates, and integration with payment system. Include subscription analytics and reporting capabilities.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "5"
+        ],
+        "complexity": 4,
+        "estimatedHours": 14,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 7,
+        "title": "Job and Internship Management System",
+        "description": "Create job posting, management, and filtering system for both regular jobs and internships",
+        "details": "Implement job CRUD operations, eligibility criteria management, job filtering and search, job status management, and admin controls for job operations. Include proper validation for job data and eligibility requirements.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "3"
+        ],
+        "complexity": 5,
+        "estimatedHours": 18,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 8,
+        "title": "Job Matching Algorithm Implementation",
+        "description": "Develop intelligent job matching algorithm based on user qualifications, streams, and eligibility criteria",
+        "details": "Implement job matching logic using MongoDB aggregation, create efficient queries for finding eligible users, implement CGPA and qualification matching, and optimize performance for large user bases. Include proper indexing for performance.",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          "7"
+        ],
+        "complexity": 6,
+        "estimatedHours": 24,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 9,
+        "title": "Email Notification System",
+        "description": "Build automated email notification system for job alerts, welcome emails, and password resets",
+        "details": "Implement NodeMailer integration, create email templates for different notification types, implement email queue system for async processing, handle email delivery status tracking, and implement retry mechanisms for failed emails.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "8"
+        ],
+        "complexity": 5,
+        "estimatedHours": 16,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 10,
+        "title": "Admin Dashboard and Management APIs",
+        "description": "Create comprehensive admin dashboard with user management, analytics, and system administration capabilities",
+        "details": "Implement admin authentication, user management APIs, subscription analytics, system statistics dashboard, bulk operations for user management, and admin role-based permissions. Include proper audit logging for admin actions.",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "complexity": 5,
+        "estimatedHours": 20,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 11,
+        "title": "Security Implementation and Hardening",
+        "description": "Implement comprehensive security measures including input validation, rate limiting, and data protection",
+        "details": "Add input validation using Joi, implement rate limiting on authentication endpoints, configure CORS properly, add XSS protection with helmet.js, implement request logging with correlation IDs, and add security headers.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "10"
+        ],
+        "complexity": 4,
+        "estimatedHours": 12,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 12,
+        "title": "API Documentation and Testing",
+        "description": "Create comprehensive API documentation using Swagger/OpenAPI and implement testing suite",
+        "details": "Set up Swagger/OpenAPI documentation for all endpoints, create unit tests for business logic, implement integration tests for API endpoints, add database transaction testing, and achieve minimum 80% code coverage.",
+        "status": "in-progress",
+        "priority": "medium",
+        "dependencies": [
+          "11"
+        ],
+        "complexity": 4,
+        "estimatedHours": 16,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 13,
+        "title": "Performance Optimization and Monitoring",
+        "description": "Optimize system performance and implement comprehensive monitoring and logging",
+        "details": "Implement database query optimization with proper indexing, add connection pooling for MongoDB, implement response time monitoring, add error logging with stack traces, implement payment transaction logging, and add email delivery status logging.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "12"
+        ],
+        "complexity": 4,
+        "estimatedHours": 14,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 14,
+        "title": "Deployment and DevOps Setup",
+        "description": "Set up deployment pipeline, environment configuration, and containerization",
+        "details": "Create Docker containerization, set up environment-specific configuration files, implement CI/CD pipeline with automated testing, create database migration scripts, and set up staging and production environments.",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [
+          "13"
+        ],
+        "complexity": 4,
+        "estimatedHours": 16,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      },
+      {
+        "id": 15,
+        "title": "Final Testing and Production Deployment",
+        "description": "Perform comprehensive testing, load testing, and deploy to production environment",
+        "details": "Execute end-to-end testing, perform load testing for job matching algorithm, conduct security testing for authentication, validate payment integration, test email delivery system, and deploy to production with monitoring setup.",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": [
+          "14"
+        ],
+        "complexity": 5,
+        "estimatedHours": 20,
+        "tags": [
+          "master"
+        ],
+        "createdAt": "2024-12-19T00:00:00.000Z",
+        "updatedAt": "2024-12-19T00:00:00.000Z"
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-24T13:28:45.891Z",
+      "updated": "2025-08-26T16:40:30.855Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

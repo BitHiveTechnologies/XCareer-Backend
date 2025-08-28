@@ -1,0 +1,30 @@
+export declare const config: {
+    NODE_ENV: string;
+    PORT: number;
+    MONGODB_URI: string;
+    CLERK_SECRET_KEY: string;
+    CLERK_PUBLISHABLE_KEY: string;
+    CLERK_JWT_KEY: string;
+    CLERK_WEBHOOK_SECRET: string;
+    CLERK_API_URL: string;
+    CLERK_FRONTEND_API: string;
+    JWT_SECRET: string;
+    JWT_EXPIRE: string;
+    JWT_REFRESH_EXPIRE: string;
+    FRONTEND_URL: string;
+    EMAIL_HOST: string;
+    EMAIL_PORT: number;
+    EMAIL_USER: string;
+    EMAIL_PASS: string;
+    RAZORPAY_KEY_ID: string;
+    RAZORPAY_KEY_SECRET: string;
+    RAZORPAY_WEBHOOK_SECRET: string;
+    RATE_LIMIT_WINDOW_MS: number;
+    RATE_LIMIT_MAX_REQUESTS: number;
+    LOG_LEVEL: string;
+    BCRYPT_ROUNDS: number;
+    MAX_FILE_SIZE: number;
+    UPLOAD_PATH: string;
+};
+export declare const validateEnvironment: () => void;
+//# sourceMappingURL=environment.d.ts.map

@@ -1,0 +1,430 @@
+# NotifyX Backend - Product Requirements Document
+
+## 1. Project Overview
+
+### 1.1 Product Vision
+NotifyX is a job notification platform that matches users with relevant job opportunities based on their educational qualifications and profile data. The backend system will handle user management, subscription processing, job matching algorithms, and automated notification delivery.
+
+### 1.2 Tech Stack
+- **Runtime**: Node.js with TypeScript
+- **Framework**: Express.js
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT tokens
+- **Email Service**: NodeMailer with SMTP/SendGrid
+- **Payment Integration**: Razorpay (for Indian market)
+- **API Documentation**: Swagger/OpenAPI
+
+## 2. System Architecture
+
+### 2.1 High-Level Architecture
+```
+Frontend (React/Next.js) 
+    ↓
+API Gateway/Load Balancer
+    ↓
+Express.js Backend (TypeScript)
+    ↓
+MongoDB Database
+    ↓
+External Services (Email, Payment)
+```
+
+### 2.2 Core Modules
+1. **Authentication & Authorization Module**
+2. **User Management Module**
+3. **Subscription Management Module**
+4. **Job/Internship Management Module**
+5. **Notification Engine Module**
+6. **Admin Dashboard Module**
+7. **Payment Processing Module**
+
+## 3. Database Schema Design
+
+### 3.1 Collections Structure
+
+#### Users Collection
+```typescript
+interface IUser {
+  _id: ObjectId;
+  email: string; // Unique, serves as username
+  password: string; // Hashed
+  name: string;
+  mobile: string;
+  subscriptionPlan: 'basic' | 'premium'; // ₹49 or ₹99
+  subscriptionStatus: 'active' | 'inactive' | 'expired';
+  subscriptionStartDate: Date;
+  subscriptionEndDate: Date;
+  isProfileComplete: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### UserProfiles Collection
+```typescript
+interface IUserProfile {
+  _id: ObjectId;
+  userId: ObjectId; // Reference to Users
+  firstName: string;
+  lastName: string;
+  email: string;
+  contactNumber: string;
+  dateOfBirth: Date;
+  qualification: string; // B.E, B.Tech, M.Tech, etc.
+  customQualification?: string; // If "Others" selected
+  stream: string; // CSE, IT, ECE, etc.
+  customStream?: string; // If "Others" selected
+  yearOfPassout: number; // 2023-2029
+  cgpaOrPercentage: number;
+  collegeName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### Jobs Collection
+```typescript
+interface IJob {
+  _id: ObjectId;
+  title: string;
+  company: string;
+  description: string;
+  type: 'job' | 'internship';
+  eligibility: {
+    qualifications: string[];
+    streams: string[];
+    passoutYears: number[];
+    minCGPA?: number;
+  };
+  applicationDeadline: Date;
+  applicationLink: string;
+  location: 'remote' | 'onsite' | 'hybrid';
+  salary?: string;
+  stipend?: string;
+  isActive: boolean;
+  postedBy: ObjectId; // Admin user ID
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### JobNotifications Collection
+```typescript
+interface IJobNotification {
+  _id: ObjectId;
+  jobId: ObjectId;
+  userId: ObjectId;
+  emailSent: boolean;
+  emailSentAt?: Date;
+  emailStatus: 'pending' | 'sent' | 'failed';
+  createdAt: Date;
+}
+```
+
+#### Admins Collection
+```typescript
+interface IAdmin {
+  _id: ObjectId;
+  email: string;
+  password: string; // Hashed
+  name: string;
+  role: 'super_admin' | 'admin';
+  permissions: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### Subscriptions Collection
+```typescript
+interface ISubscription {
+  _id: ObjectId;
+  userId: ObjectId;
+  plan: 'basic' | 'premium';
+  amount: number;
+  paymentId: string; // Razorpay payment ID
+  orderId: string; // Razorpay order ID
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  startDate: Date;
+  endDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+## 4. API Endpoints Specification
+
+### 4.1 Authentication APIs
+```
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+POST /api/auth/refresh-token
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+```
+
+### 4.2 User Management APIs
+```
+GET /api/users/profile
+PUT /api/users/profile
+POST /api/users/profile/complete
+GET /api/users/subscription-status
+```
+
+### 4.3 Subscription APIs
+```
+POST /api/subscriptions/create-order
+POST /api/subscriptions/verify-payment
+GET /api/subscriptions/plans
+GET /api/subscriptions/history
+```
+
+### 4.4 Job Management APIs
+```
+GET /api/jobs (for users - active jobs they're eligible for)
+GET /api/jobs/:id
+
+// Admin only
+POST /api/admin/jobs
+PUT /api/admin/jobs/:id
+DELETE /api/admin/jobs/:id
+GET /api/admin/jobs (all jobs with filters)
+```
+
+### 4.5 Admin APIs
+```
+POST /api/admin/auth/login
+GET /api/admin/dashboard/stats
+GET /api/admin/users
+GET /api/admin/users/:id
+GET /api/admin/subscriptions/analytics
+PUT /api/admin/users/:id/subscription-status
+```
+
+## 5. Core Features Implementation
+
+### 5.1 User Registration & Authentication Flow
+
+#### Registration Process:
+1. User selects subscription plan on frontend
+2. Frontend calls `POST /api/subscriptions/create-order`
+3. Backend creates Razorpay order and returns order details
+4. User completes payment via Razorpay
+5. Frontend calls `POST /api/subscriptions/verify-payment`
+6. Backend verifies payment signature
+7. On successful verification:
+   - Create user account with auto-generated password
+   - Set subscription status to active
+   - Send welcome email with credentials
+   - Return success response
+
+#### Auto-generated Password Logic:
+```typescript
+const generateSecurePassword = (): string => {
+  const length = 12;
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+};
+```
+
+### 5.2 Job Matching Algorithm
+
+#### Matching Logic:
+```typescript
+interface MatchingCriteria {
+  qualifications: string[];
+  streams: string[];
+  passoutYears: number[];
+  minCGPA?: number;
+}
+
+const findEligibleUsers = async (jobEligibility: MatchingCriteria): Promise<IUserProfile[]> => {
+  const query = {
+    qualification: { $in: jobEligibility.qualifications },
+    stream: { $in: jobEligibility.streams },
+    yearOfPassout: { $in: jobEligibility.passoutYears },
+    ...(jobEligibility.minCGPA && { cgpaOrPercentage: { $gte: jobEligibility.minCGPA } })
+  };
+  
+  return await UserProfile.find(query).populate('userId');
+};
+```
+
+### 5.3 Email Notification System
+
+#### Email Templates:
+1. **Welcome Email Template**
+2. **Job Alert Email Template**
+3. **Password Reset Email Template**
+
+#### Email Service Implementation:
+```typescript
+interface EmailData {
+  to: string;
+  subject: string;
+  template: string;
+  data: any;
+}
+
+class EmailService {
+  private transporter: nodemailer.Transporter;
+  
+  async sendJobAlert(user: IUser, job: IJob): Promise<void> {
+    const emailData = {
+      to: user.email,
+      subject: `You're Eligible! New ${job.type} Alert from NotifyX`,
+      template: 'job-alert',
+      data: { user, job }
+    };
+    
+    await this.sendEmail(emailData);
+  }
+}
+```
+
+## 6. Security Requirements
+
+### 6.1 Authentication & Authorization
+- JWT-based authentication with access and refresh tokens
+- Password hashing using bcrypt (min 12 rounds)
+- Rate limiting on authentication endpoints
+- Role-based access control for admin APIs
+
+### 6.2 Data Protection
+- Input validation using Joi or similar library
+- SQL injection prevention (MongoDB query sanitization)
+- XSS protection using helmet.js
+- CORS configuration for frontend domains only
+
+### 6.3 Payment Security
+- Razorpay webhook signature verification
+- Payment data encryption in database
+- PCI DSS compliance considerations
+
+## 7. Performance Requirements
+
+### 7.1 Response Times
+- Authentication APIs: < 200ms
+- User profile APIs: < 300ms
+- Job matching algorithm: < 2 seconds for 10,000 users
+- Email notifications: Async processing with queue
+
+### 7.2 Scalability
+- Support for 10,000+ concurrent users
+- Database indexing on frequently queried fields
+- Connection pooling for MongoDB
+- Horizontal scaling capability
+
+## 8. Monitoring & Logging
+
+### 8.1 Logging Requirements
+- Request/response logging with correlation IDs
+- Error logging with stack traces
+- Payment transaction logging
+- Email delivery status logging
+
+### 8.2 Monitoring Metrics
+- API response times
+- Database query performance
+- Email delivery rates
+- User registration/subscription rates
+- Job matching accuracy
+
+## 9. Deployment & DevOps
+
+### 9.1 Environment Configuration
+- Development, Staging, Production environments
+- Environment-specific configuration files
+- Docker containerization
+- MongoDB Atlas or self-hosted MongoDB
+
+### 9.2 CI/CD Pipeline
+- Automated testing (unit, integration)
+- Code quality checks (ESLint, Prettier)
+- Automated deployment to staging/production
+- Database migration scripts
+
+## 10. Third-Party Integrations
+
+### 10.1 Payment Gateway (Razorpay)
+- Order creation and payment verification
+- Webhook handling for payment status updates
+- Subscription renewal automation
+
+### 10.2 Email Service
+- SMTP configuration (Gmail, SendGrid, etc.)
+- Email template management
+- Delivery tracking and bounce handling
+
+## 11. Error Handling & Edge Cases
+
+### 11.1 Common Error Scenarios
+- Payment failures and retry mechanisms
+- Email delivery failures
+- Database connection issues
+- Invalid user input validation
+
+### 11.2 Edge Cases
+- Users changing profile after job notifications sent
+- Subscription expiry during active usage
+- Duplicate job applications
+- Admin bulk operations handling
+
+## 12. Testing Strategy
+
+### 12.1 Testing Types
+- Unit tests for business logic
+- Integration tests for API endpoints
+- Database transaction testing
+- Email service mocking for tests
+
+### 12.2 Test Coverage
+- Minimum 80% code coverage
+- Critical path testing (payment, notifications)
+- Load testing for job matching algorithm
+- Security testing for authentication
+
+## 13. Future Enhancements
+
+### 13.1 Phase 2 Features
+- Mobile app APIs
+- Advanced job filtering
+- User preferences and job alerts customization
+- Analytics dashboard for users
+
+### 13.2 Potential Integrations
+- LinkedIn integration for profile import
+- SMS notifications
+- WhatsApp Business API
+- Calendar integration for application deadlines
+
+## 14. Success Metrics
+
+### 14.1 Technical KPIs
+- API uptime: 99.9%
+- Average response time: < 500ms
+- Email delivery rate: > 95%
+- Zero payment data breaches
+
+### 14.2 Business KPIs
+- User registration conversion rate
+- Subscription retention rate
+- Job application success rate
+- User engagement metrics
+
+---
+
+## Implementation Timeline
+
+**Phase 1 (Weeks 1-4)**: Core backend setup, database models, authentication
+**Phase 2 (Weeks 5-8)**: Payment integration, user management, email system  
+**Phase 3 (Weeks 9-12)**: Job management, matching algorithm, admin dashboard
+**Phase 4 (Weeks 13-16)**: Testing, optimization, deployment, monitoring
+
+This PRD serves as the foundation for developing a robust, scalable NotifyX backend system that can handle the specified user flows efficiently while maintaining high security and performance standards.

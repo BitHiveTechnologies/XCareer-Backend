@@ -1,0 +1,11 @@
+# Task ID: 7
+# Title: Job and Internship Management System
+# Status: pending
+# Dependencies: 3
+# Priority: medium
+# Description: Create job posting, management, and filtering system for both regular jobs and internships
+# Details:
+Implement job CRUD operations, eligibility criteria management, job filtering and search, job status management, and admin controls for job operations. Include proper validation for job data and eligibility requirements.
+
+# Test Strategy:
+

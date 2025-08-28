@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Database Schema and Models Implementation
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Create MongoDB schemas and Mongoose models for all collections: Users, UserProfiles, Jobs, JobNotifications, Admins, and Subscriptions
+# Details:
+Implement TypeScript interfaces and Mongoose schemas for all database collections. Include proper validation, indexing, and relationships between collections. Set up database connection with proper error handling and connection pooling.
+
+# Test Strategy:
+

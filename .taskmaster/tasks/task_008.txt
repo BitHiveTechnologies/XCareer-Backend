@@ -1,0 +1,11 @@
+# Task ID: 8
+# Title: Job Matching Algorithm Implementation
+# Status: pending
+# Dependencies: 7
+# Priority: high
+# Description: Develop intelligent job matching algorithm based on user qualifications, streams, and eligibility criteria
+# Details:
+Implement job matching logic using MongoDB aggregation, create efficient queries for finding eligible users, implement CGPA and qualification matching, and optimize performance for large user bases. Include proper indexing for performance.
+
+# Test Strategy:
+
