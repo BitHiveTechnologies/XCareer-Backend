@@ -11,7 +11,15 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf dist",
     "lint": "echo \"Linting not configured yet\"",
-    "lint:fix": "echo \"Linting not configured yet\""
+    "lint:fix": "echo \"Linting not configured yet\"",
+    "seed:test-data": "ts-node scripts/seedTestData.ts",
+    "test:admin": "ts-node scripts/testAdminFunctionality.ts",
+    "test:admin:auth": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.runAllTests())\"",
+    "test:admin:dashboard": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testAdminDashboard())\"",
+    "test:admin:users": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testUserManagement())\"",
+    "test:admin:jobs": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testJobManagement())\"",
+    "test:admin:subscriptions": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testSubscriptionManagement())\"",
+    "test:admin:audit": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testAuditLogs())\""
   },
   "keywords": [
     "notifyx",
@@ -29,6 +37,7 @@
     "@clerk/express": "^1.7.24",
     "@types/bull": "^3.15.9",
     "@types/handlebars": "^4.0.40",
+    "axios": "^1.6.0",
     "bcryptjs": "^3.0.2",
     "bull": "^4.16.5",
     "cors": "^2.8.5",

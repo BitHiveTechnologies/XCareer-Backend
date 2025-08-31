@@ -8,6 +8,8 @@ import jobMatchingRoutes from './jobs/jobMatchingRoutes';
 import authRoutes from './auth/authRoutes';
 import clerkAuthRoutes from './auth/clerkAuthRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
+import adminAuthRoutes from './admin/adminAuth';
+import adminRoutes from './admin/adminRoutes';
 
 const router = express.Router();
 
@@ -43,6 +45,12 @@ router.use(`${API_VERSION}/matching`, jobMatchingRoutes);
 // Email notification routes
 router.use(`${API_VERSION}/notifications`, emailNotificationRoutes);
 
+// Admin authentication routes (public)
+router.use(`${API_VERSION}/admin`, adminAuthRoutes);
+
+// Admin management routes (protected)
+router.use(`${API_VERSION}/admin`, adminRoutes);
+
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
   res.status(200).json({
@@ -57,7 +65,8 @@ router.get(`${API_VERSION}`, (_req, res) => {
       jobs: `${API_VERSION}/jobs`,
       applications: `${API_VERSION}/applications`,
       matching: `${API_VERSION}/matching`,
-      notifications: `${API_VERSION}/notifications`
+      notifications: `${API_VERSION}/notifications`,
+      admin: `${API_VERSION}/admin`
     },
     timestamp: new Date().toISOString()
   });
