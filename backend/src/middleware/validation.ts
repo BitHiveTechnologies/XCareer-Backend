@@ -57,6 +57,9 @@ export const validate = (schema: ValidationSchema) => {
   };
 };
 
+// Alias for validate function
+export const validateRequest = validate;
+
 // Common validation schemas
 export const commonSchemas = {
   // ObjectId validation

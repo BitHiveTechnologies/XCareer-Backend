@@ -1,0 +1,202 @@
+# NotifyX Backend - Job Notification Platform
+
+## Overview
+NotifyX is a comprehensive job notification platform backend that intelligently matches users with relevant job opportunities and delivers automated notifications. The system provides user management, subscription processing, job matching algorithms, and automated notification delivery through a robust, scalable backend built with Node.js, Express, TypeScript, and MongoDB.
+
+## Core Features
+
+### 1. User Management System
+- Complete user registration and authentication using JWT tokens
+- User profile management with detailed information storage
+- Clerk integration for advanced authentication features
+- Password hashing with bcrypt for security
+- User role management (regular users, admins)
+
+### 2. Subscription & Payment System
+- Razorpay payment integration for subscription processing
+- Multiple subscription tiers and pricing models
+- Subscription lifecycle management (active, expired, cancelled)
+- Automated billing and renewal processing
+- Payment history and transaction tracking
+
+### 3. Job Management & Matching
+- Job posting and management system
+- Intelligent job matching algorithm based on user preferences
+- Job application tracking and management
+- Job notification system for relevant opportunities
+- Advanced filtering and search capabilities
+
+### 4. Email Notification System
+- Automated email notifications for job matches
+- Email templates using Handlebars
+- Queue-based email processing with Bull
+- SMTP integration with NodeMailer
+- Email delivery tracking and status monitoring
+
+### 5. Admin Dashboard
+- Comprehensive admin panel with analytics
+- User management and monitoring
+- Job posting management
+- Subscription and payment oversight
+- System audit logs and reporting
+
+### 6. Security & Performance
+- JWT authentication with secure token management
+- Rate limiting to prevent abuse
+- Input validation using Joi schemas
+- Security headers with Helmet.js
+- CORS configuration for cross-origin requests
+- Database connection pooling and optimization
+
+## User Experience
+
+### User Personas
+- **Job Seekers**: Users looking for job opportunities who want personalized notifications
+- **Admins**: Platform administrators managing users, jobs, and system operations
+- **System**: Automated processes for matching and notifications
+
+### Key User Flows
+1. **User Registration & Onboarding**: Sign up → Profile creation → Subscription selection
+2. **Job Discovery**: Browse jobs → Apply filters → Receive notifications
+3. **Subscription Management**: Choose plan → Payment → Manage subscription
+4. **Admin Operations**: Monitor users → Manage jobs → View analytics
+
+## Technical Architecture
+
+### System Components
+- **Express.js Server**: RESTful API with TypeScript
+- **MongoDB Database**: NoSQL database with Mongoose ODM
+- **Authentication Layer**: JWT + Clerk integration
+- **Payment Processing**: Razorpay API integration
+- **Email Service**: NodeMailer with SMTP
+- **Job Queue**: Bull for background processing
+- **Security Middleware**: Helmet, CORS, rate limiting
+
+### Data Models
+- **User**: Basic user information and authentication
+- **UserProfile**: Extended user profile with preferences
+- **Job**: Job postings with detailed information
+- **JobApplication**: User applications to jobs
+- **Subscription**: User subscription plans and status
+- **JobNotification**: Notification records and delivery status
+- **Admin**: Admin user management
+
+### APIs and Integrations
+- **Razorpay API**: Payment processing and subscription management
+- **Clerk API**: Advanced authentication and user management
+- **SMTP Service**: Email delivery
+- **MongoDB**: Data persistence and querying
+
+### Infrastructure Requirements
+- Node.js runtime environment
+- MongoDB database server
+- SMTP email service
+- Razorpay account for payments
+- Clerk account for authentication
+
+## Development Roadmap
+
+### Phase 1: Core Foundation (MVP)
+- Basic Express.js server setup with TypeScript
+- MongoDB connection and basic models
+- JWT authentication system
+- Basic user registration and login
+- Simple job posting and retrieval
+- Basic email notification system
+
+### Phase 2: Enhanced Features
+- Clerk authentication integration
+- Razorpay payment integration
+- Advanced job matching algorithm
+- Subscription management system
+- Admin dashboard functionality
+- Email queue system with Bull
+
+### Phase 3: Advanced Features
+- Advanced job filtering and search
+- Comprehensive admin analytics
+- Email template system
+- Audit logging system
+- Performance optimizations
+- Security enhancements
+
+### Phase 4: Production Readiness
+- Comprehensive testing suite
+- Docker containerization
+- CI/CD pipeline setup
+- Production monitoring
+- Documentation completion
+- Performance tuning
+
+## Logical Dependency Chain
+
+### Foundation Layer (Build First)
+1. Database models and schemas
+2. Basic Express server setup
+3. Authentication middleware
+4. Error handling and logging
+
+### Core Functionality (Build Upon Foundation)
+1. User management system
+2. Job management system
+3. Basic notification system
+4. Payment integration
+
+### Advanced Features (Build Upon Core)
+1. Job matching algorithm
+2. Admin dashboard
+3. Email queue system
+4. Analytics and reporting
+
+### Production Features (Final Layer)
+1. Security hardening
+2. Performance optimization
+3. Monitoring and alerting
+4. Documentation and testing
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **Database Performance**: Implement proper indexing and query optimization
+- **Email Delivery**: Use reliable SMTP service and implement retry mechanisms
+- **Payment Security**: Follow Razorpay security best practices
+- **Scalability**: Design for horizontal scaling with proper architecture
+
+### MVP Scope Management
+- Focus on core job matching and notification features first
+- Implement basic payment processing before advanced features
+- Ensure admin functionality is sufficient for initial launch
+- Prioritize user experience over complex features
+
+### Resource Constraints
+- Use existing libraries and services (Razorpay, Clerk) to reduce development time
+- Implement proper error handling to reduce debugging time
+- Focus on TypeScript for better code maintainability
+- Use established patterns and best practices
+
+## Appendix
+
+### Current Implementation Status
+- ✅ Express.js server with TypeScript
+- ✅ MongoDB connection and models
+- ✅ JWT authentication system
+- ✅ Clerk integration
+- ✅ Razorpay payment integration
+- ✅ Email notification system
+- ✅ Admin dashboard functionality
+- ✅ Job matching algorithm
+- ✅ Security middleware
+- ✅ API documentation
+
+### Technical Specifications
+- **Runtime**: Node.js v18+
+- **Framework**: Express.js v5.1.0
+- **Database**: MongoDB v5+ with Mongoose v8.18.0
+- **Authentication**: JWT + Clerk
+- **Payments**: Razorpay v2.9.6
+- **Email**: NodeMailer v7.0.5
+- **Queue**: Bull v4.16.5
+- **Validation**: Joi v18.0.1
+- **Security**: Helmet v8.1.0
+
+

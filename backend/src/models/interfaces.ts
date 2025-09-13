@@ -82,6 +82,15 @@ export interface IAdmin extends BaseDocument {
   role: 'super_admin' | 'admin';
   permissions: string[];
   isActive: boolean;
+  
+  // Instance methods
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  hasPermission(permission: string): boolean;
+  hasAnyPermission(permissions: string[]): boolean;
+  hasAllPermissions(permissions: string[]): boolean;
+  addPermission(permission: string): boolean;
+  removePermission(permission: string): boolean;
+  getRoleDisplay(): string;
 }
 
 // Subscription interface
