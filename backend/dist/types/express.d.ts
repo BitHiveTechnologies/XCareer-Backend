@@ -2,7 +2,13 @@ import { Request } from 'express';
 export interface CustomRequest extends Request {
     user?: {
         id: string;
-        role: string;
+        email: string;
+        firstName?: string;
+        lastName?: string;
+        role: 'user' | 'admin' | 'super_admin';
+        type: 'user' | 'admin';
+        clerkUserId?: string;
+        metadata?: any;
     };
 }
 export interface AuthenticatedRequest extends Request {
@@ -33,8 +39,12 @@ export interface AuthRequest extends Request {
     user: {
         id: string;
         email: string;
-        role?: 'user' | 'admin' | 'super_admin';
+        firstName?: string;
+        lastName?: string;
+        role: 'user' | 'admin' | 'super_admin';
         type: 'user' | 'admin';
+        clerkUserId?: string;
+        metadata?: any;
     };
 }
 export interface ClerkAuthRequest extends Request {

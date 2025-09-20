@@ -22,15 +22,15 @@ const sendWelcomeEmail = async (req, res) => {
             });
             return;
         }
-        // Add email job to queue
+        // Add email job to queue (now processes immediately)
         const job = await emailQueue_1.emailQueueService.addEmailJob({
             to: email,
             subject: 'Welcome to NotifyX!',
             template: 'welcome',
             context: { name }
         });
-        if (job) {
-            logger_1.logger.info('Welcome email queued successfully', {
+        if (job && job.status === 'sent') {
+            logger_1.logger.info('Welcome email sent successfully', {
                 jobId: job.id,
                 email,
                 name
@@ -38,8 +38,9 @@ const sendWelcomeEmail = async (req, res) => {
             res.status(200).json({
                 success: true,
                 data: {
-                    message: 'Welcome email queued successfully',
-                    jobId: job.id
+                    message: 'Welcome email sent successfully',
+                    jobId: job.id,
+                    status: job.status
                 },
                 timestamp: new Date().toISOString()
             });
@@ -48,7 +49,7 @@ const sendWelcomeEmail = async (req, res) => {
             res.status(500).json({
                 success: false,
                 error: {
-                    message: 'Failed to queue welcome email'
+                    message: 'Failed to send welcome email'
                 },
                 timestamp: new Date().toISOString()
             });
@@ -100,7 +101,7 @@ const sendJobAlertEmail = async (req, res) => {
             });
             return;
         }
-        // Add email job to queue
+        // Add email job to queue (now processes immediately)
         const emailJob = await emailQueue_1.emailQueueService.addEmailJob({
             to: user.email,
             subject: `New Job Opportunity: ${job.title}`,
@@ -114,8 +115,8 @@ const sendJobAlertEmail = async (req, res) => {
                 applicationLink: job.applicationLink
             }
         });
-        if (emailJob) {
-            logger_1.logger.info('Job alert email queued successfully', {
+        if (emailJob && emailJob.status === 'sent') {
+            logger_1.logger.info('Job alert email sent successfully', {
                 emailJobId: emailJob.id,
                 userId: user._id,
                 jobId: job._id,
@@ -124,8 +125,9 @@ const sendJobAlertEmail = async (req, res) => {
             res.status(200).json({
                 success: true,
                 data: {
-                    message: 'Job alert email queued successfully',
-                    jobId: emailJob.id
+                    message: 'Job alert email sent successfully',
+                    jobId: emailJob.id,
+                    status: emailJob.status
                 },
                 timestamp: new Date().toISOString()
             });
@@ -134,7 +136,7 @@ const sendJobAlertEmail = async (req, res) => {
             res.status(500).json({
                 success: false,
                 error: {
-                    message: 'Failed to queue job alert email'
+                    message: 'Failed to send job alert email'
                 },
                 timestamp: new Date().toISOString()
             });

@@ -7,8 +7,8 @@ interface AuthenticatedRequest extends Request {
         lastName?: string;
         role: 'user' | 'admin' | 'super_admin';
         type: 'user' | 'admin';
-        clerkUserId: string;
-        metadata?: Record<string, any>;
+        clerkUserId?: string;
+        metadata?: any;
     };
 }
 /**

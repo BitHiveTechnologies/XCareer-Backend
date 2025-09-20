@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAdvancedJobMatching = exports.getMatchingStats = exports.getJobRecommendationsForUser = exports.getMatchingUsers = exports.getMatchingJobs = void 0;
 const logger_1 = require("../../utils/logger");
+const User_1 = require("../../models/User");
 const jobMatchingService_1 = require("../../utils/jobMatchingService");
 /**
  * Get matching jobs for a user
@@ -112,7 +113,7 @@ exports.getMatchingUsers = getMatchingUsers;
 const getJobRecommendationsForUser = async (req, res) => {
     try {
         const userId = req.user?.id;
-        const { preferredJobTypes, preferredLocations, minMatchScore = 40, maxResults = 15 } = req.body;
+        const { preferredJobTypes, preferredLocations, minMatchScore = 40, maxResults = 15 } = req.method === 'GET' ? req.query : req.body;
         if (!userId) {
             res.status(401).json({
                 success: false,
@@ -123,7 +124,19 @@ const getJobRecommendationsForUser = async (req, res) => {
             });
             return;
         }
-        const recommendations = await (0, jobMatchingService_1.getJobRecommendations)(userId, {
+        // Find user by email (JWT provides email)
+        const user = await User_1.User.findOne({ email: req.user?.email });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    message: 'User not found'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        const recommendations = await (0, jobMatchingService_1.getJobRecommendations)(user._id.toString(), {
             preferredJobTypes: preferredJobTypes || ['job', 'internship'],
             preferredLocations: preferredLocations || ['remote', 'onsite', 'hybrid'],
             minMatchScore: parseInt(minMatchScore) || 40,

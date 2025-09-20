@@ -9,10 +9,10 @@ declare global {
         email: string;
         firstName?: string;
         lastName?: string;
-        role?: 'user' | 'admin' | 'super_admin';
+        role: 'user' | 'admin' | 'super_admin';
         type: 'user' | 'admin';
         clerkUserId?: string;
-        metadata?: Record<string, any>;
+        metadata?: any;
       };
     }
   }

@@ -21,9 +21,21 @@ const getCurrentSubscription = async (req, res) => {
             });
             return;
         }
+        // Find user by email (JWT provides email)
+        const user = await User_1.User.findOne({ email: req.user?.email });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    message: 'User not found'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
         // Get current active subscription
         const subscription = await Subscription_1.Subscription.findOne({
-            userId,
+            userId: user._id,
             status: 'completed'
         }).sort({ endDate: -1 });
         if (!subscription) {

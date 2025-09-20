@@ -10,8 +10,12 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role?: 'user' | 'admin' | 'super_admin';
+    firstName?: string;
+    lastName?: string;
+    role: 'user' | 'admin' | 'super_admin';
     type: 'user' | 'admin';
+    clerkUserId?: string;
+    metadata?: any;
   };
 }
 

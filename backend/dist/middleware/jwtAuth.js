@@ -23,9 +23,7 @@ const generateToken = (user) => {
         metadata: user.metadata
     };
     return jsonwebtoken_1.default.sign(payload, JWT_SECRET, {
-        expiresIn: JWT_EXPIRES_IN,
-        issuer: 'notifyx-api',
-        audience: 'notifyx-users'
+        expiresIn: JWT_EXPIRES_IN
     });
 };
 exports.generateToken = generateToken;

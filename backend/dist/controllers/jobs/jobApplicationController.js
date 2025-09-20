@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getApplicationStats = exports.withdrawApplication = exports.updateApplicationStatus = exports.getJobApplications = exports.getUserApplications = exports.applyForJob = void 0;
 const JobApplication_1 = require("../../models/JobApplication");
 const Job_1 = require("../../models/Job");
+const User_1 = require("../../models/User");
 const logger_1 = require("../../utils/logger");
 const subscriptionService_1 = require("../../utils/subscriptionService");
 /**
@@ -148,11 +149,23 @@ const getUserApplications = async (req, res) => {
             });
             return;
         }
+        // Find user by email (JWT provides email)
+        const user = await User_1.User.findOne({ email: req.user?.email });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    message: 'User not found'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 10;
         const skip = (pageNum - 1) * limitNum;
         // Build query
-        const query = { userId };
+        const query = { userId: user._id };
         if (status) {
             query.status = status;
         }

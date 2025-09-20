@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const validation_1 = require("../../middleware/validation");
-const auth_1 = require("../../middleware/auth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const jobApplicationController_1 = require("../../controllers/jobs/jobApplicationController");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
 // Apply for a job (requires authentication)
-router.post('/:jobId/apply', auth_1.authenticate, (0, validation_1.validate)({
+router.post('/:jobId/apply', jwtAuth_1.authenticate, (0, validation_1.validate)({
     params: validation_2.commonSchemas.object({
         jobId: validation_2.commonSchemas.objectId.required()
     }),
@@ -20,7 +20,7 @@ router.post('/:jobId/apply', auth_1.authenticate, (0, validation_1.validate)({
     })
 }), jobApplicationController_1.applyForJob);
 // Get user's applications (requires authentication)
-router.get('/my-applications', auth_1.authenticate, (0, validation_1.validate)({
+router.get('/my-applications', jwtAuth_1.authenticate, (0, validation_1.validate)({
     query: validation_2.commonSchemas.object({
         page: validation_2.commonSchemas.pagination.page.optional(),
         limit: validation_2.commonSchemas.pagination.limit.optional(),
@@ -28,13 +28,13 @@ router.get('/my-applications', auth_1.authenticate, (0, validation_1.validate)({
     })
 }), jobApplicationController_1.getUserApplications);
 // Withdraw application (requires authentication)
-router.patch('/:applicationId/withdraw', auth_1.authenticate, (0, validation_1.validate)({
+router.patch('/:applicationId/withdraw', jwtAuth_1.authenticate, (0, validation_1.validate)({
     params: validation_2.commonSchemas.object({
         applicationId: validation_2.commonSchemas.objectId.required()
     })
 }), jobApplicationController_1.withdrawApplication);
 // Admin-only routes
-router.use(auth_1.requireAdmin);
+router.use(jwtAuth_1.requireAdmin);
 // Get applications for a specific job
 router.get('/job/:jobId/applications', (0, validation_1.validate)({
     params: validation_2.commonSchemas.object({

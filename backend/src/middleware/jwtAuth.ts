@@ -45,10 +45,8 @@ export const generateToken = (user: {
     metadata: user.metadata
   };
 
-  return jwt.sign(payload, JWT_SECRET as jwt.Secret, {
-    expiresIn: JWT_EXPIRES_IN,
-    issuer: 'notifyx-api',
-    audience: 'notifyx-users'
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN as any
   });
 };
 

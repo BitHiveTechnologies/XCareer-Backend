@@ -179,7 +179,8 @@ const getJobRecommendations = async (userId, preferences = {}) => {
         const { preferredJobTypes = ['job', 'internship'], preferredLocations = ['remote', 'onsite', 'hybrid'], minMatchScore = 40, maxResults = 15 } = preferences;
         const userProfile = await UserProfile_1.UserProfile.findOne({ userId });
         if (!userProfile) {
-            throw new Error('User profile not found');
+            // Return empty recommendations if no user profile exists
+            return [];
         }
         const jobs = await Job_1.Job.find({
             isActive: true,

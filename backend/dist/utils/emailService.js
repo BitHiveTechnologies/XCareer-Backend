@@ -87,18 +87,10 @@ class EmailService {
     }
     initializeTransporter() {
         try {
-            if (environment_1.config.NODE_ENV === 'production') {
-                this.transporter = (0, nodemailer_1.createTransport)({
-                    host: environment_1.config.EMAIL_HOST,
-                    port: environment_1.config.EMAIL_PORT,
-                    secure: environment_1.config.EMAIL_PORT === 465,
-                    auth: {
-                        user: environment_1.config.EMAIL_USER,
-                        pass: environment_1.config.EMAIL_PASS
-                    }
-                });
-            }
-            else {
+            // Check if email configuration is provided
+            if (!environment_1.config.EMAIL_HOST || !environment_1.config.EMAIL_PORT || !environment_1.config.EMAIL_USER || !environment_1.config.EMAIL_PASS) {
+                logger_1.logger.warn('Email configuration incomplete, using test mode');
+                // Use Ethereal for testing when credentials are not configured
                 this.transporter = (0, nodemailer_1.createTransport)({
                     host: 'smtp.ethereal.email',
                     port: 587,
@@ -108,9 +100,26 @@ class EmailService {
                         pass: 'test123'
                     }
                 });
+                logger_1.logger.info('Email transporter initialized in test mode (Ethereal)');
+            }
+            else {
+                // Use configured SMTP settings
+                this.transporter = (0, nodemailer_1.createTransport)({
+                    host: environment_1.config.EMAIL_HOST,
+                    port: parseInt(environment_1.config.EMAIL_PORT.toString()),
+                    secure: parseInt(environment_1.config.EMAIL_PORT.toString()) === 465,
+                    auth: {
+                        user: environment_1.config.EMAIL_USER,
+                        pass: environment_1.config.EMAIL_PASS
+                    }
+                });
+                logger_1.logger.info('Email transporter initialized with configured SMTP settings', {
+                    host: environment_1.config.EMAIL_HOST,
+                    port: environment_1.config.EMAIL_PORT,
+                    user: environment_1.config.EMAIL_USER
+                });
             }
             this.isInitialized = true;
-            logger_1.logger.info('Email transporter initialized successfully');
         }
         catch (error) {
             logger_1.logger.error('Failed to initialize email transporter', {

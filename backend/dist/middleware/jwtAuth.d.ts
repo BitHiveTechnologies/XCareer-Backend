@@ -5,10 +5,11 @@ declare global {
             user?: {
                 id: string;
                 email: string;
-                firstName: string;
-                lastName: string;
+                firstName?: string;
+                lastName?: string;
                 role: 'user' | 'admin' | 'super_admin';
                 type: 'user' | 'admin';
+                clerkUserId?: string;
                 metadata?: any;
             };
         }
