@@ -1,6 +1,6 @@
 import express from 'express';
 import { validate } from '../../middleware/validation';
-import { authenticate } from '../../middleware/auth';
+import { authenticate } from '../../middleware/jwtAuth';
 import {
   createOrder,
   verifyPayment,

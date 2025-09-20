@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Clerk Token</title>
+    <script 
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_YnVzeS1tdXNrb3gtMTguY2xlcmsuYWNjb3VudHMuZGV2JA"
+        src="https://busy-muskox-18.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+        type="text/javascript">
+    </script>
+</head>
+<body>
+    <div id="app">
+        <h1>Get Your Clerk Token</h1>
+        <div id="sign-in"></div>
+        <div id="user-button"></div>
+        <div id="token-display"></div>
+    </div>
+
+    <script>
+    window.addEventListener('load', async () => {
+        await Clerk.load({
+            appearance: {
+                variables: {
+                    colorPrimary: '#1976d2'
+                }
+            }
+        });
+            
+            if (Clerk.user) {
+                showToken();
+            } else {
+                // Mount sign-in component
+                document.getElementById('sign-in').innerHTML = '<div id="clerk-sign-in"></div>';
+                await Clerk.mountSignIn(document.getElementById('clerk-sign-in'));
+            }
+            
+            // Listen for authentication changes
+            Clerk.addListener(({ user }) => {
+                if (user) {
+                    showToken();
+                }
+            });
+        });
+        
+        async function showToken() {
+            const token = await Clerk.session.getToken();
+            const user = Clerk.user;
+            
+            // Decode token to show expiration info
+            const tokenParts = token.split('.');
+            let expirationInfo = '';
+            try {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                const exp = new Date(payload.exp * 1000);
+                const now = new Date();
+                const timeLeft = Math.floor((exp - now) / 1000 / 60);
+                const timeLeftSeconds = Math.floor((exp - now) / 1000);
+                expirationInfo = `<p><strong>⏰ Token expires in: ${timeLeft} minutes (${timeLeftSeconds} seconds)</strong></p>`;
+                
+                if (timeLeftSeconds < 120) {
+                    expirationInfo += `<p style="color: red;"><strong>⚠️ WARNING: Token expires very soon!</strong></p>`;
+                }
+            } catch (e) {
+                expirationInfo = '<p><em>Could not decode token expiration</em></p>';
+            }
+            
+            document.getElementById('sign-in').style.display = 'none';
+            document.getElementById('token-display').innerHTML = `
+                <h2>✅ Success! Here's your Clerk token:</h2>
+                <p><strong>User:</strong> ${user.emailAddresses[0].emailAddress}</p>
+                ${expirationInfo}
+                <p><em>Click refresh button to get new token when needed</em></p>
+                <textarea id="token-textarea" readonly style="width: 100%; height: 150px; font-family: monospace;">${token}</textarea>
+                <br><br>
+                <h3>🧪 Test with curl:</h3>
+                <textarea id="curl-textarea" readonly style="width: 100%; height: 100px; font-family: monospace;">curl -X GET http://localhost:3000/api/v1/clerk-auth/me \\
+  -H "Authorization: Bearer ${token}" \\
+  -H "Content-Type: application/json"</textarea>
+                <br><br>
+                <button onclick="refreshToken()">🔄 Refresh Token</button>
+                <button onclick="Clerk.signOut()">Sign Out</button>
+            `;
+            
+            // Manual refresh only - no auto-refresh to prevent token expiration
+            console.log('Token generated. Use the refresh button to get a new token when needed.');
+        }
+        
+        async function refreshToken() {
+            try {
+                const newToken = await Clerk.session.getToken();
+                document.getElementById('token-textarea').value = newToken;
+                document.getElementById('curl-textarea').value = `curl -X GET http://localhost:3000/api/v1/clerk-auth/me \\
+  -H "Authorization: Bearer ${newToken}" \\
+  -H "Content-Type: application/json"`;
+                
+                // Show expiration info for new token
+                const tokenParts = newToken.split('.');
+                try {
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    const exp = new Date(payload.exp * 1000);
+                    const now = new Date();
+                    const timeLeft = Math.floor((exp - now) / 1000 / 60);
+                    const timeLeftSeconds = Math.floor((exp - now) / 1000);
+                    alert(`Token refreshed successfully!\nExpires in: ${timeLeft} minutes (${timeLeftSeconds} seconds)`);
+                } catch (e) {
+                    alert('Token refreshed successfully!');
+                }
+            } catch (error) {
+                alert('Failed to refresh token: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

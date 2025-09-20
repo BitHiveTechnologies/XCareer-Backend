@@ -8,7 +8,13 @@ exports.clerkConfig = {
     jwtKey: environment_1.config.CLERK_JWT_KEY,
     webhookSecret: environment_1.config.CLERK_WEBHOOK_SECRET,
     apiUrl: environment_1.config.CLERK_API_URL || 'https://api.clerk.com',
-    frontendApi: environment_1.config.CLERK_FRONTEND_API || 'https://clerk.your-domain.com'
+    frontendApi: environment_1.config.CLERK_FRONTEND_API || 'https://clerk.your-domain.com',
+    // Session configuration for longer token lifespan
+    sessionTokenTemplate: {
+        name: 'default',
+        lifetimeInSeconds: 3600, // 1 hour
+        audience: ['http://localhost:8080', 'http://localhost:3000']
+    }
 };
 exports.clerkWebhookEvents = {
     USER_CREATED: 'user.created',

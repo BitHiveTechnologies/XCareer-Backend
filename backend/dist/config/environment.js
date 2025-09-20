@@ -20,8 +20,9 @@ exports.config = {
     CLERK_WEBHOOK_SECRET: process.env['CLERK_WEBHOOK_SECRET'] || '',
     CLERK_API_URL: process.env['CLERK_API_URL'] || 'https://api.clerk.com',
     CLERK_FRONTEND_API: process.env['CLERK_FRONTEND_API'] || '',
-    // JWT configuration (legacy - will be removed after Clerk migration)
+    // JWT configuration (core authentication)
     JWT_SECRET: process.env['JWT_SECRET'] || 'your-super-secret-jwt-key-change-in-production',
+    JWT_EXPIRES_IN: process.env['JWT_EXPIRES_IN'] || '24h', // 24 hours for testing
     JWT_EXPIRE: process.env['JWT_EXPIRE'] || '7d',
     JWT_REFRESH_EXPIRE: process.env['JWT_REFRESH_EXPIRE'] || '30d',
     // Frontend URL for CORS

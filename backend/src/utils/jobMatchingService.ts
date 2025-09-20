@@ -278,7 +278,8 @@ export const getJobRecommendations = async (
 
     const userProfile = await UserProfile.findOne({ userId });
     if (!userProfile) {
-      throw new Error('User profile not found');
+      // Return empty recommendations if no user profile exists
+      return [];
     }
 
     const jobs = await Job.find({

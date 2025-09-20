@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { logger } from '../../utils/logger';
+import { User } from '../../models/User';
 import {
   findMatchingJobsForUser,
   findMatchingUsersForJob,
@@ -130,7 +131,7 @@ export const getJobRecommendationsForUser = async (req: Request, res: Response):
       preferredLocations,
       minMatchScore = 40,
       maxResults = 15
-    } = req.body;
+    } = req.method === 'GET' ? req.query : req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -143,7 +144,20 @@ export const getJobRecommendationsForUser = async (req: Request, res: Response):
       return;
     }
 
-    const recommendations = await getJobRecommendations(userId, {
+    // Find user by email (JWT provides email)
+    const user = await User.findOne({ email: req.user?.email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const recommendations = await getJobRecommendations(user._id.toString(), {
       preferredJobTypes: preferredJobTypes || ['job', 'internship'],
       preferredLocations: preferredLocations || ['remote', 'onsite', 'hybrid'],
       minMatchScore: parseInt(minMatchScore as string) || 40,

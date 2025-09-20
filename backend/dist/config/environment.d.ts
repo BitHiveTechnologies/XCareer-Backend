@@ -9,6 +9,7 @@ export declare const config: {
     CLERK_API_URL: string;
     CLERK_FRONTEND_API: string;
     JWT_SECRET: string;
+    JWT_EXPIRES_IN: string;
     JWT_EXPIRE: string;
     JWT_REFRESH_EXPIRE: string;
     FRONTEND_URL: string;

@@ -162,12 +162,25 @@ export const getUserApplications = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Find user by email (JWT provides email)
+    const user = await User.findOne({ email: req.user?.email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     // Build query
-    const query: any = { userId };
+    const query: any = { userId: user._id };
     if (status) {
       query.status = status;
     }

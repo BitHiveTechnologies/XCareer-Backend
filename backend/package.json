@@ -19,7 +19,10 @@
     "test:admin:users": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testUserManagement())\"",
     "test:admin:jobs": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testJobManagement())\"",
     "test:admin:subscriptions": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testSubscriptionManagement())\"",
-    "test:admin:audit": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testAuditLogs())\""
+    "test:admin:audit": "ts-node -e \"import('./scripts/testAdminFunctionality.ts').then(m => m.testAuditLogs())\"",
+    "test:comprehensive": "ts-node scripts/comprehensiveApiTest.ts",
+    "test:setup": "ts-node scripts/setupTestEnvironment.ts",
+    "fix:indexes": "ts-node scripts/fixIndexes.ts"
   },
   "keywords": [
     "notifyx",

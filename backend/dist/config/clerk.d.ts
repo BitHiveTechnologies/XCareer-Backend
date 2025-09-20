@@ -5,6 +5,11 @@ export declare const clerkConfig: {
     webhookSecret: string;
     apiUrl: string;
     frontendApi: string;
+    sessionTokenTemplate: {
+        name: string;
+        lifetimeInSeconds: number;
+        audience: string[];
+    };
 };
 export declare const clerkWebhookEvents: {
     USER_CREATED: string;

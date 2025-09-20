@@ -5,14 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const validation_1 = require("../../middleware/validation");
-const auth_1 = require("../../middleware/auth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const paymentController_1 = require("../../controllers/payments/paymentController");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
 // Webhook endpoint (no authentication required)
 router.post('/webhook', paymentController_1.handleWebhook);
 // Apply authentication to all other payment routes
-router.use(auth_1.authenticate);
+router.use(jwtAuth_1.authenticate);
 // Create payment order
 router.post('/create-order', (0, validation_1.validate)({
     body: validation_2.commonSchemas.object({

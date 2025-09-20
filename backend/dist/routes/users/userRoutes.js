@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const validation_1 = require("../../middleware/validation");
-const clerkAuth_1 = require("../../middleware/clerkAuth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const userController_1 = require("../../controllers/users/userController");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
 // Apply authentication to all user routes
-router.use(clerkAuth_1.authenticate);
+router.use(jwtAuth_1.authenticate);
 // Current user operations (user can access their own profile)
 router.get('/me', userController_1.getCurrentUserProfile);
 router.get('/me/completion', userController_1.getProfileCompletionStatus);
@@ -66,7 +66,7 @@ router.put('/profile/:userId', (0, validation_1.validate)({
     })
 }), userController_1.updateUserProfile);
 // Admin-only routes
-router.use(clerkAuth_1.requireAdmin);
+router.use(jwtAuth_1.requireAdmin);
 // Get all users with pagination and filters
 router.get('/', (0, validation_1.validate)({
     query: validation_2.commonSchemas.object({

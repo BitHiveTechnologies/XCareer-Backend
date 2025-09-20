@@ -6,6 +6,7 @@ export interface ValidationSchema {
     params?: Joi.ObjectSchema;
 }
 export declare const validate: (schema: ValidationSchema) => (req: Request, res: Response, next: NextFunction) => void;
+export declare const validateRequest: (schema: ValidationSchema) => (req: Request, res: Response, next: NextFunction) => void;
 export declare const commonSchemas: {
     objectId: Joi.StringSchema<string>;
     email: Joi.StringSchema<string>;

@@ -7,7 +7,7 @@ import {
   getMatchingStats,
   getAdvancedJobMatching
 } from '../../controllers/jobs/jobMatchingController';
-import { authenticate, requireAdmin } from '../../middleware/auth';
+import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 import { validate } from '../../middleware/validation';
 import { commonSchemas } from '../../middleware/validation';
 
@@ -36,8 +36,18 @@ router.get('/jobs/:jobId/users',
 );
 
 /**
+ * @route   GET /api/v1/matching/recommendations
+ * @desc    Get personalized job recommendations for user (simple)
+ * @access  Private
+ */
+router.get('/recommendations',
+  authenticate,
+  getJobRecommendationsForUser
+);
+
+/**
  * @route   POST /api/v1/matching/recommendations
- * @desc    Get personalized job recommendations for user
+ * @desc    Get personalized job recommendations for user (with filters)
  * @access  Private
  */
 router.post('/recommendations',
@@ -51,6 +61,16 @@ router.post('/recommendations',
     })
   }),
   getJobRecommendationsForUser
+);
+
+/**
+ * @route   GET /api/v1/matching/analytics
+ * @desc    Get job matching analytics for user
+ * @access  Private
+ */
+router.get('/analytics',
+  authenticate,
+  getMatchingStats
 );
 
 /**

@@ -5,7 +5,7 @@ import {
   getJobAnalytics, 
   getSystemHealth 
 } from '../../controllers/admin/adminController';
-import { authenticate, requireAdmin } from '../../middleware/clerkAuth';
+import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 
 const router = Router();
 

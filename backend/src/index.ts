@@ -35,7 +35,7 @@ app.get('/health', (_req, res) => {
 
 // API routes
 import routes from './routes';
-app.use('/', routes);
+app.use('/api', routes);
 
 // Error handling middleware
 app.use(notFound);

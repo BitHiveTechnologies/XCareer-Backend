@@ -26,9 +26,22 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
       return;
     }
 
+    // Find user by email (JWT provides email)
+    const user = await User.findOne({ email: req.user?.email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     // Get current active subscription
     const subscription = await Subscription.findOne({ 
-      userId, 
+      userId: user._id, 
       status: 'completed' 
     }).sort({ endDate: -1 });
 

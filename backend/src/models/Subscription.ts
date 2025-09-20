@@ -51,10 +51,14 @@ const subscriptionSchema = new Schema<ISubscription>({
     type: Date,
     required: [true, 'Start date is required'],
     validate: {
-      validator: function(value: Date) {
+      validator: function(this: ISubscription, value: Date) {
+        // Allow past dates for expired subscriptions
+        if (this.status === 'expired') {
+          return true;
+        }
         return value >= new Date();
       },
-      message: 'Start date must be today or in the future'
+      message: 'Start date must be today or in the future (except for expired subscriptions)'
     }
   },
   endDate: {
@@ -99,7 +103,8 @@ subscriptionSchema.pre('save', function(next) {
     return next(new Error('End date must be after start date'));
   }
   
-  if (this.startDate < new Date()) {
+  // Allow past dates for expired subscriptions
+  if (this.startDate < new Date() && this.status !== 'expired') {
     return next(new Error('Start date must be today or in the future'));
   }
   

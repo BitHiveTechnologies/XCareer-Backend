@@ -12,7 +12,10 @@ const jobApplicationRoutes_1 = __importDefault(require("./jobs/jobApplicationRou
 const jobMatchingRoutes_1 = __importDefault(require("./jobs/jobMatchingRoutes"));
 const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
 const clerkAuthRoutes_1 = __importDefault(require("./auth/clerkAuthRoutes"));
+const jwtAuthRoutes_1 = __importDefault(require("./auth/jwtAuthRoutes"));
 const emailNotificationRoutes_1 = __importDefault(require("./notifications/emailNotificationRoutes"));
+const adminAuth_1 = __importDefault(require("./admin/adminAuth"));
+const adminRoutes_1 = __importDefault(require("./admin/adminRoutes"));
 const router = express_1.default.Router();
 // API version prefix
 const API_VERSION = '/v1';
@@ -21,6 +24,8 @@ const API_VERSION = '/v1';
 router.use(`${API_VERSION}/auth`, authRoutes_1.default);
 // Clerk authentication routes (new)
 router.use(`${API_VERSION}/clerk-auth`, clerkAuthRoutes_1.default);
+// JWT authentication routes (core)
+router.use(`${API_VERSION}/jwt-auth`, jwtAuthRoutes_1.default);
 // User management routes
 router.use(`${API_VERSION}/users`, userRoutes_1.default);
 // Payment routes
@@ -35,6 +40,10 @@ router.use(`${API_VERSION}/applications`, jobApplicationRoutes_1.default);
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes_1.default);
 // Email notification routes
 router.use(`${API_VERSION}/notifications`, emailNotificationRoutes_1.default);
+// Admin authentication routes (public)
+router.use(`${API_VERSION}/admin`, adminAuth_1.default);
+// Admin management routes (protected)
+router.use(`${API_VERSION}/admin`, adminRoutes_1.default);
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
     res.status(200).json({
@@ -43,13 +52,15 @@ router.get(`${API_VERSION}`, (_req, res) => {
         endpoints: {
             auth: `${API_VERSION}/auth`,
             clerkAuth: `${API_VERSION}/clerk-auth`,
+            jwtAuth: `${API_VERSION}/jwt-auth`,
             users: `${API_VERSION}/users`,
             payments: `${API_VERSION}/payments`,
             subscriptions: `${API_VERSION}/subscriptions`,
             jobs: `${API_VERSION}/jobs`,
             applications: `${API_VERSION}/applications`,
             matching: `${API_VERSION}/matching`,
-            notifications: `${API_VERSION}/notifications`
+            notifications: `${API_VERSION}/notifications`,
+            admin: `${API_VERSION}/admin`
         },
         timestamp: new Date().toISOString()
     });

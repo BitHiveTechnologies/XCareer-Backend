@@ -307,17 +307,30 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    // Find user by email (JWT provides email)
+    const user = await User.findOne({ email: req.user?.email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: {
+          message: 'User not found'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     // Get user's subscription history
-    const subscriptions = await Subscription.find({ userId })
+    const subscriptions = await Subscription.find({ userId: user._id })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
 
-    const total = await Subscription.countDocuments({ userId });
+    const total = await Subscription.countDocuments({ userId: user._id });
 
     res.status(200).json({
       success: true,

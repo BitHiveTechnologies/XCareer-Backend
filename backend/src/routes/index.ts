@@ -7,6 +7,7 @@ import jobApplicationRoutes from './jobs/jobApplicationRoutes';
 import jobMatchingRoutes from './jobs/jobMatchingRoutes';
 import authRoutes from './auth/authRoutes';
 import clerkAuthRoutes from './auth/clerkAuthRoutes';
+import jwtAuthRoutes from './auth/jwtAuthRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
 import adminAuthRoutes from './admin/adminAuth';
 import adminRoutes from './admin/adminRoutes';
@@ -23,6 +24,9 @@ router.use(`${API_VERSION}/auth`, authRoutes);
 
 // Clerk authentication routes (new)
 router.use(`${API_VERSION}/clerk-auth`, clerkAuthRoutes);
+
+// JWT authentication routes (core)
+router.use(`${API_VERSION}/jwt-auth`, jwtAuthRoutes);
 
 // User management routes
 router.use(`${API_VERSION}/users`, userRoutes);
@@ -59,6 +63,7 @@ router.get(`${API_VERSION}`, (_req, res) => {
     endpoints: {
       auth: `${API_VERSION}/auth`,
       clerkAuth: `${API_VERSION}/clerk-auth`,
+      jwtAuth: `${API_VERSION}/jwt-auth`,
       users: `${API_VERSION}/users`,
       payments: `${API_VERSION}/payments`,
       subscriptions: `${API_VERSION}/subscriptions`,

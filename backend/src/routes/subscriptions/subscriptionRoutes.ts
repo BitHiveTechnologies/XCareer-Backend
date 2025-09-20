@@ -1,6 +1,6 @@
 import express from 'express';
 import { validate } from '../../middleware/validation';
-import { authenticate, requireAdmin } from '../../middleware/auth';
+import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 import {
   getCurrentSubscription,
   getAvailablePlans,

@@ -6,7 +6,13 @@ export const clerkConfig = {
   jwtKey: config.CLERK_JWT_KEY,
   webhookSecret: config.CLERK_WEBHOOK_SECRET,
   apiUrl: config.CLERK_API_URL || 'https://api.clerk.com',
-  frontendApi: config.CLERK_FRONTEND_API || 'https://clerk.your-domain.com'
+  frontendApi: config.CLERK_FRONTEND_API || 'https://clerk.your-domain.com',
+  // Session configuration for longer token lifespan
+  sessionTokenTemplate: {
+    name: 'default',
+    lifetimeInSeconds: 3600, // 1 hour
+    audience: ['http://localhost:8080', 'http://localhost:3000']
+  }
 };
 
 export const clerkWebhookEvents = {

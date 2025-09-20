@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate, requireAdmin } from '../../middleware/clerkAuth';
+import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 import {
   sendWelcomeEmail,
   sendJobAlertEmail,

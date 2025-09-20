@@ -82,17 +82,10 @@ export class EmailService {
 
   private initializeTransporter(): void {
     try {
-      if (config.NODE_ENV === 'production') {
-        this.transporter = createTransport({
-          host: config.EMAIL_HOST,
-          port: config.EMAIL_PORT,
-          secure: config.EMAIL_PORT === 465,
-          auth: {
-            user: config.EMAIL_USER,
-            pass: config.EMAIL_PASS
-          }
-        });
-      } else {
+      // Check if email configuration is provided
+      if (!config.EMAIL_HOST || !config.EMAIL_PORT || !config.EMAIL_USER || !config.EMAIL_PASS) {
+        logger.warn('Email configuration incomplete, using test mode');
+        // Use Ethereal for testing when credentials are not configured
         this.transporter = createTransport({
           host: 'smtp.ethereal.email',
           port: 587,
@@ -102,9 +95,25 @@ export class EmailService {
             pass: 'test123'
           }
         });
+        logger.info('Email transporter initialized in test mode (Ethereal)');
+      } else {
+        // Use configured SMTP settings
+        this.transporter = createTransport({
+          host: config.EMAIL_HOST,
+          port: parseInt(config.EMAIL_PORT.toString()),
+          secure: parseInt(config.EMAIL_PORT.toString()) === 465,
+          auth: {
+            user: config.EMAIL_USER,
+            pass: config.EMAIL_PASS
+          }
+        });
+        logger.info('Email transporter initialized with configured SMTP settings', {
+          host: config.EMAIL_HOST,
+          port: config.EMAIL_PORT,
+          user: config.EMAIL_USER
+        });
       }
       this.isInitialized = true;
-      logger.info('Email transporter initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize email transporter', {
         error: error instanceof Error ? error.message : 'Unknown error'

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const joi_1 = __importDefault(require("joi"));
 const jobMatchingController_1 = require("../../controllers/jobs/jobMatchingController");
-const auth_1 = require("../../middleware/auth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const validation_1 = require("../../middleware/validation");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
@@ -15,19 +15,25 @@ const router = express_1.default.Router();
  * @desc    Get matching jobs for authenticated user
  * @access  Private
  */
-router.get('/jobs', auth_1.authenticate, jobMatchingController_1.getMatchingJobs);
+router.get('/jobs', jwtAuth_1.authenticate, jobMatchingController_1.getMatchingJobs);
 /**
  * @route   GET /api/v1/matching/jobs/:jobId/users
  * @desc    Get matching users for a specific job (admin only)
  * @access  Private (Admin)
  */
-router.get('/jobs/:jobId/users', auth_1.authenticate, auth_1.requireAdmin, (0, validation_1.validate)({ params: joi_1.default.object({ jobId: validation_2.commonSchemas.objectId }) }), jobMatchingController_1.getMatchingUsers);
+router.get('/jobs/:jobId/users', jwtAuth_1.authenticate, jwtAuth_1.requireAdmin, (0, validation_1.validate)({ params: joi_1.default.object({ jobId: validation_2.commonSchemas.objectId }) }), jobMatchingController_1.getMatchingUsers);
 /**
- * @route   POST /api/v1/matching/recommendations
- * @desc    Get personalized job recommendations for user
+ * @route   GET /api/v1/matching/recommendations
+ * @desc    Get personalized job recommendations for user (simple)
  * @access  Private
  */
-router.post('/recommendations', auth_1.authenticate, (0, validation_1.validate)({
+router.get('/recommendations', jwtAuth_1.authenticate, jobMatchingController_1.getJobRecommendationsForUser);
+/**
+ * @route   POST /api/v1/matching/recommendations
+ * @desc    Get personalized job recommendations for user (with filters)
+ * @access  Private
+ */
+router.post('/recommendations', jwtAuth_1.authenticate, (0, validation_1.validate)({
     body: joi_1.default.object({
         preferredJobTypes: validation_2.commonSchemas.array().items(validation_2.commonSchemas.string().valid('job', 'internship')),
         preferredLocations: validation_2.commonSchemas.array().items(validation_2.commonSchemas.string().valid('remote', 'onsite', 'hybrid')),
@@ -36,17 +42,23 @@ router.post('/recommendations', auth_1.authenticate, (0, validation_1.validate)(
     })
 }), jobMatchingController_1.getJobRecommendationsForUser);
 /**
+ * @route   GET /api/v1/matching/analytics
+ * @desc    Get job matching analytics for user
+ * @access  Private
+ */
+router.get('/analytics', jwtAuth_1.authenticate, jobMatchingController_1.getMatchingStats);
+/**
  * @route   GET /api/v1/matching/stats
  * @desc    Get job matching statistics (admin only)
  * @access  Private (Admin)
  */
-router.get('/stats', auth_1.authenticate, auth_1.requireAdmin, jobMatchingController_1.getMatchingStats);
+router.get('/stats', jwtAuth_1.authenticate, jwtAuth_1.requireAdmin, jobMatchingController_1.getMatchingStats);
 /**
  * @route   POST /api/v1/matching/advanced
  * @desc    Get advanced job matching with filters and sorting (admin only)
  * @access  Private (Admin)
  */
-router.post('/advanced', auth_1.authenticate, auth_1.requireAdmin, (0, validation_1.validate)({
+router.post('/advanced', jwtAuth_1.authenticate, jwtAuth_1.requireAdmin, (0, validation_1.validate)({
     body: joi_1.default.object({
         jobTypes: joi_1.default.array().items(joi_1.default.string().valid('job', 'internship')),
         locations: joi_1.default.array().items(joi_1.default.string().valid('remote', 'onsite', 'hybrid')),

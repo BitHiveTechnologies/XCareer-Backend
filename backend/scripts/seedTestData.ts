@@ -55,6 +55,7 @@ const sampleData = {
   users: [
     {
       email: 'john.doe@example.com',
+      password: 'JohnDoe123!',
       name: 'John Doe',
       mobile: '9876543210',
       role: 'user',
@@ -66,6 +67,7 @@ const sampleData = {
     },
     {
       email: 'jane.smith@example.com',
+      password: 'JaneSmith123!',
       name: 'Jane Smith',
       mobile: '9876543211',
       role: 'user',
@@ -77,6 +79,7 @@ const sampleData = {
     },
     {
       email: 'mike.wilson@example.com',
+      password: 'MikeWilson123!',
       name: 'Mike Wilson',
       mobile: '9876543212',
       role: 'user',
@@ -86,6 +89,7 @@ const sampleData = {
     },
     {
       email: 'sarah.johnson@example.com',
+      password: 'SarahJohnson123!',
       name: 'Sarah Johnson',
       mobile: '9876543213',
       role: 'user',
@@ -97,6 +101,7 @@ const sampleData = {
     },
     {
       email: 'alex.brown@example.com',
+      password: 'AlexBrown123!',
       name: 'Alex Brown',
       mobile: '9876543214',
       role: 'user',
@@ -111,72 +116,62 @@ const sampleData = {
     {
       firstName: 'John',
       lastName: 'Doe',
-      phone: '+919876543210',
+      email: 'john.doe@example.com',
+      contactNumber: '9876543210',
       dateOfBirth: new Date('1995-03-15'),
       qualification: 'B.Tech',
       stream: 'CSE',
       yearOfPassout: 2023,
       cgpaOrPercentage: 8.5,
-      collegeName: 'IIT Delhi',
-      skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'],
-      experience: '1 year',
-      location: 'Mumbai, Maharashtra'
+      collegeName: 'IIT Delhi'
     },
     {
       firstName: 'Jane',
       lastName: 'Smith',
-      phone: '+919876543211',
+      email: 'jane.smith@example.com',
+      contactNumber: '9876543211',
       dateOfBirth: new Date('1997-07-22'),
       qualification: 'M.Tech',
       stream: 'IT',
       yearOfPassout: 2024,
       cgpaOrPercentage: 9.2,
-      collegeName: 'BITS Pilani',
-      skills: ['Python', 'Machine Learning', 'Data Science'],
-      experience: 'Fresher',
-      location: 'Bangalore, Karnataka'
+      collegeName: 'BITS Pilani'
     },
     {
       firstName: 'Mike',
       lastName: 'Wilson',
-      phone: '+919876543212',
+      email: 'mike.wilson@example.com',
+      contactNumber: '9876543212',
       dateOfBirth: new Date('1994-11-08'),
       qualification: 'B.Tech',
       stream: 'ECE',
       yearOfPassout: 2022,
       cgpaOrPercentage: 7.8,
-      collegeName: 'NIT Trichy',
-      skills: ['Java', 'Spring Boot', 'MySQL'],
-      experience: '2 years',
-      location: 'Chennai, Tamil Nadu'
+      collegeName: 'NIT Trichy'
     },
     {
       firstName: 'Sarah',
       lastName: 'Johnson',
-      phone: '+919876543213',
+      email: 'sarah.johnson@example.com',
+      contactNumber: '9876543213',
       dateOfBirth: new Date('1996-04-12'),
       qualification: 'B.Tech',
       stream: 'CSE',
       yearOfPassout: 2021,
       cgpaOrPercentage: 8.9,
-      collegeName: 'VIT Vellore',
-      skills: ['React', 'TypeScript', 'AWS', 'Docker'],
-      experience: '3 years',
-      location: 'Hyderabad, Telangana'
+      collegeName: 'VIT Vellore'
     },
     {
       firstName: 'Alex',
       lastName: 'Brown',
-      phone: '+919876543214',
+      email: 'alex.brown@example.com',
+      contactNumber: '9876543214',
       dateOfBirth: new Date('1998-09-30'),
       qualification: 'B.Tech',
       stream: 'IT',
       yearOfPassout: 2024,
       cgpaOrPercentage: 8.1,
-      collegeName: 'Manipal Institute of Technology',
-      skills: ['Flutter', 'Dart', 'Firebase', 'UI/UX'],
-      experience: 'Fresher',
-      location: 'Pune, Maharashtra'
+      collegeName: 'Manipal Institute of Technology'
     }
   ],
   jobs: [
@@ -188,10 +183,10 @@ const sampleData = {
       eligibility: {
         qualifications: ['B.Tech', 'M.Tech'],
         streams: ['CSE', 'IT'],
-        passoutYears: [2020, 2021, 2022, 2023],
+        passoutYears: [2020, 2021, 2022, 2023, 2024, 2025],
         minCGPA: 7.5
       },
-      applicationDeadline: new Date('2024-03-15'),
+      applicationDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       applicationLink: 'https://techcorp.com/careers/senior-engineer',
       location: 'remote',
       salary: '₹15-25 LPA',
@@ -205,10 +200,10 @@ const sampleData = {
       eligibility: {
         qualifications: ['B.Tech', 'M.Tech'],
         streams: ['CSE', 'IT', 'ECE'],
-        passoutYears: [2024, 2025],
+        passoutYears: [2024, 2025, 2026],
         minCGPA: 7.0
       },
-      applicationDeadline: new Date('2024-04-30'),
+      applicationDeadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days from now
       applicationLink: 'https://startupxyz.com/internships/frontend',
       location: 'hybrid',
       stipend: '₹25,000/month',
@@ -222,10 +217,10 @@ const sampleData = {
       eligibility: {
         qualifications: ['M.Tech', 'PhD'],
         streams: ['CSE', 'IT', 'Mathematics'],
-        passoutYears: [2020, 2021, 2022, 2023, 2024],
+        passoutYears: [2020, 2021, 2022, 2023, 2024, 2025],
         minCGPA: 8.0
       },
-      applicationDeadline: new Date('2024-03-31'),
+      applicationDeadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
       applicationLink: 'https://aiinnovations.com/careers/data-scientist',
       location: 'onsite',
       salary: '₹20-35 LPA',
@@ -239,10 +234,10 @@ const sampleData = {
       eligibility: {
         qualifications: ['B.Tech', 'M.Tech'],
         streams: ['CSE', 'IT'],
-        passoutYears: [2019, 2020, 2021, 2022, 2023],
+        passoutYears: [2019, 2020, 2021, 2022, 2023, 2024, 2025],
         minCGPA: 7.0
       },
-      applicationDeadline: new Date('2024-04-15'),
+      applicationDeadline: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000), // 75 days from now
       applicationLink: 'https://cloudtech.com/careers/devops',
       location: 'hybrid',
       salary: '₹18-28 LPA',
@@ -256,10 +251,10 @@ const sampleData = {
       eligibility: {
         qualifications: ['B.Tech', 'B.Des', 'M.Des'],
         streams: ['CSE', 'IT', 'Design'],
-        passoutYears: [2024, 2025],
+        passoutYears: [2024, 2025, 2026],
         minCGPA: 7.5
       },
-      applicationDeadline: new Date('2024-05-15'),
+      applicationDeadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
       applicationLink: 'https://designstudiopro.com/internships/uiux',
       location: 'onsite',
       stipend: '₹30,000/month',
@@ -270,46 +265,42 @@ const sampleData = {
     {
       userId: null, // Will be set after user creation
       plan: 'premium',
-      status: 'active',
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      amount: 999,
-      currency: 'INR',
-      paymentMethod: 'razorpay',
-      isActive: true
+      status: 'completed',
+      startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Tomorrow
+      endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+      amount: 99, // Premium plan amount
+      orderId: 'ORD_PREMIUM_001',
+      paymentId: 'PAY_PREMIUM_001'
     },
     {
       userId: null, // Will be set after user creation
       plan: 'basic',
-      status: 'active',
-      startDate: new Date('2024-01-15'),
-      endDate: new Date('2024-07-15'),
-      amount: 499,
-      currency: 'INR',
-      paymentMethod: 'razorpay',
-      isActive: true
+      status: 'completed',
+      startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Day after tomorrow
+      endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 6 months from now
+      amount: 49, // Basic plan amount
+      orderId: 'ORD_BASIC_001',
+      paymentId: 'PAY_BASIC_001'
     },
     {
       userId: null, // Will be set after user creation
       plan: 'premium',
       status: 'expired',
-      startDate: new Date('2023-06-01'),
-      endDate: new Date('2023-12-01'),
-      amount: 999,
-      currency: 'INR',
-      paymentMethod: 'razorpay',
-      isActive: false
+      startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+      endDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), // 6 months ago
+      amount: 99, // Premium plan amount
+      orderId: 'ORD_PREMIUM_002',
+      paymentId: 'PAY_PREMIUM_002'
     },
     {
       userId: null, // Will be set after user creation
       plan: 'premium',
-      status: 'active',
-      startDate: new Date('2024-02-01'),
-      endDate: new Date('2024-08-01'),
-      amount: 999,
-      currency: 'INR',
-      paymentMethod: 'razorpay',
-      isActive: true
+      status: 'completed',
+      startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      endDate: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000), // ~6.5 months from now
+      amount: 99, // Premium plan amount
+      orderId: 'ORD_PREMIUM_003',
+      paymentId: 'PAY_PREMIUM_003'
     }
   ],
   jobApplications: [
@@ -318,27 +309,24 @@ const sampleData = {
       jobId: null, // Will be set after job creation
       status: 'applied',
       coverLetter: 'I am very interested in this position and believe my skills align perfectly with your requirements. I have experience in modern web technologies and am passionate about building scalable applications.',
-      resume: 'base64_encoded_resume_content_here',
-      appliedAt: new Date('2024-01-20'),
-      isActive: true
+      resumeUrl: 'https://example.com/resumes/john_doe_resume.pdf',
+      appliedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
     },
     {
       userId: null, // Will be set after user creation
       jobId: null, // Will be set after job creation
       status: 'shortlisted',
       coverLetter: 'I am excited about this opportunity to work with your team. My background in machine learning and data science makes me a great fit for this role.',
-      resume: 'base64_encoded_resume_content_here',
-      appliedAt: new Date('2024-01-25'),
-      isActive: true
+      resumeUrl: 'https://example.com/resumes/jane_smith_resume.pdf',
+      appliedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 days ago
     },
     {
       userId: null, // Will be set after user creation
       jobId: null, // Will be set after job creation
       status: 'rejected',
       coverLetter: 'I am interested in this position and would like to be considered for the role.',
-      resume: 'base64_encoded_resume_content_here',
-      appliedAt: new Date('2024-01-18'),
-      isActive: false
+      resumeUrl: 'https://example.com/resumes/mike_wilson_resume.pdf',
+      appliedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 days ago
     }
   ],
   jobNotifications: [
@@ -349,7 +337,7 @@ const sampleData = {
       title: 'New Job Alert: Senior Software Engineer at TechCorp',
       message: 'A new job matching your profile has been posted. Check it out!',
       isRead: false,
-      sentAt: new Date('2024-01-20')
+      sentAt: new Date('2024-12-15')
     },
     {
       userId: null, // Will be set after user creation
@@ -358,7 +346,7 @@ const sampleData = {
       title: 'Application Update: Frontend Developer Intern',
       message: 'Your application status has been updated to shortlisted. Congratulations!',
       isRead: true,
-      sentAt: new Date('2024-01-25')
+      sentAt: new Date('2024-12-10')
     }
   ]
 };
@@ -499,6 +487,7 @@ async function seedDatabase() {
     createdUsers.slice(0, 3).forEach((user, index) => {
       logger.info(`User ${index + 1}:`);
       logger.info(`  Email: ${user.email}`);
+      logger.info(`  Password: ${sampleData.users[index].password}`);
       logger.info(`  Name: ${user.name}`);
       logger.info(`  Subscription: ${user.subscriptionPlan} (${user.subscriptionStatus})`);
       logger.info('');

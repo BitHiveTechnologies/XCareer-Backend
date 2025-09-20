@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const validation_1 = require("../../middleware/validation");
-const auth_1 = require("../../middleware/auth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const subscriptionController_1 = require("../../controllers/subscriptions/subscriptionController");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
 // Apply authentication to all subscription routes
-router.use(auth_1.authenticate);
+router.use(jwtAuth_1.authenticate);
 // Get current subscription
 router.get('/current', subscriptionController_1.getCurrentSubscription);
 // Get available subscription plans (public, but requires auth for user context)
@@ -37,7 +37,7 @@ router.post('/renew', (0, validation_1.validate)({
     })
 }), subscriptionController_1.renewSubscription);
 // Admin-only routes
-router.use(auth_1.requireAdmin);
+router.use(jwtAuth_1.requireAdmin);
 // Get subscription analytics
 router.get('/analytics', subscriptionController_1.getSubscriptionAnalytics);
 // Process subscription expiry (cron job endpoint)
