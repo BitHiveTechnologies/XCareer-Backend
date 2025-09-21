@@ -179,8 +179,7 @@ jobSchema.index({ createdAt: -1 });
 jobSchema.index({ isActive: 1, type: 1 });
 jobSchema.index({ isActive: 1, location: 1 });
 jobSchema.index({ isActive: 1, applicationDeadline: 1 });
-// Note: Cannot create compound indexes on multiple array fields (qualifications, streams)
-// Individual array field indexes are created below
+// Individual array field indexes (cannot create compound indexes on multiple array fields)
 jobSchema.index({ 'eligibility.qualifications': 1 });
 jobSchema.index({ 'eligibility.streams': 1 });
 jobSchema.index({ 'eligibility.passoutYears': 1 });

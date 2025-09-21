@@ -193,7 +193,7 @@ adminSchema.virtual('permissionsDisplay').get(function() {
   if (this.role === 'super_admin') {
     return 'All Permissions';
   }
-  return this.permissions.length > 0 ? this.permissions.join(', ') : 'No specific permissions';
+  return this.permissions && this.permissions.length > 0 ? this.permissions.join(', ') : 'No specific permissions';
 });
 
 // Ensure virtuals are serialized

@@ -1,88 +1,78 @@
 import mongoose from 'mongoose';
 import { config } from '../src/config/environment';
+import { Job } from '../src/models/Job';
 import { logger } from '../src/utils/logger';
 
 async function fixIndexes() {
   try {
-    logger.info('🔧 Connecting to MongoDB...');
+    // Connect to MongoDB
     await mongoose.connect(config.MONGODB_URI);
-    logger.info('✅ Connected to MongoDB');
+    logger.info('Connected to MongoDB');
 
-    const db = mongoose.connection.db;
-    const collection = db.collection('jobs');
+    // Drop all indexes on the jobs collection
+    logger.info('Dropping all indexes on jobs collection...');
+    await Job.collection.dropIndexes();
+    logger.info('All indexes dropped successfully');
 
-    logger.info('🗑️ Dropping existing indexes...');
+    // Recreate the indexes one by one
+    logger.info('Recreating indexes...');
     
-    // Get all indexes
-    const indexes = await collection.indexes();
-    logger.info(`Found ${indexes.length} indexes`);
+    // Basic indexes
+    await Job.collection.createIndex({ title: 1 });
+    await Job.collection.createIndex({ company: 1 });
+    await Job.collection.createIndex({ type: 1 });
+    await Job.collection.createIndex({ location: 1 });
+    await Job.collection.createIndex({ isActive: 1 });
+    await Job.collection.createIndex({ applicationDeadline: 1 });
+    await Job.collection.createIndex({ postedBy: 1 });
+    await Job.collection.createIndex({ createdAt: -1 });
 
-    // Drop all indexes except the default _id index
-    for (const index of indexes) {
-      if (index.name !== '_id_') {
-        try {
-          await collection.dropIndex(index.name);
-          logger.info(`✅ Dropped index: ${index.name}`);
-        } catch (error) {
-          logger.warn(`⚠️ Could not drop index ${index.name}: ${error}`);
-        }
-      }
-    }
+    // Compound indexes
+    await Job.collection.createIndex({ isActive: 1, type: 1 });
+    await Job.collection.createIndex({ isActive: 1, location: 1 });
+    await Job.collection.createIndex({ isActive: 1, applicationDeadline: 1 });
 
-    logger.info('✅ All problematic indexes dropped');
-    logger.info('🔄 Recreating indexes...');
+    // Individual array field indexes
+    await Job.collection.createIndex({ 'eligibility.qualifications': 1 });
+    await Job.collection.createIndex({ 'eligibility.streams': 1 });
+    await Job.collection.createIndex({ 'eligibility.passoutYears': 1 });
 
-    // Recreate the correct indexes
-    await collection.createIndex({ title: 1 });
-    await collection.createIndex({ company: 1 });
-    await collection.createIndex({ type: 1 });
-    await collection.createIndex({ location: 1 });
-    await collection.createIndex({ isActive: 1 });
-    await collection.createIndex({ applicationDeadline: 1 });
-    await collection.createIndex({ postedBy: 1 });
-    await collection.createIndex({ createdAt: -1 });
-
-    // Compound indexes for common queries
-    await collection.createIndex({ isActive: 1, type: 1 });
-    await collection.createIndex({ isActive: 1, location: 1 });
-    await collection.createIndex({ isActive: 1, applicationDeadline: 1 });
-
-    // Individual array field indexes (no compound indexes on arrays)
-    await collection.createIndex({ 'eligibility.qualifications': 1 });
-    await collection.createIndex({ 'eligibility.streams': 1 });
-    await collection.createIndex({ 'eligibility.passoutYears': 1 });
-
-    // Text index for search functionality
-    await collection.createIndex({
+    // Text index for search
+    await Job.collection.createIndex({
       title: 'text',
       company: 'text',
       description: 'text'
     });
 
-    logger.info('✅ All indexes recreated successfully');
-    logger.info('🎉 Index fix completed!');
+    logger.info('All indexes recreated successfully');
+
+    // List all indexes
+    const indexes = await Job.collection.listIndexes().toArray();
+    logger.info('Current indexes:');
+    indexes.forEach((index, i) => {
+      logger.info(`${i + 1}. ${JSON.stringify(index.key)}`);
+    });
 
   } catch (error) {
-    logger.error('❌ Index fix failed:', error);
+    logger.error('Error fixing indexes:', error);
     throw error;
   } finally {
     await mongoose.disconnect();
-    logger.info('📤 Disconnected from MongoDB');
+    logger.info('Disconnected from MongoDB');
   }
 }
 
-// Run if this file is executed directly
+// Run the fix if this file is executed directly
 if (require.main === module) {
   fixIndexes()
     .then(() => {
-      logger.info('✅ Index fix completed successfully');
+      logger.info('Index fix completed successfully');
       process.exit(0);
     })
     .catch((error) => {
-      logger.error('❌ Index fix failed:', error);
+      logger.error('Index fix failed:', error);
       process.exit(1);
     });
 }
 
 export { fixIndexes };
-

@@ -46,7 +46,9 @@ export const generateToken = (user: {
   };
 
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN as any
+    expiresIn: JWT_EXPIRES_IN as any,
+    issuer: 'notifyx-api',
+    audience: 'notifyx-users'
   });
 };
 

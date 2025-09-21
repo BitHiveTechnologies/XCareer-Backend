@@ -123,21 +123,31 @@ const getAllJobs = async (req, res) => {
         const userId = req.user?.id;
         let filteredJobs = jobs;
         if (userId) {
-            const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
-            const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
-            filteredJobs = jobs.filter(job => {
-                // Basic jobs are always accessible
-                if (job.type === 'internship')
-                    return true;
-                // Premium features for premium/enterprise users
-                if (canAccessPremium)
-                    return true;
-                // Enterprise features for enterprise users only
-                if (canAccessEnterprise)
-                    return true;
-                // Basic users can only see basic jobs
-                return job.type === 'job' && !job.description.includes('premium');
-            });
+            try {
+                const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
+                const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
+                filteredJobs = jobs.filter(job => {
+                    // Basic jobs are always accessible
+                    if (job.type === 'internship')
+                        return true;
+                    // Premium features for premium/enterprise users
+                    if (canAccessPremium)
+                        return true;
+                    // Enterprise features for enterprise users only
+                    if (canAccessEnterprise)
+                        return true;
+                    // Basic users can only see basic jobs
+                    return job.type === 'job' && !job.description.includes('premium');
+                });
+            }
+            catch (subscriptionError) {
+                logger_1.logger.warn('Subscription check failed, showing all jobs', {
+                    error: subscriptionError instanceof Error ? subscriptionError.message : 'Unknown error',
+                    userId
+                });
+                // If subscription check fails, show all jobs
+                filteredJobs = jobs;
+            }
         }
         res.status(200).json({
             success: true,
@@ -204,28 +214,38 @@ const getJobById = async (req, res) => {
         }
         // Check if user can access this job based on subscription
         if (userId) {
-            const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
-            const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
-            // Basic users can't access premium/enterprise jobs
-            if (!canAccessPremium && job.description.includes('premium')) {
-                res.status(403).json({
-                    success: false,
-                    error: {
-                        message: 'Premium subscription required to access this job'
-                    },
-                    timestamp: new Date().toISOString()
-                });
-                return;
+            try {
+                const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
+                const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
+                // Basic users can't access premium/enterprise jobs
+                if (!canAccessPremium && job.description.includes('premium')) {
+                    res.status(403).json({
+                        success: false,
+                        error: {
+                            message: 'Premium subscription required to access this job'
+                        },
+                        timestamp: new Date().toISOString()
+                    });
+                    return;
+                }
+                if (!canAccessEnterprise && job.description.includes('enterprise')) {
+                    res.status(403).json({
+                        success: false,
+                        error: {
+                            message: 'Enterprise subscription required to access this job'
+                        },
+                        timestamp: new Date().toISOString()
+                    });
+                    return;
+                }
             }
-            if (!canAccessEnterprise && job.description.includes('enterprise')) {
-                res.status(403).json({
-                    success: false,
-                    error: {
-                        message: 'Enterprise subscription required to access this job'
-                    },
-                    timestamp: new Date().toISOString()
+            catch (subscriptionError) {
+                logger_1.logger.warn('Subscription check failed, allowing access to job', {
+                    error: subscriptionError instanceof Error ? subscriptionError.message : 'Unknown error',
+                    userId,
+                    jobId
                 });
-                return;
+                // If subscription check fails, allow access to the job
             }
         }
         res.status(200).json({
@@ -673,17 +693,27 @@ const searchJobs = async (req, res) => {
         const userId = req.user?.id;
         let filteredJobs = jobs;
         if (userId) {
-            const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
-            const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
-            filteredJobs = jobs.filter(job => {
-                if (job.type === 'internship')
-                    return true;
-                if (canAccessPremium)
-                    return true;
-                if (canAccessEnterprise)
-                    return true;
-                return !job.description.includes('premium') && !job.description.includes('enterprise');
-            });
+            try {
+                const canAccessPremium = await (0, subscriptionService_1.canAccessPremiumFeatures)(userId);
+                const canAccessEnterprise = await (0, subscriptionService_1.canAccessEnterpriseFeatures)(userId);
+                filteredJobs = jobs.filter(job => {
+                    if (job.type === 'internship')
+                        return true;
+                    if (canAccessPremium)
+                        return true;
+                    if (canAccessEnterprise)
+                        return true;
+                    return !job.description.includes('premium') && !job.description.includes('enterprise');
+                });
+            }
+            catch (subscriptionError) {
+                logger_1.logger.warn('Subscription check failed, showing all jobs', {
+                    error: subscriptionError instanceof Error ? subscriptionError.message : 'Unknown error',
+                    userId
+                });
+                // If subscription check fails, show all jobs
+                filteredJobs = jobs;
+            }
         }
         res.status(200).json({
             success: true,
