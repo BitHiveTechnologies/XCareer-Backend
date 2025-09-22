@@ -100,7 +100,7 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
   try {
     const {
       page = 1,
-      limit = 10,
+      limit,
       type,
       location,
       qualification,
@@ -113,8 +113,8 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
     } = req.query;
 
     const pageNum = parseInt(page as string) || 1;
-    const limitNum = parseInt(limit as string) || 10;
-    const skip = (pageNum - 1) * limitNum;
+    const limitNum = limit ? parseInt(limit as string) : undefined; // No default limit
+    const skip = limitNum ? (pageNum - 1) * limitNum : 0;
 
     // Build query
     const query: any = { isActive: true };
@@ -140,11 +140,16 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
     sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
 
     // Get jobs
-    const jobs = await Job.find(query)
+    let jobQuery = Job.find(query)
       .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('postedBy', 'name email');
+      .skip(skip);
+    
+    // Only apply limit if specified
+    if (limitNum) {
+      jobQuery = jobQuery.limit(limitNum);
+    }
+    
+    const jobs = await jobQuery.populate('postedBy', 'name email');
 
     const total = await Job.countDocuments(query);
 
@@ -696,12 +701,12 @@ export const searchJobs = async (req: Request, res: Response): Promise<void> => 
       stipend,
       remote,
       page = 1,
-      limit = 20
+      limit
     } = req.query;
 
     const pageNum = parseInt(page as string) || 1;
-    const limitNum = parseInt(limit as string) || 20;
-    const skip = (pageNum - 1) * limitNum;
+    const limitNum = limit ? parseInt(limit as string) : undefined; // No default limit
+    const skip = limitNum ? (pageNum - 1) * limitNum : 0;
 
     // Build search query
     const searchQuery: any = { isActive: true };
@@ -770,11 +775,16 @@ export const searchJobs = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Execute search
-    const jobs = await Job.find(searchQuery)
+    let searchJobQuery = Job.find(searchQuery)
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .populate('postedBy', 'name email');
+      .skip(skip);
+    
+    // Only apply limit if specified
+    if (limitNum) {
+      searchJobQuery = searchJobQuery.limit(limitNum);
+    }
+    
+    const jobs = await searchJobQuery.populate('postedBy', 'name email');
 
     const total = await Job.countDocuments(searchQuery);
 
