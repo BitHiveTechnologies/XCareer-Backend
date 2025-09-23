@@ -39,15 +39,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Hash password
-    const saltRounds = config.BCRYPT_ROUNDS;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create user
+    // Create user (password will be hashed by User model pre-save middleware)
     const user = new User({
       name,
       email,
-      password: hashedPassword,
+      password,
       mobile,
       subscriptionPlan: 'basic',
       subscriptionStatus: 'inactive'
@@ -62,7 +58,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       lastName: name.split(' ').slice(1).join(' ') || '',
       email,
       contactNumber: mobile,
-      dateOfBirth: new Date(), // Default value, can be updated later
+      dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
       qualification,
       stream,
       yearOfPassout,
