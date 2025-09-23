@@ -18,9 +18,58 @@ const PORT = process.env['PORT'] || 5000;
 
 // Middleware
 app.use(helmet()); // Security headers
+
+// Enhanced CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001', 
+  'http://localhost:3002',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  process.env['FRONTEND_URL'],
+  process.env['ADMIN_FRONTEND_URL']
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-  origin: process.env['FRONTEND_URL'] || 'http://localhost:3000',
-  credentials: true
+  origin: (origin, callback) => {
+    // Debug logging
+    console.log(`🔍 CORS Request from origin: ${origin || 'No origin'}`);
+    console.log(`🔍 Allowed origins:`, allowedOrigins);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('✅ Allowing request with no origin');
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      console.log('✅ Origin is in allowed list');
+      return callback(null, true);
+    }
+    
+    // In development, allow any localhost origin
+    if (process.env['NODE_ENV'] === 'development' && origin.includes('localhost')) {
+      console.log('✅ Allowing localhost origin in development');
+      return callback(null, true);
+    }
+    
+    console.log('❌ Origin not allowed:', origin);
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With', 
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'Pragma'
+  ],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(morgan('combined')); // Logging
 app.use(express.json({ limit: '10mb' })); // Body parser
@@ -33,6 +82,17 @@ app.get('/health', (_req, res) => {
     message: 'NotifyX Backend is running',
     timestamp: new Date().toISOString(),
     environment: process.env['NODE_ENV'] || 'development'
+  });
+});
+
+// CORS test endpoint
+app.get('/cors-test', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'CORS is working correctly!',
+    timestamp: new Date().toISOString(),
+    origin: _req.headers.origin || 'No origin header',
+    allowedOrigins: allowedOrigins
   });
 });
 
