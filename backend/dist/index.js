@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,9 +52,52 @@ const app = (0, express_1.default)();
 const PORT = process.env['PORT'] || 5000;
 // Middleware
 app.use((0, helmet_1.default)()); // Security headers
+// Enhanced CORS configuration
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:3002',
+    process.env['FRONTEND_URL'],
+    process.env['ADMIN_FRONTEND_URL']
+].filter(Boolean); // Remove undefined values
 app.use((0, cors_1.default)({
-    origin: process.env['FRONTEND_URL'] || 'http://localhost:3000',
-    credentials: true
+    origin: (origin, callback) => {
+        // Debug logging
+        console.log(`🔍 CORS Request from origin: ${origin || 'No origin'}`);
+        console.log(`🔍 Allowed origins:`, allowedOrigins);
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+            console.log('✅ Allowing request with no origin');
+            return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+            console.log('✅ Origin is in allowed list');
+            return callback(null, true);
+        }
+        // In development, allow any localhost origin
+        if (process.env['NODE_ENV'] === 'development' && origin.includes('localhost')) {
+            console.log('✅ Allowing localhost origin in development');
+            return callback(null, true);
+        }
+        console.log('❌ Origin not allowed:', origin);
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+        'Origin',
+        'X-Requested-With',
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'Cache-Control',
+        'Pragma'
+    ],
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use((0, morgan_1.default)('combined')); // Logging
 app.use(express_1.default.json({ limit: '10mb' })); // Body parser
@@ -34,6 +110,81 @@ app.get('/health', (_req, res) => {
         timestamp: new Date().toISOString(),
         environment: process.env['NODE_ENV'] || 'development'
     });
+});
+// CORS test endpoint
+app.get('/cors-test', (_req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'CORS is working correctly!',
+        timestamp: new Date().toISOString(),
+        origin: _req.headers.origin || 'No origin header',
+        allowedOrigins: allowedOrigins
+    });
+});
+// Debug endpoint to test models
+app.get('/debug/models', async (_req, res) => {
+    try {
+        const { Job, Admin, User } = await Promise.resolve().then(() => __importStar(require('./models')));
+        const jobCount = await Job.countDocuments();
+        const adminCount = await Admin.countDocuments();
+        const userCount = await User.countDocuments();
+        res.status(200).json({
+            success: true,
+            models: {
+                Job: { registered: true, count: jobCount },
+                Admin: { registered: true, count: adminCount },
+                User: { registered: true, count: userCount }
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+// Debug endpoint to test job query
+app.get('/debug/jobs', async (_req, res) => {
+    try {
+        const { Job } = await Promise.resolve().then(() => __importStar(require('./models')));
+        console.log('Testing job query...');
+        const query = { isActive: true };
+        const jobs = await Job.find(query)
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate('postedBy', 'name email');
+        console.log(`Found ${jobs.length} jobs`);
+        const total = await Job.countDocuments(query);
+        console.log(`Total jobs: ${total}`);
+        res.status(200).json({
+            success: true,
+            data: {
+                jobs: jobs.map(job => ({
+                    id: job._id,
+                    title: job.title,
+                    company: job.company,
+                    type: job.type,
+                    location: job.location,
+                    postedBy: job.postedBy
+                })),
+                total,
+                count: jobs.length
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        console.error('Debug jobs error:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 // API routes
 const routes_1 = __importDefault(require("./routes"));

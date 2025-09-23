@@ -6,12 +6,14 @@ exports.requireAdmin = exports.authenticate = void 0;
  */
 const authenticate = async (req, res, next) => {
     // TODO: Implement proper JWT authentication
-    // For now, create a mock user for testing
+    // For now, create a mock admin user for testing job creation
     req.user = {
-        id: 'mock-user-id',
-        email: 'mock@example.com',
-        role: 'user',
-        type: 'user'
+        id: '507f1f77bcf86cd799439011', // Valid ObjectId for testing
+        email: 'admin@example.com',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        type: 'admin'
     };
     next();
 };

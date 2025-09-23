@@ -83,10 +83,10 @@ exports.createJob = createJob;
  */
 const getAllJobs = async (req, res) => {
     try {
-        const { page = 1, limit = 10, type, location, qualification, stream, yearOfPassout, minCGPA, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+        const { page = 1, limit, type, location, qualification, stream, yearOfPassout, minCGPA, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
         const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 10;
-        const skip = (pageNum - 1) * limitNum;
+        const limitNum = limit ? parseInt(limit) : undefined; // No default limit
+        const skip = limitNum ? (pageNum - 1) * limitNum : 0;
         // Build query
         const query = { isActive: true };
         if (type)
@@ -113,11 +113,14 @@ const getAllJobs = async (req, res) => {
         const sort = {};
         sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
         // Get jobs
-        const jobs = await Job_1.Job.find(query)
+        let jobQuery = Job_1.Job.find(query)
             .sort(sort)
-            .skip(skip)
-            .limit(limitNum)
-            .populate('postedBy', 'name email');
+            .skip(skip);
+        // Only apply limit if specified
+        if (limitNum) {
+            jobQuery = jobQuery.limit(limitNum);
+        }
+        const jobs = await jobQuery.populate('postedBy', 'name email');
         const total = await Job_1.Job.countDocuments(query);
         // Filter jobs based on user subscription (if authenticated)
         const userId = req.user?.id;
@@ -618,10 +621,10 @@ exports.getJobStats = getJobStats;
  */
 const searchJobs = async (req, res) => {
     try {
-        const { query, type, location, qualifications, streams, passoutYears, minCGPA, maxCGPA, salary, stipend, remote, page = 1, limit = 20 } = req.query;
+        const { query, type, location, qualifications, streams, passoutYears, minCGPA, maxCGPA, salary, stipend, remote, page = 1, limit } = req.query;
         const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 20;
-        const skip = (pageNum - 1) * limitNum;
+        const limitNum = limit ? parseInt(limit) : undefined; // No default limit
+        const skip = limitNum ? (pageNum - 1) * limitNum : 0;
         // Build search query
         const searchQuery = { isActive: true };
         // Text search
@@ -683,11 +686,14 @@ const searchJobs = async (req, res) => {
             searchQuery.location = 'remote';
         }
         // Execute search
-        const jobs = await Job_1.Job.find(searchQuery)
+        let searchJobQuery = Job_1.Job.find(searchQuery)
             .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limitNum)
-            .populate('postedBy', 'name email');
+            .skip(skip);
+        // Only apply limit if specified
+        if (limitNum) {
+            searchJobQuery = searchJobQuery.limit(limitNum);
+        }
+        const jobs = await searchJobQuery.populate('postedBy', 'name email');
         const total = await Job_1.Job.countDocuments(searchQuery);
         // Filter based on user subscription
         const userId = req.user?.id;

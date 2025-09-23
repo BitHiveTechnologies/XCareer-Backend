@@ -12,10 +12,10 @@ const router = express_1.default.Router();
 // Public routes (no authentication required)
 router.get('/', jobController_1.getAllJobs);
 router.get('/search', jobController_1.searchJobs);
+router.get('/stats/overview', jobController_1.getJobStats);
 router.get('/:jobId', jobController_1.getJobById);
-// Protected routes (require authentication)
+// Admin-only routes (require authentication + admin privileges)
 router.use(auth_1.authenticate);
-// Admin-only routes
 router.use(auth_1.requireAdmin);
 // Create job
 router.post('/', (0, validation_1.validate)({
@@ -72,7 +72,5 @@ router.patch('/:jobId/toggle-status', (0, validation_1.validate)({
         jobId: validation_2.commonSchemas.objectId.required()
     })
 }), jobController_1.toggleJobStatus);
-// Get job statistics
-router.get('/stats/overview', jobController_1.getJobStats);
 exports.default = router;
 //# sourceMappingURL=jobRoutes.js.map
