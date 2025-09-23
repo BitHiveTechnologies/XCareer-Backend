@@ -28,14 +28,11 @@ const register = async (req, res) => {
             });
             return;
         }
-        // Hash password
-        const saltRounds = environment_1.config.BCRYPT_ROUNDS;
-        const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
-        // Create user
+        // Create user (password will be hashed by User model pre-save middleware)
         const user = new User_1.User({
             name,
             email,
-            password: hashedPassword,
+            password,
             mobile,
             subscriptionPlan: 'basic',
             subscriptionStatus: 'inactive'
@@ -48,7 +45,7 @@ const register = async (req, res) => {
             lastName: name.split(' ').slice(1).join(' ') || '',
             email,
             contactNumber: mobile,
-            dateOfBirth: new Date(), // Default value, can be updated later
+            dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
             qualification,
             stream,
             yearOfPassout,

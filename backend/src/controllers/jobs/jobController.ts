@@ -70,6 +70,7 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
           company: newJob.company,
           type: newJob.type,
           location: newJob.location,
+          applicationLink: newJob.applicationLink,
           isActive: newJob.isActive,
           createdAt: newJob.createdAt
         }
@@ -197,6 +198,7 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
           salary: job.salary,
           stipend: job.stipend,
           applicationDeadline: job.applicationDeadline,
+          applicationLink: job.applicationLink,
           eligibility: job.eligibility,
           postedBy: job.postedBy,
           createdAt: job.createdAt,
@@ -302,6 +304,7 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
           salary: job.salary,
           stipend: job.stipend,
           applicationDeadline: job.applicationDeadline,
+          applicationLink: job.applicationLink,
           eligibility: job.eligibility,
           postedBy: job.postedBy,
           createdAt: job.createdAt,

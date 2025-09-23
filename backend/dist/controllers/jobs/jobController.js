@@ -55,6 +55,7 @@ const createJob = async (req, res) => {
                     company: newJob.company,
                     type: newJob.type,
                     location: newJob.location,
+                    applicationLink: newJob.applicationLink,
                     isActive: newJob.isActive,
                     createdAt: newJob.createdAt
                 }
@@ -164,6 +165,7 @@ const getAllJobs = async (req, res) => {
                     salary: job.salary,
                     stipend: job.stipend,
                     applicationDeadline: job.applicationDeadline,
+                    applicationLink: job.applicationLink,
                     eligibility: job.eligibility,
                     postedBy: job.postedBy,
                     createdAt: job.createdAt,
@@ -264,6 +266,7 @@ const getJobById = async (req, res) => {
                     salary: job.salary,
                     stipend: job.stipend,
                     applicationDeadline: job.applicationDeadline,
+                    applicationLink: job.applicationLink,
                     eligibility: job.eligibility,
                     postedBy: job.postedBy,
                     createdAt: job.createdAt,
