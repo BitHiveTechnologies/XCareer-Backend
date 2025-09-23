@@ -9,12 +9,13 @@ const jwtAuth_1 = require("../../middleware/jwtAuth");
 const subscriptionController_1 = require("../../controllers/subscriptions/subscriptionController");
 const validation_2 = require("../../middleware/validation");
 const router = express_1.default.Router();
-// Apply authentication to all subscription routes
+// Public routes (no authentication required)
+// Get available subscription plans (public)
+router.get('/plans', subscriptionController_1.getAvailablePlans);
+// User routes (require user authentication)
 router.use(jwtAuth_1.authenticate);
 // Get current subscription
 router.get('/current', subscriptionController_1.getCurrentSubscription);
-// Get available subscription plans (public, but requires auth for user context)
-router.get('/plans', subscriptionController_1.getAvailablePlans);
 // Get subscription history
 router.get('/history', (0, validation_1.validate)({
     query: validation_2.commonSchemas.object({
@@ -42,5 +43,19 @@ router.use(jwtAuth_1.requireAdmin);
 router.get('/analytics', subscriptionController_1.getSubscriptionAnalytics);
 // Process subscription expiry (cron job endpoint)
 router.post('/process-expiry', subscriptionController_1.processSubscriptionExpiry);
+// Update subscription plan (Admin only)
+router.put('/plans/:planId', (0, validation_1.validate)({
+    params: validation_2.commonSchemas.object({
+        planId: validation_2.commonSchemas.string().valid('basic', 'premium', 'enterprise').required()
+    }),
+    body: validation_2.commonSchemas.object({
+        name: validation_2.commonSchemas.string().min(1).max(100).optional(),
+        price: validation_2.commonSchemas.number().min(0).optional(),
+        duration: validation_2.commonSchemas.number().positive().optional(),
+        features: validation_2.commonSchemas.array().items(validation_2.commonSchemas.string()).optional(),
+        maxJobs: validation_2.commonSchemas.number().positive().optional(),
+        priority: validation_2.commonSchemas.string().valid('low', 'medium', 'high').optional()
+    })
+}), subscriptionController_1.updateSubscriptionPlan);
 exports.default = router;
 //# sourceMappingURL=subscriptionRoutes.js.map

@@ -8,20 +8,22 @@ import {
   cancelSubscription,
   renewSubscription,
   getSubscriptionAnalytics,
-  processSubscriptionExpiry
+  processSubscriptionExpiry,
+  updateSubscriptionPlan
 } from '../../controllers/subscriptions/subscriptionController';
 import { commonSchemas } from '../../middleware/validation';
 
 const router = express.Router();
 
-// Apply authentication to all subscription routes
+// Public routes (no authentication required)
+// Get available subscription plans (public)
+router.get('/plans', getAvailablePlans);
+
+// User routes (require user authentication)
 router.use(authenticate);
 
 // Get current subscription
 router.get('/current', getCurrentSubscription);
-
-// Get available subscription plans (public, but requires auth for user context)
-router.get('/plans', getAvailablePlans);
 
 // Get subscription history
 router.get('/history',
@@ -64,5 +66,23 @@ router.get('/analytics', getSubscriptionAnalytics);
 
 // Process subscription expiry (cron job endpoint)
 router.post('/process-expiry', processSubscriptionExpiry);
+
+// Update subscription plan (Admin only)
+router.put('/plans/:planId',
+  validate({
+    params: commonSchemas.object({
+      planId: commonSchemas.string().valid('basic', 'premium', 'enterprise').required()
+    }),
+    body: commonSchemas.object({
+      name: commonSchemas.string().min(1).max(100).optional(),
+      price: commonSchemas.number().min(0).optional(),
+      duration: commonSchemas.number().positive().optional(),
+      features: commonSchemas.array().items(commonSchemas.string()).optional(),
+      maxJobs: commonSchemas.number().positive().optional(),
+      priority: commonSchemas.string().valid('low', 'medium', 'high').optional()
+    })
+  }),
+  updateSubscriptionPlan
+);
 
 export default router;

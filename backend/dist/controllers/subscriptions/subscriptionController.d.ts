@@ -27,4 +27,8 @@ export declare const getSubscriptionAnalytics: (req: Request, res: Response) => 
  * Process subscription expiry (cron job endpoint)
  */
 export declare const processSubscriptionExpiry: (_req: Request, res: Response) => Promise<void>;
+/**
+ * Update subscription plan (Admin only)
+ */
+export declare const updateSubscriptionPlan: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=subscriptionController.d.ts.map

@@ -611,3 +611,78 @@ export const processSubscriptionExpiry = async (_req: Request, res: Response): P
     });
   }
 };
+
+/**
+ * Update subscription plan (Admin only)
+ */
+export const updateSubscriptionPlan = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { planId } = req.params;
+    const { name, price, duration, features, maxJobs, priority } = req.body;
+
+    // Validate plan ID
+    if (!SUBSCRIPTION_PLANS[planId]) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid plan ID'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Update plan details
+    const updatedPlan = {
+      ...SUBSCRIPTION_PLANS[planId],
+      ...(name && { name }),
+      ...(price !== undefined && { price }),
+      ...(duration !== undefined && { duration }),
+      ...(features && { features }),
+      ...(maxJobs !== undefined && { maxJobs }),
+      ...(priority && { priority })
+    };
+
+    // Update the plan in SUBSCRIPTION_PLANS
+    SUBSCRIPTION_PLANS[planId] = updatedPlan;
+
+    logger.info('Subscription plan updated', {
+      planId,
+      updatedFields: Object.keys(req.body),
+      adminId: req.user?.id,
+      ip: req.ip
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Subscription plan updated successfully',
+      data: {
+        plan: {
+          id: updatedPlan.id,
+          name: updatedPlan.name,
+          price: updatedPlan.price,
+          duration: updatedPlan.duration,
+          features: updatedPlan.features,
+          maxJobs: updatedPlan.maxJobs,
+          priority: updatedPlan.priority
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Update subscription plan failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      planId: req.params.planId,
+      adminId: req.user?.id,
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to update subscription plan'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
