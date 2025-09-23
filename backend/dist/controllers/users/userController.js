@@ -124,7 +124,6 @@ const updateCurrentUserProfile = async (req, res) => {
         if (!user && req.user?.email) {
             // Create a new user for testing
             user = new User_1.User({
-                _id: userId,
                 clerkUserId: `jwt_${userId}`, // Use JWT ID as clerkUserId to avoid password requirement
                 email: req.user.email,
                 name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
@@ -163,19 +162,27 @@ const updateCurrentUserProfile = async (req, res) => {
             await profile.save();
         }
         else {
-            // Create new profile
+            // Create new profile with all required fields
             profile = new UserProfile_1.UserProfile({
                 userId: user._id,
                 firstName: req.user?.firstName || 'Test',
                 lastName: req.user?.lastName || 'User',
                 email: user.email,
-                contactNumber: updateData.mobile || '9876543210',
+                contactNumber: updateData.mobile || user.mobile || '9876543210',
                 dateOfBirth: updateData.dateOfBirth || new Date('1995-01-01'),
                 qualification: updateData.qualification || 'B.Tech',
                 stream: updateData.stream || 'CSE',
                 yearOfPassout: updateData.yearOfPassout || new Date().getFullYear(),
                 cgpaOrPercentage: updateData.cgpaOrPercentage || 8.0,
-                collegeName: updateData.collegeName || 'Test College'
+                collegeName: updateData.collegeName || 'Test College',
+                // Additional optional fields
+                skills: updateData.skills || '',
+                linkedinUrl: updateData.linkedinUrl || '',
+                githubUrl: updateData.githubUrl || '',
+                address: updateData.address || '',
+                city: updateData.city || '',
+                state: updateData.state || '',
+                pincode: updateData.pincode || ''
             });
             await profile.save();
         }

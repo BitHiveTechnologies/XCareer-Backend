@@ -148,7 +148,6 @@ export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: R
     if (!user && req.user?.email) {
       // Create a new user for testing
       user = new User({
-        _id: userId,
         clerkUserId: `jwt_${userId}`, // Use JWT ID as clerkUserId to avoid password requirement
         email: req.user.email,
         name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
@@ -188,19 +187,27 @@ export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: R
       Object.assign(profile, updateData);
       await profile.save();
     } else {
-      // Create new profile
+      // Create new profile with all required fields
       profile = new UserProfile({
         userId: user._id,
         firstName: req.user?.firstName || 'Test',
         lastName: req.user?.lastName || 'User',
         email: user.email,
-        contactNumber: updateData.mobile || '9876543210',
+        contactNumber: updateData.mobile || user.mobile,
         dateOfBirth: updateData.dateOfBirth || new Date('1995-01-01'),
         qualification: updateData.qualification || 'B.Tech',
         stream: updateData.stream || 'CSE',
         yearOfPassout: updateData.yearOfPassout || new Date().getFullYear(),
         cgpaOrPercentage: updateData.cgpaOrPercentage || 8.0,
-        collegeName: updateData.collegeName || 'Test College'
+        collegeName: updateData.collegeName || '',
+        // Additional optional fields
+        skills: updateData.skills || '',
+        linkedinUrl: updateData.linkedinUrl || '',
+        githubUrl: updateData.githubUrl || '',
+        address: updateData.address || '',
+        city: updateData.city || '',
+        state: updateData.state || '',
+        pincode: updateData.pincode || ''
       });
       await profile.save();
     }
