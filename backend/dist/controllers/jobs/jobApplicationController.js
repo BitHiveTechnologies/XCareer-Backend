@@ -1,9 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getApplicationStats = exports.withdrawApplication = exports.updateApplicationStatus = exports.getJobApplications = exports.getUserApplications = exports.applyForJob = void 0;
-const JobApplication_1 = require("../../models/JobApplication");
+const mongoose_1 = __importDefault(require("mongoose"));
 const Job_1 = require("../../models/Job");
-const User_1 = require("../../models/User");
+const JobApplication_1 = require("../../models/JobApplication");
 const logger_1 = require("../../utils/logger");
 const subscriptionService_1 = require("../../utils/subscriptionService");
 /**
@@ -149,40 +152,26 @@ const getUserApplications = async (req, res) => {
             });
             return;
         }
-        // Find user by email (JWT provides email)
-        const user = await User_1.User.findOne({ email: req.user?.email });
-        if (!user) {
-            res.status(404).json({
-                success: false,
-                error: {
-                    message: 'User not found'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 10;
         const skip = (pageNum - 1) * limitNum;
-        // Build query
-        const query = { userId: user._id };
+        // Build query using userId directly from JWT (convert to ObjectId)
+        const query = { userId: new mongoose_1.default.Types.ObjectId(userId) };
         if (status) {
             query.status = status;
         }
-        // Get applications with job details
+        // Get applications without populate to avoid model registration issues
         const applications = await JobApplication_1.JobApplication.find(query)
             .sort({ appliedAt: -1 })
             .skip(skip)
-            .limit(limitNum)
-            .populate('jobId', 'title company type location applicationDeadline')
-            .populate('userId', 'name email');
+            .limit(limitNum);
         const total = await JobApplication_1.JobApplication.countDocuments(query);
         res.status(200).json({
             success: true,
             data: {
                 applications: applications.map(app => ({
                     id: app._id,
-                    job: app.jobId,
+                    jobId: app.jobId,
                     status: app.status,
                     appliedAt: app.appliedAt,
                     resumeUrl: app.resumeUrl,
@@ -202,13 +191,15 @@ const getUserApplications = async (req, res) => {
     catch (error) {
         logger_1.logger.error('Get user applications failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
             userId: req.user?.id,
             ip: req.ip
         });
         res.status(500).json({
             success: false,
             error: {
-                message: 'Failed to get applications'
+                message: 'Failed to get applications',
+                details: error instanceof Error ? error.message : 'Unknown error'
             },
             timestamp: new Date().toISOString()
         });

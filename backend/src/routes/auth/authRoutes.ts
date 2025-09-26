@@ -1,14 +1,14 @@
 import express from 'express';
 import Joi from 'joi';
 import {
-  register,
-  login,
-  refreshToken,
-  logout,
-  getCurrentUser,
-  changePassword
+    changePassword,
+    getCurrentUser,
+    login,
+    logout,
+    refreshToken,
+    register
 } from '../../controllers/auth/authController';
-import { authenticate } from '../../middleware/auth';
+import { authenticate } from '../../middleware/jwtAuth';
 import { validate } from '../../middleware/validation';
 
 const router = express.Router();

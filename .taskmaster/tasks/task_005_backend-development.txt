@@ -1,0 +1,11 @@
+# Task ID: 5
+# Title: Secure Login Endpoint with Subscription Validation
+# Status: pending
+# Dependencies: 2, 4
+# Priority: high
+# Description: Create login API endpoint that verifies credentials and checks subscription status
+# Details:
+Implement POST /auth/login endpoint. Verify user credentials. Check subscription status (must be 'active'). Return appropriate error messages for inactive subscriptions. Include rate limiting and security measures.
+
+# Test Strategy:
+Test login with valid/invalid credentials, test inactive subscription handling, verify error messages, test rate limiting

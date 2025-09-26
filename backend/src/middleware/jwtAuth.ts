@@ -1,6 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/environment';
+import { NextFunction, Request, Response } from 'express';
+import { verifyToken as verifyJWT } from '../utils/jwt';
 import { logger } from '../utils/logger';
 
 // Extend Express Request interface to include user
@@ -21,50 +20,7 @@ declare global {
   }
 }
 
-const JWT_SECRET = config.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN = config.JWT_EXPIRES_IN || '24h'; // 24 hours by default
-
-/**
- * Generate JWT token for user
- */
-export const generateToken = (user: {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: 'user' | 'admin' | 'super_admin';
-  metadata?: any;
-}): string => {
-  const payload = {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: user.role,
-    type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user',
-    metadata: user.metadata
-  };
-
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN as any,
-    issuer: 'notifyx-api',
-    audience: 'notifyx-users'
-  });
-};
-
-/**
- * Verify JWT token and extract user information
- */
-export const verifyToken = (token: string): any => {
-  try {
-    return jwt.verify(token, JWT_SECRET, {
-      issuer: 'notifyx-api',
-      audience: 'notifyx-users'
-    });
-  } catch (error) {
-    throw new Error('Invalid or expired token');
-  }
-};
+// JWT utility functions are imported from '../utils/jwt'
 
 /**
  * Core JWT authentication middleware
@@ -87,19 +43,32 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     try {
-      // Verify the token
-      const decoded = verifyToken(token);
+      // Verify the token using JWT utility
+      const decoded = verifyJWT(token);
+      
+      logger.info('JWT middleware - Token decoded', {
+        decoded,
+        userIdFromDecoded: decoded.userId,
+        idFromDecoded: decoded.userId // using userId as it's the correct field
+      });
       
       // Populate req.user with decoded token data
       req.user = {
-        id: decoded.id,
+        id: decoded.userId, // JWT utility uses userId field
         email: decoded.email,
-        firstName: decoded.firstName,
-        lastName: decoded.lastName,
+        firstName: '', // JWT utility doesn't include firstName/lastName
+        lastName: '', // JWT utility doesn't include firstName/lastName
         role: decoded.role,
-        type: decoded.type,
-        metadata: decoded.metadata
+        type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
+        metadata: {}
       };
+
+      logger.info('JWT middleware - User populated', {
+        reqUser: req.user,
+        userId: req.user.id,
+        email: req.user.email,
+        role: req.user.role
+      });
 
       logger.info('User authenticated successfully', {
         userId: req.user.id,
@@ -214,17 +183,17 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.substring(7);
     
     try {
-      // Try to verify the token, but don't fail if invalid
-      const decoded = verifyToken(token);
+      // Try to verify the token using JWT utility, but don't fail if invalid
+      const decoded = verifyJWT(token);
       
       req.user = {
-        id: decoded.id,
+        id: decoded.userId,
         email: decoded.email,
-        firstName: decoded.firstName,
-        lastName: decoded.lastName,
+        firstName: '',
+        lastName: '',
         role: decoded.role,
-        type: decoded.type,
-        metadata: decoded.metadata
+        type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
+        metadata: {}
       };
     } catch (error) {
       // Token verification failed, continue without user

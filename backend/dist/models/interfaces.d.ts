@@ -81,13 +81,24 @@ export interface IAdmin extends BaseDocument {
 export interface ISubscription extends BaseDocument {
     _id: ObjectId;
     userId: ObjectId;
-    plan: 'basic' | 'premium';
+    plan: 'basic' | 'premium' | 'enterprise';
     amount: number;
     paymentId: string;
     orderId: string;
     status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
     startDate: Date;
     endDate: Date;
+    nextBillingDate?: Date;
+    autoRenew: boolean;
+    trialEndDate?: Date;
+    cancellationDate?: Date;
+    cancellationReason?: string;
+    metadata?: {
+        source?: string;
+        campaign?: string;
+        referrer?: string;
+        notes?: string;
+    };
 }
 export interface IJobApplication extends BaseDocument {
     _id: ObjectId;
@@ -114,5 +125,21 @@ export interface ISystemSettings extends BaseDocument {
     value: any;
     description: string;
     category: 'general' | 'email' | 'payment' | 'security';
+}
+export interface INotification extends BaseDocument {
+    _id: ObjectId;
+    userId: ObjectId;
+    type: 'job_alert' | 'subscription' | 'payment' | 'system' | 'profile' | 'application';
+    title: string;
+    message: string;
+    data?: Record<string, any>;
+    isRead: boolean;
+    readAt?: Date;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    category: 'info' | 'success' | 'warning' | 'error';
+    actionUrl?: string;
+    actionText?: string;
+    expiresAt?: Date;
+    metadata?: Record<string, any>;
 }
 //# sourceMappingURL=interfaces.d.ts.map

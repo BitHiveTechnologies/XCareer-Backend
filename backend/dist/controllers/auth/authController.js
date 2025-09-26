@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.changePassword = exports.getCurrentUser = exports.logout = exports.refreshToken = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const logger_1 = require("../../utils/logger");
-const jwt_1 = require("../../utils/jwt");
+const environment_1 = require("../../config/environment");
 const User_1 = require("../../models/User");
 const UserProfile_1 = require("../../models/UserProfile");
-const environment_1 = require("../../config/environment");
+const jwt_1 = require("../../utils/jwt");
+const logger_1 = require("../../utils/logger");
 /**
  * User registration
  */
@@ -146,7 +146,7 @@ const login = async (req, res) => {
         const tokenPayload = {
             userId: user._id.toString(),
             email: user.email,
-            role: 'user'
+            role: user.role
         };
         const accessToken = (0, jwt_1.generateToken)(tokenPayload);
         const refreshToken = (0, jwt_1.generateRefreshToken)({
@@ -170,7 +170,7 @@ const login = async (req, res) => {
                     id: user._id,
                     name: user.name,
                     email: user.email,
-                    role: 'user'
+                    role: user.role
                 },
                 accessToken,
                 refreshToken,
@@ -229,7 +229,7 @@ const refreshToken = async (req, res) => {
         const tokenPayload = {
             userId: user._id.toString(),
             email: user.email,
-            role: 'user'
+            role: user.role
         };
         const newAccessToken = (0, jwt_1.generateToken)(tokenPayload);
         logger_1.logger.info('Access token refreshed successfully', {
@@ -376,6 +376,11 @@ const changePassword = async (req, res) => {
     try {
         const userId = req.user?.id;
         const { currentPassword, newPassword } = req.body;
+        logger_1.logger.info('Change password attempt', {
+            userId,
+            hasCurrentPassword: !!currentPassword,
+            hasNewPassword: !!newPassword
+        });
         if (!userId) {
             res.status(401).json({
                 success: false,
@@ -388,6 +393,11 @@ const changePassword = async (req, res) => {
         }
         // Find user with password
         const user = await User_1.User.findById(userId).select('+password');
+        logger_1.logger.info('User lookup result', {
+            userId,
+            userFound: !!user,
+            userEmail: user?.email
+        });
         if (!user) {
             res.status(404).json({
                 success: false,
@@ -400,6 +410,12 @@ const changePassword = async (req, res) => {
         }
         // Verify current password
         const isCurrentPasswordValid = await bcryptjs_1.default.compare(currentPassword, user.password);
+        logger_1.logger.info('Password verification result', {
+            userId,
+            isCurrentPasswordValid,
+            hasCurrentPassword: !!currentPassword,
+            hasUserPassword: !!user.password
+        });
         if (!isCurrentPasswordValid) {
             res.status(400).json({
                 success: false,

@@ -12,7 +12,15 @@ export declare const verifyPayment: (req: Request, res: Response) => Promise<voi
  */
 export declare const getPaymentHistory: (req: Request, res: Response) => Promise<void>;
 /**
- * Handle Razorpay webhook
+ * Handle Razorpay webhook for subscription events
  */
 export declare const handleWebhook: (req: Request, res: Response) => Promise<void>;
+/**
+ * Get payment status by subscription ID
+ */
+export declare const getPaymentStatus: (req: Request, res: Response) => Promise<void>;
+/**
+ * Cancel subscription
+ */
+export declare const cancelSubscription: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=paymentController.d.ts.map

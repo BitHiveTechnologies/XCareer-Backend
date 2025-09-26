@@ -1,0 +1,11 @@
+# Task ID: 3
+# Title: Payment Webhook Endpoint Implementation
+# Status: pending
+# Dependencies: 1, 2
+# Priority: high
+# Description: Implement secure webhook endpoint to handle payment events from payment gateway
+# Details:
+Create secure webhook endpoint to listen for payment.success and payment.failed events. On success: update subscription status to 'active' and set next_billing_date. On failure: update status to 'payment_failed' and trigger user notification. Include webhook signature verification for security.
+
+# Test Strategy:
+Test webhook endpoint with mock events, verify signature validation, test success/failure event handling, validate database updates

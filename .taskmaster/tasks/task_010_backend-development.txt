@@ -1,0 +1,11 @@
+# Task ID: 10
+# Title: Authentication and Authorization API Enhancement
+# Status: pending
+# Dependencies: 2, 4, 5
+# Priority: high
+# Description: Enhance existing authentication APIs to work with subscription system and implement proper role-based access
+# Details:
+Update authentication endpoints to work with subscription validation, implement proper JWT token handling with subscription info, and ensure all auth APIs work correctly with the new subscription system.
+
+# Test Strategy:
+Test authentication endpoints, verify JWT token handling, test subscription validation in auth, validate role-based access

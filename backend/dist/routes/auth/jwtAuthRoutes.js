@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const jwtAuth_1 = require("../../middleware/jwtAuth");
+const jwt_1 = require("../../utils/jwt");
 const logger_1 = require("../../utils/logger");
 const router = express_1.default.Router();
 /**
@@ -26,17 +27,11 @@ router.post('/login', (req, res) => {
         }
         // Generate a simple user ID
         const userId = `user_${Date.now()}`;
-        // Generate JWT token
-        const token = (0, jwtAuth_1.generateToken)({
-            id: userId,
+        // Generate JWT token using JWT utility
+        const token = (0, jwt_1.generateToken)({
+            userId: userId,
             email,
-            firstName,
-            lastName,
-            role: role,
-            metadata: {
-                source: 'jwt-auth-route',
-                generatedAt: new Date().toISOString()
-            }
+            role: role
         });
         logger_1.logger.info('JWT token generated for testing', {
             userId,
@@ -51,8 +46,8 @@ router.post('/login', (req, res) => {
                 user: {
                     id: userId,
                     email,
-                    firstName,
-                    lastName,
+                    firstName: firstName,
+                    lastName: lastName,
                     role
                 }
             },

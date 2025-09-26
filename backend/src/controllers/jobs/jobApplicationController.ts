@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { JobApplication } from '../../models/JobApplication';
+import mongoose from 'mongoose';
 import { Job } from '../../models/Job';
-import { User } from '../../models/User';
+import { JobApplication } from '../../models/JobApplication';
 import { logger } from '../../utils/logger';
 import { canAccessPremiumFeatures } from '../../utils/subscriptionService';
 
@@ -162,36 +162,21 @@ export const getUserApplications = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Find user by email (JWT provides email)
-    const user = await User.findOne({ email: req.user?.email });
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        error: {
-          message: 'User not found'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    // Build query
-    const query: any = { userId: user._id };
+    // Build query using userId directly from JWT (convert to ObjectId)
+    const query: any = { userId: new mongoose.Types.ObjectId(userId) };
     if (status) {
       query.status = status;
     }
 
-    // Get applications with job details
+    // Get applications without populate to avoid model registration issues
     const applications = await JobApplication.find(query)
       .sort({ appliedAt: -1 })
       .skip(skip)
-      .limit(limitNum)
-      .populate('jobId', 'title company type location applicationDeadline')
-      .populate('userId', 'name email');
+      .limit(limitNum);
 
     const total = await JobApplication.countDocuments(query);
 
@@ -200,7 +185,7 @@ export const getUserApplications = async (req: Request, res: Response): Promise<
       data: {
         applications: applications.map(app => ({
           id: app._id,
-          job: app.jobId,
+          jobId: app.jobId,
           status: app.status,
           appliedAt: app.appliedAt,
           resumeUrl: app.resumeUrl,
@@ -219,6 +204,7 @@ export const getUserApplications = async (req: Request, res: Response): Promise<
   } catch (error) {
     logger.error('Get user applications failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
       userId: req.user?.id,
       ip: req.ip
     });
@@ -226,7 +212,8 @@ export const getUserApplications = async (req: Request, res: Response): Promise<
     res.status(500).json({
       success: false,
       error: {
-        message: 'Failed to get applications'
+        message: 'Failed to get applications',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       timestamp: new Date().toISOString()
     });

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const joi_1 = __importDefault(require("joi"));
 const authController_1 = require("../../controllers/auth/authController");
-const auth_1 = require("../../middleware/auth");
+const jwtAuth_1 = require("../../middleware/jwtAuth");
 const validation_1 = require("../../middleware/validation");
 const router = express_1.default.Router();
 /**
@@ -88,19 +88,19 @@ router.post('/refresh', (0, validation_1.validate)({
  * @desc    User logout
  * @access  Private
  */
-router.post('/logout', auth_1.authenticate, authController_1.logout);
+router.post('/logout', jwtAuth_1.authenticate, authController_1.logout);
 /**
  * @route   GET /api/v1/auth/me
  * @desc    Get current user profile
  * @access  Private
  */
-router.get('/me', auth_1.authenticate, authController_1.getCurrentUser);
+router.get('/me', jwtAuth_1.authenticate, authController_1.getCurrentUser);
 /**
  * @route   POST /api/v1/auth/change-password
  * @desc    Change user password
  * @access  Private
  */
-router.post('/change-password', auth_1.authenticate, (0, validation_1.validate)({
+router.post('/change-password', jwtAuth_1.authenticate, (0, validation_1.validate)({
     body: joi_1.default.object({
         currentPassword: joi_1.default.string().required().messages({
             'any.required': 'Current password is required'

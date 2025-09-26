@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import Joi from 'joi';
 export interface ValidationSchema {
     body?: Joi.ObjectSchema;

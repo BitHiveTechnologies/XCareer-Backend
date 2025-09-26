@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userSchema = exports.User = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const mongoose_1 = __importStar(require("mongoose"));
 const environment_1 = require("../config/environment");
 // User schema
 const userSchema = new mongoose_1.Schema({
@@ -86,8 +86,8 @@ const userSchema = new mongoose_1.Schema({
     subscriptionPlan: {
         type: String,
         enum: {
-            values: ['basic', 'premium'],
-            message: 'Subscription plan must be either basic or premium'
+            values: ['basic', 'premium', 'enterprise'],
+            message: 'Subscription plan must be basic, premium, or enterprise'
         },
         default: 'basic'
     },

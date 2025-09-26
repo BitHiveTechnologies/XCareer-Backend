@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 declare global {
     namespace Express {
         interface Request {
@@ -11,6 +11,13 @@ declare global {
                 type: 'user' | 'admin';
                 clerkUserId?: string;
                 metadata?: any;
+            };
+            userContext?: {
+                id: string;
+                role: string;
+                subscriptionPlan?: string;
+                subscriptionStatus?: string;
+                isActive?: boolean;
             };
         }
     }

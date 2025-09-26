@@ -34,12 +34,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = exports.EmailService = exports.EmailStatus = void 0;
-const nodemailer_1 = require("nodemailer");
-const logger_1 = require("./logger");
-const environment_1 = require("../config/environment");
 const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
 const Handlebars = __importStar(require("handlebars"));
+const nodemailer_1 = require("nodemailer");
+const path = __importStar(require("path"));
+const environment_1 = require("../config/environment");
+const logger_1 = require("./logger");
 // Email delivery status
 var EmailStatus;
 (function (EmailStatus) {
@@ -156,17 +156,67 @@ class EmailService {
             return false;
         }
     }
-    async sendWelcomeEmail(to, name) {
-        const html = `
-      <h1>Welcome to NotifyX, ${name}!</h1>
-      <p>We're excited to have you on board.</p>
-    `;
-        return this.sendEmail({
-            to,
-            subject: 'Welcome to NotifyX!',
-            template: 'welcome',
-            context: { html, text: `Welcome to NotifyX, ${name}!` }
-        });
+    async sendWelcomeEmail(to, name, plan, source) {
+        try {
+            // Get template if available
+            const template = this.templates.get('welcome');
+            if (template) {
+                // Use Handlebars template
+                const html = template({
+                    name,
+                    plan: plan || 'Basic',
+                    source: source || 'direct',
+                    frontendUrl: environment_1.config.FRONTEND_URL || 'http://localhost:3000',
+                    features: this.getPlanFeatures(plan || 'basic'),
+                    supportEmail: environment_1.config.SUPPORT_EMAIL || 'support@notifyx.com'
+                });
+                return this.sendEmail({
+                    to,
+                    subject: `Welcome to NotifyX, ${name}! 🎉`,
+                    template: 'welcome',
+                    context: {
+                        html,
+                        text: `Welcome to NotifyX, ${name}! We're excited to have you on board. Complete your profile to get started with personalized job recommendations.`
+                    }
+                });
+            }
+            else {
+                // Fallback to simple HTML
+                const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #4F46E5;">🎉 Welcome to NotifyX, ${name}!</h1>
+            <p>We're thrilled to have you join our community of job seekers and career builders!</p>
+            <p><strong>Your Plan:</strong> ${plan || 'Basic'}</p>
+            <p>With NotifyX, you can:</p>
+            <ul>
+              <li>Discover personalized job recommendations</li>
+              <li>Track your application progress</li>
+              <li>Get notified about new opportunities</li>
+              <li>Build your professional profile</li>
+            </ul>
+            <p>Ready to get started? Complete your profile to receive personalized job recommendations!</p>
+            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
+          </div>
+        `;
+                return this.sendEmail({
+                    to,
+                    subject: `Welcome to NotifyX, ${name}! 🎉`,
+                    template: 'welcome',
+                    context: {
+                        html,
+                        text: `Welcome to NotifyX, ${name}! We're excited to have you on board. Complete your profile to get started with personalized job recommendations.`
+                    }
+                });
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Failed to send welcome email', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                to,
+                name
+            });
+            return false;
+        }
     }
     async sendJobAlertEmail(to, jobData) {
         const html = `
@@ -181,8 +231,143 @@ class EmailService {
             context: { html, text: `New Job: ${jobData.title} at ${jobData.company}` }
         });
     }
+    /**
+     * Send subscription upgrade email
+     */
+    async sendSubscriptionUpgradeEmail(to, name, plan, newFeatures) {
+        try {
+            const template = this.templates.get('subscription-upgrade');
+            if (template) {
+                const html = template({
+                    name,
+                    plan,
+                    newFeatures,
+                    features: this.getPlanFeatures(plan),
+                    frontendUrl: environment_1.config.FRONTEND_URL || 'http://localhost:3000',
+                    supportEmail: environment_1.config.SUPPORT_EMAIL || 'support@notifyx.com'
+                });
+                return this.sendEmail({
+                    to,
+                    subject: `🎉 Subscription Upgraded to ${plan}!`,
+                    template: 'subscription-upgrade',
+                    context: {
+                        html,
+                        text: `Congratulations ${name}! Your subscription has been upgraded to ${plan}. You now have access to new features and benefits.`
+                    }
+                });
+            }
+            else {
+                // Fallback
+                const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #10B981;">🎉 Subscription Upgraded!</h1>
+            <p>Congratulations ${name}! Your subscription has been upgraded to <strong>${plan}</strong>!</p>
+            <p>You now have access to new features and benefits.</p>
+          </div>
+        `;
+                return this.sendEmail({
+                    to,
+                    subject: `🎉 Subscription Upgraded to ${plan}!`,
+                    template: 'subscription-upgrade',
+                    context: { html, text: `Congratulations ${name}! Your subscription has been upgraded to ${plan}.` }
+                });
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Failed to send subscription upgrade email', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                to,
+                name,
+                plan
+            });
+            return false;
+        }
+    }
+    /**
+     * Send subscription expiry reminder email
+     */
+    async sendSubscriptionExpiryEmail(to, name, plan, daysRemaining) {
+        try {
+            const template = this.templates.get('subscription-expiry');
+            if (template) {
+                const html = template({
+                    name,
+                    plan,
+                    daysRemaining,
+                    features: this.getPlanFeatures(plan),
+                    frontendUrl: environment_1.config.FRONTEND_URL || 'http://localhost:3000',
+                    supportEmail: environment_1.config.SUPPORT_EMAIL || 'support@notifyx.com'
+                });
+                return this.sendEmail({
+                    to,
+                    subject: `⏰ Your ${plan} subscription expires in ${daysRemaining} days`,
+                    template: 'subscription-expiry',
+                    context: {
+                        html,
+                        text: `Hello ${name}! Your ${plan} subscription will expire in ${daysRemaining} days. Please renew to continue enjoying all the benefits.`
+                    }
+                });
+            }
+            else {
+                // Fallback
+                const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #F59E0B;">⏰ Subscription Expiring Soon</h1>
+            <p>Hello ${name}! Your <strong>${plan}</strong> subscription will expire in ${daysRemaining} days.</p>
+            <p>Please renew your subscription to continue enjoying all the benefits.</p>
+          </div>
+        `;
+                return this.sendEmail({
+                    to,
+                    subject: `⏰ Your ${plan} subscription expires in ${daysRemaining} days`,
+                    template: 'subscription-expiry',
+                    context: { html, text: `Hello ${name}! Your ${plan} subscription will expire in ${daysRemaining} days.` }
+                });
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Failed to send subscription expiry email', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                to,
+                name,
+                plan,
+                daysRemaining
+            });
+            return false;
+        }
+    }
     htmlToText(html) {
         return html.replace(/<[^>]*>/g, '').trim();
+    }
+    /**
+     * Get plan features for email templates
+     */
+    getPlanFeatures(plan) {
+        const features = {
+            basic: [
+                'Personalized job recommendations',
+                'Basic profile management',
+                'Email notifications',
+                'Application tracking'
+            ],
+            premium: [
+                'Advanced job matching',
+                'Priority support',
+                'Resume optimization tips',
+                'Interview preparation',
+                'Career insights',
+                'Unlimited applications'
+            ],
+            enterprise: [
+                'Everything in Premium',
+                'Dedicated career coach',
+                'Custom job alerts',
+                'Advanced analytics',
+                'Priority placement',
+                'White-glove service'
+            ]
+        };
+        return features[plan.toLowerCase()] || features.basic;
     }
     async verifyConnection() {
         try {

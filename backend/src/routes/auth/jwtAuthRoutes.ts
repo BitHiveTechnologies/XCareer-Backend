@@ -1,5 +1,6 @@
 import express from 'express';
-import { generateToken, authenticate } from '../../middleware/jwtAuth';
+import { authenticate } from '../../middleware/jwtAuth';
+import { generateToken } from '../../utils/jwt';
 import { logger } from '../../utils/logger';
 
 const router = express.Router();
@@ -26,17 +27,11 @@ router.post('/login', (req, res) => {
     // Generate a simple user ID
     const userId = `user_${Date.now()}`;
     
-    // Generate JWT token
+    // Generate JWT token using JWT utility
     const token = generateToken({
-      id: userId,
+      userId: userId,
       email,
-      firstName,
-      lastName,
-      role: role as 'user' | 'admin' | 'super_admin',
-      metadata: {
-        source: 'jwt-auth-route',
-        generatedAt: new Date().toISOString()
-      }
+      role: role as 'user' | 'admin' | 'super_admin'
     });
 
     logger.info('JWT token generated for testing', {
@@ -53,8 +48,8 @@ router.post('/login', (req, res) => {
         user: {
           id: userId,
           email,
-          firstName,
-          lastName,
+          firstName: firstName,
+          lastName: lastName,
           role
         }
       },

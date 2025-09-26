@@ -1,49 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.optionalAuth = exports.requireSuperAdmin = exports.requireAdmin = exports.authenticate = exports.verifyToken = exports.generateToken = void 0;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const environment_1 = require("../config/environment");
+exports.optionalAuth = exports.requireSuperAdmin = exports.requireAdmin = exports.authenticate = void 0;
+const jwt_1 = require("../utils/jwt");
 const logger_1 = require("../utils/logger");
-const JWT_SECRET = environment_1.config.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN = environment_1.config.JWT_EXPIRES_IN || '24h'; // 24 hours by default
-/**
- * Generate JWT token for user
- */
-const generateToken = (user) => {
-    const payload = {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user',
-        metadata: user.metadata
-    };
-    return jsonwebtoken_1.default.sign(payload, JWT_SECRET, {
-        expiresIn: JWT_EXPIRES_IN,
-        issuer: 'notifyx-api',
-        audience: 'notifyx-users'
-    });
-};
-exports.generateToken = generateToken;
-/**
- * Verify JWT token and extract user information
- */
-const verifyToken = (token) => {
-    try {
-        return jsonwebtoken_1.default.verify(token, JWT_SECRET, {
-            issuer: 'notifyx-api',
-            audience: 'notifyx-users'
-        });
-    }
-    catch (error) {
-        throw new Error('Invalid or expired token');
-    }
-};
-exports.verifyToken = verifyToken;
+// JWT utility functions are imported from '../utils/jwt'
 /**
  * Core JWT authentication middleware
  */
@@ -62,18 +22,29 @@ const authenticate = async (req, res, next) => {
         }
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
         try {
-            // Verify the token
-            const decoded = (0, exports.verifyToken)(token);
+            // Verify the token using JWT utility
+            const decoded = (0, jwt_1.verifyToken)(token);
+            logger_1.logger.info('JWT middleware - Token decoded', {
+                decoded,
+                userIdFromDecoded: decoded.userId,
+                idFromDecoded: decoded.userId // using userId as it's the correct field
+            });
             // Populate req.user with decoded token data
             req.user = {
-                id: decoded.id,
+                id: decoded.userId, // JWT utility uses userId field
                 email: decoded.email,
-                firstName: decoded.firstName,
-                lastName: decoded.lastName,
+                firstName: '', // JWT utility doesn't include firstName/lastName
+                lastName: '', // JWT utility doesn't include firstName/lastName
                 role: decoded.role,
-                type: decoded.type,
-                metadata: decoded.metadata
+                type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
+                metadata: {}
             };
+            logger_1.logger.info('JWT middleware - User populated', {
+                reqUser: req.user,
+                userId: req.user.id,
+                email: req.user.email,
+                role: req.user.role
+            });
             logger_1.logger.info('User authenticated successfully', {
                 userId: req.user.id,
                 email: req.user.email,
@@ -179,16 +150,16 @@ const optionalAuth = async (req, res, next) => {
         }
         const token = authHeader.substring(7);
         try {
-            // Try to verify the token, but don't fail if invalid
-            const decoded = (0, exports.verifyToken)(token);
+            // Try to verify the token using JWT utility, but don't fail if invalid
+            const decoded = (0, jwt_1.verifyToken)(token);
             req.user = {
-                id: decoded.id,
+                id: decoded.userId,
                 email: decoded.email,
-                firstName: decoded.firstName,
-                lastName: decoded.lastName,
+                firstName: '',
+                lastName: '',
                 role: decoded.role,
-                type: decoded.type,
-                metadata: decoded.metadata
+                type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
+                metadata: {}
             };
         }
         catch (error) {

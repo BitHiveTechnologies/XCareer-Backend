@@ -1,16 +1,21 @@
 import express from 'express';
-import userRoutes from './users/userRoutes';
-import paymentRoutes from './payments/paymentRoutes';
-import subscriptionRoutes from './subscriptions/subscriptionRoutes';
-import jobRoutes from './jobs/jobRoutes';
-import jobApplicationRoutes from './jobs/jobApplicationRoutes';
-import jobMatchingRoutes from './jobs/jobMatchingRoutes';
+import adminAuthRoutes from './admin/adminAuth';
+import adminRoutes from './admin/adminRoutes';
 import authRoutes from './auth/authRoutes';
 import clerkAuthRoutes from './auth/clerkAuthRoutes';
 import jwtAuthRoutes from './auth/jwtAuthRoutes';
+import jobApplicationRoutes from './jobs/jobApplicationRoutes';
+import jobMatchingRoutes from './jobs/jobMatchingRoutes';
+import jobRoutes from './jobs/jobRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
-import adminAuthRoutes from './admin/adminAuth';
-import adminRoutes from './admin/adminRoutes';
+import notificationRoutes from './notifications/notificationRoutes';
+import paymentRoutes from './payments/paymentRoutes';
+import performanceRoutes from './performanceRoutes';
+import rbacRoutes from './rbacRoutes';
+import resumeTemplateRoutes from './resumeTemplateRoutes';
+import subscriptionRoutes from './subscriptions/subscriptionRoutes';
+import userProvisioningRoutes from './userProvisioningRoutes';
+import userRoutes from './users/userRoutes';
 
 const router = express.Router();
 
@@ -46,14 +51,29 @@ router.use(`${API_VERSION}/applications`, jobApplicationRoutes);
 // Job matching routes
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes);
 
-// Email notification routes
-router.use(`${API_VERSION}/notifications`, emailNotificationRoutes);
+// Email notification routes (admin only)
+router.use(`${API_VERSION}/notifications/email`, emailNotificationRoutes);
+
+// User notification routes
+router.use(`${API_VERSION}/notifications`, notificationRoutes);
 
 // Admin authentication routes (public)
 router.use(`${API_VERSION}/admin`, adminAuthRoutes);
 
 // Admin management routes (protected)
 router.use(`${API_VERSION}/admin`, adminRoutes);
+
+// User provisioning routes (admin only)
+router.use(`${API_VERSION}/provisioning`, userProvisioningRoutes);
+
+// RBAC routes (role-based access control)
+router.use(`${API_VERSION}/rbac`, rbacRoutes);
+
+// Resume template routes
+router.use(`${API_VERSION}/templates`, resumeTemplateRoutes);
+
+// Performance monitoring routes (admin only)
+router.use(`${API_VERSION}/performance`, performanceRoutes);
 
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
@@ -71,7 +91,11 @@ router.get(`${API_VERSION}`, (_req, res) => {
       applications: `${API_VERSION}/applications`,
       matching: `${API_VERSION}/matching`,
       notifications: `${API_VERSION}/notifications`,
-      admin: `${API_VERSION}/admin`
+      admin: `${API_VERSION}/admin`,
+      provisioning: `${API_VERSION}/provisioning`,
+      rbac: `${API_VERSION}/rbac`,
+      templates: `${API_VERSION}/templates`,
+      performance: `${API_VERSION}/performance`
     },
     timestamp: new Date().toISOString()
   });

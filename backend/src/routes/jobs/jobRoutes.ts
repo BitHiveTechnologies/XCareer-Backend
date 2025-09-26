@@ -1,29 +1,30 @@
 import express from 'express';
-import { validate } from '../../middleware/validation';
-import { authenticate, requireAdmin } from '../../middleware/auth';
 import {
-  createJob,
-  getAllJobs,
-  getJobById,
-  updateJob,
-  deleteJob,
-  toggleJobStatus,
-  getJobStats,
-  searchJobs
+    createJob,
+    deleteJob,
+    getAllJobs,
+    getJobById,
+    getJobStats,
+    searchJobs,
+    toggleJobStatus,
+    updateJob
 } from '../../controllers/jobs/jobController';
-import { commonSchemas } from '../../middleware/validation';
+import { authenticate, requireAdmin } from '../../middleware/auth';
+import { commonSchemas, validate } from '../../middleware/validation';
 
 const router = express.Router();
 
 // Public routes (no authentication required)
 router.get('/', getAllJobs);
 router.get('/search', searchJobs);
-router.get('/stats/overview', getJobStats);
 router.get('/:jobId', getJobById);
 
 // Admin-only routes (require authentication + admin privileges)
 router.use(authenticate);
 router.use(requireAdmin);
+
+// Admin-only stats endpoint
+router.get('/stats/overview', getJobStats);
 
 // Create job
 router.post('/',

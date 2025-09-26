@@ -1,7 +1,7 @@
-import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { IUser } from './interfaces';
+import mongoose, { Schema } from 'mongoose';
 import { config } from '../config/environment';
+import { IUser } from './interfaces';
 
 // User schema
 const userSchema = new Schema<IUser>({
@@ -49,8 +49,8 @@ const userSchema = new Schema<IUser>({
   subscriptionPlan: {
     type: String,
     enum: {
-      values: ['basic', 'premium'],
-      message: 'Subscription plan must be either basic or premium'
+      values: ['basic', 'premium', 'enterprise'],
+      message: 'Subscription plan must be basic, premium, or enterprise'
     },
     default: 'basic'
   },

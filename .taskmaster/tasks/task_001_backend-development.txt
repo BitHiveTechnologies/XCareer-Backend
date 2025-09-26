@@ -1,0 +1,92 @@
+# Task ID: 1
+# Title: Payment Gateway Integration Setup
+# Status: in-progress
+# Dependencies: None
+# Priority: high
+# Description: Integrate with Razorpay or Stripe for processing recurring monthly payments for ₹49 (Basic) and ₹99 (Premium) subscription plans
+# Details:
+Set up payment gateway integration with proper error handling, webhook security, and sandbox testing. Create API endpoints for subscription creation, payment processing, and status checking. Include comprehensive testing for both success and failure scenarios.
+
+# Test Strategy:
+Test with sandbox environment, verify webhook security, test payment success/failure scenarios, validate recurring payment setup
+
+# Subtasks:
+## 1. Set up Razorpay Account and API Keys [pending]
+### Dependencies: None
+### Description: Create Razorpay account, get API keys, and configure environment variables
+### Details:
+1. Create Razorpay account and get test API keys
+2. Set up environment variables for RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET
+3. Configure webhook secret for security
+4. Test API key connectivity
+
+## 2. Install and Configure Razorpay SDK [pending]
+### Dependencies: None
+### Description: Install Razorpay Node.js SDK and set up basic configuration
+### Details:
+1. Install razorpay package: npm install razorpay
+2. Create Razorpay instance with API keys
+3. Set up basic configuration for test/production environments
+4. Create utility functions for Razorpay operations
+
+## 3. Create Subscription Plans Configuration [pending]
+### Dependencies: None
+### Description: Define subscription plans for Basic (₹49) and Premium (₹99) with proper configuration
+### Details:
+1. Create subscription plans configuration object
+2. Define Basic plan: ₹49/month with features
+3. Define Premium plan: ₹99/month with features
+4. Set up plan validation and error handling
+
+## 4. Create Payment API Endpoints [pending]
+### Dependencies: None
+### Description: Implement API endpoints for subscription creation, payment processing, and status checking
+### Details:
+1. POST /api/payments/create-subscription - Create new subscription
+2. POST /api/payments/process-payment - Process payment
+3. GET /api/payments/status/:subscriptionId - Check payment status
+4. POST /api/payments/cancel-subscription - Cancel subscription
+5. Include proper validation and error handling
+
+## 5. Implement Webhook Security and Validation [pending]
+### Dependencies: None
+### Description: Set up secure webhook endpoint with signature verification for payment events
+### Details:
+1. Create webhook endpoint: POST /api/payments/webhook
+2. Implement Razorpay signature verification
+3. Handle payment.success and payment.failed events
+4. Add rate limiting and security headers
+5. Log all webhook events for debugging
+
+## 6. Create Comprehensive Test Suite [pending]
+### Dependencies: None
+### Description: Develop comprehensive tests for payment gateway integration including success and failure scenarios
+### Details:
+1. Unit tests for payment functions
+2. Integration tests for API endpoints
+3. Webhook testing with mock events
+4. Test payment success scenarios
+5. Test payment failure scenarios
+6. Test subscription cancellation
+7. Performance testing for concurrent payments
+
+## 7. Implement Error Handling and Logging [pending]
+### Dependencies: None
+### Description: Add comprehensive error handling, logging, and monitoring for payment operations
+### Details:
+1. Create centralized error handling for payment operations
+2. Implement detailed logging for all payment events
+3. Add monitoring and alerting for payment failures
+4. Create error recovery mechanisms
+5. Add transaction logging for audit trails
+
+## 8. Documentation and Deployment Setup [pending]
+### Dependencies: None
+### Description: Create documentation and set up deployment configuration for payment gateway integration
+### Details:
+1. Create API documentation for payment endpoints
+2. Document webhook configuration and setup
+3. Create deployment guide for production
+4. Set up environment configuration
+5. Create troubleshooting guide
+

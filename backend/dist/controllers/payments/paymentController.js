@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleWebhook = exports.getPaymentHistory = exports.verifyPayment = exports.createOrder = void 0;
-const razorpay_1 = __importDefault(require("razorpay"));
+exports.cancelSubscription = exports.getPaymentStatus = exports.handleWebhook = exports.getPaymentHistory = exports.verifyPayment = exports.createOrder = void 0;
 const crypto_1 = __importDefault(require("crypto"));
-const User_1 = require("../../models/User");
-const Subscription_1 = require("../../models/Subscription");
-const logger_1 = require("../../utils/logger");
+const razorpay_1 = __importDefault(require("razorpay"));
 const environment_1 = require("../../config/environment");
+const Subscription_1 = require("../../models/Subscription");
+const User_1 = require("../../models/User");
+const userProvisioningService_1 = require("../../services/userProvisioningService");
+const logger_1 = require("../../utils/logger");
 // Initialize Razorpay
 const razorpay = new razorpay_1.default({
     key_id: environment_1.config.RAZORPAY_KEY_ID,
@@ -333,13 +334,17 @@ const getPaymentHistory = async (req, res) => {
 };
 exports.getPaymentHistory = getPaymentHistory;
 /**
- * Handle Razorpay webhook
+ * Handle Razorpay webhook for subscription events
  */
 const handleWebhook = async (req, res) => {
     try {
         const webhookSecret = environment_1.config.RAZORPAY_WEBHOOK_SECRET || 'default_webhook_secret';
         const signature = req.headers['x-razorpay-signature'];
         if (!signature) {
+            logger_1.logger.warn('Webhook signature missing', {
+                ip: req.ip,
+                userAgent: req.get('User-Agent')
+            });
             res.status(400).json({
                 success: false,
                 error: {
@@ -367,6 +372,11 @@ const handleWebhook = async (req, res) => {
             return;
         }
         const { event, payload } = req.body;
+        logger_1.logger.info('Webhook event received', {
+            event,
+            paymentId: payload?.payment?.entity?.id || payload?.subscription?.entity?.id,
+            ip: req.ip
+        });
         // Handle different webhook events
         switch (event) {
             case 'payment.captured':
@@ -377,6 +387,30 @@ const handleWebhook = async (req, res) => {
                 break;
             case 'refund.processed':
                 await handleRefundProcessed(payload);
+                break;
+            case 'subscription.activated':
+                await handleSubscriptionActivated(payload);
+                break;
+            case 'subscription.charged':
+                await handleSubscriptionCharged(payload);
+                break;
+            case 'subscription.completed':
+                await handleSubscriptionCompleted(payload);
+                break;
+            case 'subscription.cancelled':
+                await handleSubscriptionCancelled(payload);
+                break;
+            case 'subscription.paused':
+                await handleSubscriptionPaused(payload);
+                break;
+            case 'subscription.resumed':
+                await handleSubscriptionResumed(payload);
+                break;
+            case 'subscription.halted':
+                await handleSubscriptionHalted(payload);
+                break;
+            case 'subscription.updated':
+                await handleSubscriptionUpdated(payload);
                 break;
             default:
                 logger_1.logger.info('Unhandled webhook event', { event, payload });
@@ -480,4 +514,487 @@ async function handleRefundProcessed(payload) {
         });
     }
 }
+/**
+ * Handle subscription activated event
+ */
+async function handleSubscriptionActivated(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId } = payload.subscription.entity;
+        // Find user by customer ID or subscription ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'active'
+            });
+            logger_1.logger.info('User subscription activated via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription activated failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription charged event
+ */
+async function handleSubscriptionCharged(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId } = payload.subscription.entity;
+        const { id: paymentId, amount, currency } = payload.payment.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Use user provisioning service for automated setup
+            const provisioningData = {
+                email: user.email,
+                name: user.name,
+                mobile: user.mobile,
+                subscriptionPlan: userProvisioningService_1.UserProvisioningService['determinePlanFromAmount'](amount),
+                subscriptionStatus: 'active',
+                metadata: {
+                    source: 'payment_webhook',
+                    campaign: 'recurring_charge',
+                    notes: `Payment ID: ${paymentId}, Subscription ID: ${subscriptionId}`
+                }
+            };
+            const result = await userProvisioningService_1.UserProvisioningService.provisionUser(provisioningData);
+            if (result.success) {
+                logger_1.logger.info('User provisioned via subscription charged webhook', {
+                    subscriptionId,
+                    paymentId,
+                    userId: user._id,
+                    amount,
+                    currency,
+                    plan: provisioningData.subscriptionPlan
+                });
+            }
+            else {
+                logger_1.logger.warn('User provisioning failed via subscription charged webhook', {
+                    subscriptionId,
+                    paymentId,
+                    userId: user._id,
+                    errors: result.errors
+                });
+            }
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription charged failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription completed event
+ */
+async function handleSubscriptionCompleted(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'completed'
+            });
+            logger_1.logger.info('User subscription completed via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription completed failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription cancelled event
+ */
+async function handleSubscriptionCancelled(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId, cancelled_at } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'cancelled'
+            });
+            // Update subscription record
+            const subscription = await Subscription_1.Subscription.findOne({ userId: user._id });
+            if (subscription) {
+                subscription.status = 'cancelled';
+                subscription.cancellationDate = new Date(cancelled_at * 1000);
+                subscription.cancellationReason = 'User cancelled via Razorpay';
+                await subscription.save();
+            }
+            logger_1.logger.info('User subscription cancelled via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId,
+                cancelledAt: cancelled_at
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription cancelled failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription paused event
+ */
+async function handleSubscriptionPaused(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId, paused_at } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'paused'
+            });
+            logger_1.logger.info('User subscription paused via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId,
+                pausedAt: paused_at
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription paused failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription resumed event
+ */
+async function handleSubscriptionResumed(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId, resumed_at } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'active'
+            });
+            logger_1.logger.info('User subscription resumed via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId,
+                resumedAt: resumed_at
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription resumed failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription halted event
+ */
+async function handleSubscriptionHalted(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId, halted_at } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            // Update user subscription status
+            await User_1.User.findByIdAndUpdate(user._id, {
+                subscriptionStatus: 'halted'
+            });
+            logger_1.logger.info('User subscription halted via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId,
+                haltedAt: halted_at
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription halted failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Handle subscription updated event
+ */
+async function handleSubscriptionUpdated(payload) {
+    try {
+        const { id: subscriptionId, customer_id: customerId, updated_at } = payload.subscription.entity;
+        // Find user by customer ID
+        const user = await User_1.User.findOne({
+            $or: [
+                { clerkUserId: customerId },
+                { email: customerId }
+            ]
+        });
+        if (user) {
+            logger_1.logger.info('User subscription updated via webhook', {
+                subscriptionId,
+                userId: user._id,
+                customerId,
+                updatedAt: updated_at
+            });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Handle subscription updated failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            payload
+        });
+    }
+}
+/**
+ * Get payment status by subscription ID
+ */
+const getPaymentStatus = async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    message: 'Authentication required'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Find subscription
+        const subscription = await Subscription_1.Subscription.findOne({
+            _id: subscriptionId,
+            userId
+        });
+        if (!subscription) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    message: 'Subscription not found'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Get payment details from Razorpay if payment ID exists
+        let paymentDetails = null;
+        if (subscription.paymentId) {
+            try {
+                const payment = await razorpay.payments.fetch(subscription.paymentId);
+                paymentDetails = {
+                    id: payment.id,
+                    status: payment.status,
+                    amount: payment.amount,
+                    currency: payment.currency,
+                    method: payment.method,
+                    captured: payment.captured,
+                    createdAt: payment.created_at
+                };
+            }
+            catch (error) {
+                logger_1.logger.warn('Failed to fetch payment details from Razorpay', {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    paymentId: subscription.paymentId
+                });
+            }
+        }
+        res.status(200).json({
+            success: true,
+            data: {
+                subscription: {
+                    id: subscription._id,
+                    plan: subscription.plan,
+                    status: subscription.status,
+                    amount: subscription.amount,
+                    startDate: subscription.startDate,
+                    endDate: subscription.endDate,
+                    paymentId: subscription.paymentId,
+                    orderId: subscription.orderId,
+                    isActive: subscription.isActive(),
+                    isExpired: subscription.isExpired(),
+                    daysRemaining: subscription.getDaysRemaining(),
+                    daysSinceStart: subscription.getDaysSinceStart()
+                },
+                payment: paymentDetails
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Get payment status failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            subscriptionId: req.params.subscriptionId,
+            userId: req.user?.id,
+            ip: req.ip
+        });
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to get payment status'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.getPaymentStatus = getPaymentStatus;
+/**
+ * Cancel subscription
+ */
+const cancelSubscription = async (req, res) => {
+    try {
+        const { subscriptionId, reason } = req.body;
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    message: 'Authentication required'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Find subscription
+        const subscription = await Subscription_1.Subscription.findOne({
+            _id: subscriptionId,
+            userId
+        });
+        if (!subscription) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    message: 'Subscription not found'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Check if subscription can be cancelled
+        if (subscription.status === 'cancelled') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Subscription is already cancelled'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        if (subscription.status === 'expired') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Cannot cancel expired subscription'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Update subscription status
+        subscription.status = 'cancelled';
+        subscription.updatedAt = new Date();
+        await subscription.save();
+        // Update user subscription status
+        await User_1.User.findByIdAndUpdate(userId, {
+            subscriptionStatus: 'cancelled'
+        });
+        // Log cancellation
+        logger_1.logger.info('Subscription cancelled', {
+            userId,
+            subscriptionId,
+            plan: subscription.plan,
+            reason: reason || 'No reason provided',
+            ip: req.ip
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Subscription cancelled successfully',
+            data: {
+                subscription: {
+                    id: subscription._id,
+                    plan: subscription.plan,
+                    status: subscription.status,
+                    cancelledAt: subscription.updatedAt,
+                    reason: reason || 'No reason provided'
+                }
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Cancel subscription failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            subscriptionId: req.body.subscriptionId,
+            userId: req.user?.id,
+            ip: req.ip
+        });
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to cancel subscription'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.cancelSubscription = cancelSubscription;
 //# sourceMappingURL=paymentController.js.map

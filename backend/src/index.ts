@@ -1,11 +1,15 @@
-import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import { connectDB } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { apiLimiter } from './middleware/rateLimiter';
+import { requestSizeLimiter, requestTimeout } from './middleware/requestLimiter';
+import { securityMiddleware, suspiciousActivityMiddleware } from './middleware/security';
+import { createIndexes } from './services/indexingService';
 
 // Import all models to ensure they are registered with mongoose
 import './models';
@@ -16,8 +20,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env['PORT'] || 5000;
 
-// Middleware
-app.use(helmet()); // Security headers
+// Enhanced Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+})); // Enhanced security headers
+
+// Request size and timeout limits
+app.use(requestSizeLimiter(2 * 1024 * 1024)); // 2MB limit
+app.use(requestTimeout(30000)); // 30 second timeout
+
+// Security middleware
+app.use(securityMiddleware);
+app.use(suspiciousActivityMiddleware);
+
+// Rate limiting
+app.use(apiLimiter);
 
 // Enhanced CORS configuration
 const allowedOrigins = [
@@ -179,6 +204,9 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+    
+    // Initialize database indexes
+    await createIndexes();
     
     app.listen(PORT, () => {
       console.log(`🚀 NotifyX Backend server running on port ${PORT}`);

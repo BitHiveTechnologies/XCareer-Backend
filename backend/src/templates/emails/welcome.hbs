@@ -21,12 +21,11 @@
             <h2>Hello {{name}}!</h2>
             <p>We're thrilled to welcome you to NotifyX, your gateway to exciting career opportunities!</p>
             
-            <p>With NotifyX, you can:</p>
+            <p>With your <strong>{{plan}} plan</strong>, you can:</p>
             <ul>
-                <li>Discover personalized job recommendations</li>
-                <li>Track your application progress</li>
-                <li>Get notified about new opportunities</li>
-                <li>Build your professional profile</li>
+                {{#each features}}
+                <li>{{this}}</li>
+                {{/each}}
             </ul>
             
             <p>Ready to get started? Complete your profile to receive personalized job recommendations!</p>

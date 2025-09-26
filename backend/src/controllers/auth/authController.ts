@@ -1,10 +1,10 @@
-import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { logger } from '../../utils/logger';
-import { generateToken, generateRefreshToken, verifyRefreshToken } from '../../utils/jwt';
+import { Request, Response } from 'express';
+import { config } from '../../config/environment';
 import { User } from '../../models/User';
 import { UserProfile } from '../../models/UserProfile';
-import { config } from '../../config/environment';
+import { generateRefreshToken, generateToken, verifyRefreshToken } from '../../utils/jwt';
+import { logger } from '../../utils/logger';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -168,7 +168,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const tokenPayload = {
       userId: user._id.toString(),
       email: user.email,
-      role: 'user' as const
+      role: user.role
     };
 
     const accessToken = generateToken(tokenPayload);
@@ -196,7 +196,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           id: user._id,
           name: user.name,
           email: user.email,
-          role: 'user'
+          role: user.role
         },
         accessToken,
         refreshToken,
@@ -259,7 +259,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     const tokenPayload = {
       userId: user._id.toString(),
       email: user.email,
-      role: 'user' as const
+      role: user.role
     };
 
     const newAccessToken = generateToken(tokenPayload);
@@ -417,6 +417,12 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     const userId = req.user?.id;
     const { currentPassword, newPassword } = req.body;
 
+    logger.info('Change password attempt', {
+      userId,
+      hasCurrentPassword: !!currentPassword,
+      hasNewPassword: !!newPassword
+    });
+
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -430,6 +436,12 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 
     // Find user with password
     const user = await User.findById(userId).select('+password');
+    logger.info('User lookup result', {
+      userId,
+      userFound: !!user,
+      userEmail: user?.email
+    });
+    
     if (!user) {
       res.status(404).json({
         success: false,
@@ -443,6 +455,13 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    logger.info('Password verification result', {
+      userId,
+      isCurrentPasswordValid,
+      hasCurrentPassword: !!currentPassword,
+      hasUserPassword: !!user.password
+    });
+    
     if (!isCurrentPasswordValid) {
       res.status(400).json({
         success: false,

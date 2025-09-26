@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { logger } from '../src/utils/logger';
 import { config } from '../src/config/environment';
+import { logger } from '../src/utils/logger';
 
 // Configuration
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 const API_VERSION = '/api/v1';
 
 // Test results tracking
@@ -80,6 +80,9 @@ async function testHealthCheck() {
   } catch (error: any) {
     logTestResult('Health Check', false, error.response?.data || error.message);
   }
+  
+  // Add delay to prevent overwhelming the server
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
 // Test 2: Legacy JWT Authentication
@@ -90,7 +93,7 @@ async function testLegacyJWTAuth() {
   try {
     const registerResponse = await axios.post(`${BASE_URL}${API_VERSION}/auth/register`, {
       name: 'Test User',
-      email: 'testuser@example.com',
+      email: 'testuser456@example.com',
       password: 'TestPassword123!',
       mobile: '9876543210',
       qualification: 'B.Tech',
@@ -116,20 +119,25 @@ async function testLegacyJWTAuth() {
   let jwtToken = null;
   try {
     const loginResponse = await axios.post(`${BASE_URL}${API_VERSION}/auth/login`, {
-      email: 'john.doe@example.com',
-      password: 'JohnDoe123!'
+      email: 'testuser123@example.com',
+      password: 'TestPassword123!'
     });
     
     if (loginResponse.status === 200 && loginResponse.data.success) {
-      jwtToken = loginResponse.data.data.token;
+      jwtToken = loginResponse.data.data.accessToken;
       logTestResult('User Login (JWT)', true);
-      logger.info(`JWT Token: ${jwtToken.substring(0, 50)}...`);
+      if (jwtToken) {
+        logger.info(`JWT Token: ${jwtToken.substring(0, 50)}...`);
+      }
     } else {
       logTestResult('User Login (JWT)', false, loginResponse.data);
     }
   } catch (error: any) {
     logTestResult('User Login (JWT)', false, error.response?.data || error.message);
   }
+  
+  // Add delay to prevent overwhelming the server
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   return jwtToken;
 }
@@ -140,14 +148,14 @@ async function testAdminJWTAuth() {
   
   // Test admin login with seeded admin
   try {
-    const response = await axios.post(`${BASE_URL}${API_VERSION}/admin/login`, {
+    const response = await axios.post(`${BASE_URL}${API_VERSION}/auth/login`, {
       email: 'admin@notifyx.com',
       password: 'Admin123!'
     });
     
     if (response.status === 200 && response.data.success) {
       logTestResult('Admin Login (JWT)', true);
-      return response.data.data.token;
+      return response.data.data.accessToken;
     } else {
       logTestResult('Admin Login (JWT)', false, response.data);
       return null;
@@ -156,6 +164,9 @@ async function testAdminJWTAuth() {
     logTestResult('Admin Login (JWT)', false, error.response?.data || error.message);
     return null;
   }
+  
+  // Add delay to prevent overwhelming the server
+  await new Promise(resolve => setTimeout(resolve, 100));
 }
 
 // Test 4: Clerk Authentication (Mock)
@@ -210,7 +221,7 @@ async function testApiEndpoints(jwtToken: string, adminToken: string) {
   }
   
   // Test subscriptions
-  const subscriptionsResponse = await makeAuthenticatedRequest('GET', '/subscriptions', jwtToken);
+  const subscriptionsResponse = await makeAuthenticatedRequest('GET', '/subscriptions/current', jwtToken);
   if (subscriptionsResponse.success && subscriptionsResponse.data.success) {
     logTestResult('Get User Subscriptions', true);
   } else {
@@ -236,7 +247,7 @@ async function testAdminApiEndpoints(adminToken: string) {
   }
   
   // Test admin dashboard
-  const dashboardResponse = await makeAuthenticatedRequest('GET', '/admin/dashboard/stats', adminToken);
+  const dashboardResponse = await makeAuthenticatedRequest('GET', '/admin/dashboard', adminToken);
   if (dashboardResponse.success && dashboardResponse.data.success) {
     logTestResult('Admin Dashboard Stats', true);
   } else {
@@ -252,7 +263,7 @@ async function testAdminApiEndpoints(adminToken: string) {
   }
   
   // Test jobs management
-  const jobsResponse = await makeAuthenticatedRequest('GET', '/admin/jobs?limit=10', adminToken);
+  const jobsResponse = await makeAuthenticatedRequest('GET', '/jobs?limit=10', adminToken);
   if (jobsResponse.success && jobsResponse.data.success) {
     logTestResult('Admin Get Jobs', true);
   } else {

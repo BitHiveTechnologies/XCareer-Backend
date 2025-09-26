@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 declare global {
     namespace Express {
         interface Request {
@@ -15,21 +15,6 @@ declare global {
         }
     }
 }
-/**
- * Generate JWT token for user
- */
-export declare const generateToken: (user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: "user" | "admin" | "super_admin";
-    metadata?: any;
-}) => string;
-/**
- * Verify JWT token and extract user information
- */
-export declare const verifyToken: (token: string) => any;
 /**
  * Core JWT authentication middleware
  */

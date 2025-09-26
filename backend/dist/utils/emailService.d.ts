@@ -32,9 +32,21 @@ export declare class EmailService {
     private loadTemplates;
     private initializeTransporter;
     sendEmail(emailData: EmailData): Promise<boolean>;
-    sendWelcomeEmail(to: string, name: string): Promise<boolean>;
+    sendWelcomeEmail(to: string, name: string, plan?: string, source?: string): Promise<boolean>;
     sendJobAlertEmail(to: string, jobData: any): Promise<boolean>;
+    /**
+     * Send subscription upgrade email
+     */
+    sendSubscriptionUpgradeEmail(to: string, name: string, plan: string, newFeatures: string[]): Promise<boolean>;
+    /**
+     * Send subscription expiry reminder email
+     */
+    sendSubscriptionExpiryEmail(to: string, name: string, plan: string, daysRemaining: number): Promise<boolean>;
     private htmlToText;
+    /**
+     * Get plan features for email templates
+     */
+    private getPlanFeatures;
     verifyConnection(): Promise<boolean>;
 }
 export declare const emailService: EmailService;

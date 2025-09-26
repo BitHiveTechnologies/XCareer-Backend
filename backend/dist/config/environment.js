@@ -32,6 +32,7 @@ exports.config = {
     EMAIL_PORT: parseInt(process.env['EMAIL_PORT'] || '587', 10),
     EMAIL_USER: process.env['EMAIL_USER'] || '',
     EMAIL_PASS: process.env['EMAIL_PASS'] || '',
+    SUPPORT_EMAIL: process.env['SUPPORT_EMAIL'] || 'support@notifyx.com',
     // Razorpay configuration
     RAZORPAY_KEY_ID: process.env['RAZORPAY_KEY_ID'] || '',
     RAZORPAY_KEY_SECRET: process.env['RAZORPAY_KEY_SECRET'] || '',

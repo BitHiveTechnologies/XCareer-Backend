@@ -97,13 +97,24 @@ export interface IAdmin extends BaseDocument {
 export interface ISubscription extends BaseDocument {
   _id: ObjectId;
   userId: ObjectId;
-  plan: 'basic' | 'premium';
+  plan: 'basic' | 'premium' | 'enterprise';
   amount: number;
   paymentId: string; // Razorpay payment ID
   orderId: string; // Razorpay order ID
   status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
   startDate: Date;
   endDate: Date;
+  nextBillingDate?: Date; // For recurring subscriptions
+  autoRenew: boolean; // Auto-renewal setting
+  trialEndDate?: Date; // For trial subscriptions
+  cancellationDate?: Date; // When subscription was cancelled
+  cancellationReason?: string; // Reason for cancellation
+  metadata?: {
+    source?: string; // How the subscription was created (web, mobile, admin)
+    campaign?: string; // Marketing campaign that led to subscription
+    referrer?: string; // Referral source
+    notes?: string; // Admin notes
+  };
 }
 
 // Job Application interface (additional for future use)
@@ -136,4 +147,22 @@ export interface ISystemSettings extends BaseDocument {
   value: any;
   description: string;
   category: 'general' | 'email' | 'payment' | 'security';
+}
+
+// Notification interface
+export interface INotification extends BaseDocument {
+  _id: ObjectId;
+  userId: ObjectId;
+  type: 'job_alert' | 'subscription' | 'payment' | 'system' | 'profile' | 'application';
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+  isRead: boolean;
+  readAt?: Date;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: 'info' | 'success' | 'warning' | 'error';
+  actionUrl?: string;
+  actionText?: string;
+  expiresAt?: Date;
+  metadata?: Record<string, any>;
 }

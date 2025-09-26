@@ -1,0 +1,11 @@
+# Task ID: 11
+# Title: Resume Template Management API
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Create comprehensive API for resume template management with subscription-based access control
+# Details:
+Create CRUD APIs for resume templates, implement file upload handling, thumbnail generation, and subscription-based access control. Ensure templates are properly categorized by access tier (basic/premium).
+
+# Test Strategy:
+Test template CRUD operations, verify file upload handling, test thumbnail generation, validate subscription-based access control

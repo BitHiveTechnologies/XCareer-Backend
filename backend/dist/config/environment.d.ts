@@ -17,6 +17,7 @@ export declare const config: {
     EMAIL_PORT: number;
     EMAIL_USER: string;
     EMAIL_PASS: string;
+    SUPPORT_EMAIL: string;
     RAZORPAY_KEY_ID: string;
     RAZORPAY_KEY_SECRET: string;
     RAZORPAY_WEBHOOK_SECRET: string;

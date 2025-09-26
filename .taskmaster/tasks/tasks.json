@@ -1,279 +1,468 @@
 {
-  "master": {
+  "tags": {
+    "master": {
+      "metadata": {
+        "name": "master",
+        "description": "Main development tasks for X Career Backend",
+        "createdAt": "2024-12-19T10:00:00.000Z",
+        "lastModified": "2024-12-19T10:00:00.000Z"
+      },
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Payment Gateway Integration Setup",
+          "description": "Integrate with Razorpay or Stripe for processing recurring monthly payments for ₹49 (Basic) and ₹99 (Premium) subscription plans",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [],
+          "details": "Set up payment gateway integration with proper error handling, webhook security, and sandbox testing. Create API endpoints for subscription creation, payment processing, and status checking. Include comprehensive testing for both success and failure scenarios.",
+          "testStrategy": "Test with sandbox environment, verify webhook security, test payment success/failure scenarios, validate recurring payment setup",
+          "subtasks": []
+        },
+        {
+          "id": 2,
+          "title": "Subscription Data Model and Database Schema",
+          "description": "Create subscriptions table with proper schema for managing user subscription data",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [],
+          "details": "Create subscriptions table with schema: subscription_id (PK), user_id (FK), plan_id (ENUM: 'basic', 'premium'), start_date, next_billing_date, status (ENUM: 'active', 'cancelled', 'payment_failed'). Include proper indexes and foreign key constraints.",
+          "testStrategy": "Test database schema creation, verify constraints, test CRUD operations, validate data integrity",
+          "subtasks": []
+        },
+        {
+          "id": 3,
+          "title": "Payment Webhook Endpoint Implementation",
+          "description": "Implement secure webhook endpoint to handle payment events from payment gateway",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "Create secure webhook endpoint to listen for payment.success and payment.failed events. On success: update subscription status to 'active' and set next_billing_date. On failure: update status to 'payment_failed' and trigger user notification. Include webhook signature verification for security.",
+          "testStrategy": "Test webhook endpoint with mock events, verify signature validation, test success/failure event handling, validate database updates",
+          "subtasks": []
+        },
+        {
+          "id": 4,
+          "title": "Automated User Provisioning System",
+          "description": "Create system to automatically provision users upon successful subscription payment",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "Upon successful subscription payment, automatically create user entry in users table. Generate secure random password. Link user to subscription. Include proper error handling for provisioning failures.",
+          "testStrategy": "Test user creation flow, verify password generation, test error handling, validate user-subscription linking",
+          "subtasks": []
+        },
+        {
+          "id": 5,
+          "title": "Email Service Integration for Welcome Emails",
+          "description": "Integrate with email service (AWS SES/SendGrid) to send welcome emails with credentials",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [
+            4
+          ],
+          "details": "Integrate with email service provider. Create welcome email template with username and generated password. Trigger email upon successful user provisioning. Include email delivery status tracking.",
+          "testStrategy": "Test email service integration, verify email delivery, test template rendering, validate email content",
+          "subtasks": []
+        },
+        {
+          "id": 6,
+          "title": "Role-Based Access Control (RBAC) Implementation",
+          "description": "Implement RBAC system to manage user access based on subscription tier",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "Link users table to subscriptions table. Create middleware to check user's subscription status and access level. Implement access level retrieval upon authentication. Support for 'basic' and 'premium' access levels.",
+          "testStrategy": "Test RBAC middleware, verify access level checks, test authentication flow, validate subscription status validation",
+          "subtasks": []
+        },
+        {
+          "id": 7,
+          "title": "Secure Login Endpoint with Subscription Validation",
+          "description": "Create login API endpoint that verifies credentials and checks subscription status",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            6
+          ],
+          "details": "Implement POST /auth/login endpoint. Verify user credentials. Check subscription status (must be 'active'). Return appropriate error messages for inactive subscriptions. Include rate limiting and security measures.",
+          "testStrategy": "Test login with valid/invalid credentials, test inactive subscription handling, verify error messages, test rate limiting",
+          "subtasks": []
+        },
+        {
+          "id": 8,
+          "title": "Resume Template Data Model and API",
+          "description": "Create resume templates table and API endpoints for template management",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [
+            2
+          ],
+          "details": "Create resume_templates table with schema: template_id (PK), template_name, description, thumbnail_url, file_url, access_tier (ENUM: 'basic', 'premium'). Create CRUD API endpoints for template management.",
+          "testStrategy": "Test template CRUD operations, verify file upload handling, test thumbnail generation, validate data integrity",
+          "subtasks": []
+        },
+        {
+          "id": 9,
+          "title": "Content Access Control Based on Subscription Tier",
+          "description": "Implement protected API endpoint that returns templates based on user's subscription tier",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            6,
+            8
+          ],
+          "details": "Create GET /api/v1/resumes protected endpoint. Check authenticated user's access level. Return only 'basic' templates for basic users, all templates for premium users. Include proper authentication and authorization checks.",
+          "testStrategy": "Test endpoint with basic/premium users, verify access control, test authentication requirements, validate template filtering",
+          "subtasks": []
+        },
+        {
+          "id": 10,
+          "title": "Profile Management with Completion Tracking",
+          "description": "Enhance profile management system with mandatory field validation and completion tracking",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [
+            2
+          ],
+          "details": "Update profiles table to include is_profile_complete flag. Implement validation for all mandatory fields. Set flag to true only after all required fields are saved. Create API endpoints for profile management and completion status.",
+          "testStrategy": "Test profile completion validation, verify flag updates, test mandatory field requirements, validate API responses",
+          "subtasks": []
+        },
+        {
+          "id": 11,
+          "title": "Job Matching Algorithm Enhancement",
+          "description": "Update job matching algorithm to only consider users with complete profiles and active subscriptions",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            2,
+            10
+          ],
+          "details": "Modify job matching script to filter users by: profiles.is_profile_complete = true AND subscriptions.status = 'active'. Apply existing matching logic (qualification, stream, CGPA) to pre-filtered valid users. Plan tier doesn't affect job eligibility.",
+          "testStrategy": "Test matching algorithm with various user states, verify filtering logic, test performance with large datasets, validate matching accuracy",
+          "subtasks": []
+        },
+        {
+          "id": 12,
+          "title": "Comprehensive API Testing Suite",
+          "description": "Create comprehensive test suite for all API endpoints with proper test coverage",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [
+            1,
+            3,
+            7,
+            9
+          ],
+          "details": "Create unit tests, integration tests, and end-to-end tests for all API endpoints. Include authentication tests, authorization tests, error handling tests, and performance tests. Set up automated testing pipeline.",
+          "testStrategy": "Run full test suite, verify test coverage, test error scenarios, validate performance benchmarks",
+          "subtasks": []
+        },
+        {
+          "id": 13,
+          "title": "Error Handling and Validation Middleware",
+          "description": "Implement comprehensive error handling and request validation middleware",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [],
+          "details": "Create centralized error handling middleware. Implement request validation middleware for all endpoints. Add proper error logging and monitoring. Include rate limiting and security headers.",
+          "testStrategy": "Test error handling scenarios, verify validation rules, test rate limiting, validate security headers",
+          "subtasks": []
+        },
+        {
+          "id": 14,
+          "title": "Database Indexes and Performance Optimization",
+          "description": "Optimize database performance with proper indexes and query optimization",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [
+            2,
+            8,
+            10
+          ],
+          "details": "Analyze query patterns and create appropriate database indexes. Optimize slow queries. Implement database connection pooling. Add query performance monitoring.",
+          "testStrategy": "Test query performance, verify index effectiveness, test connection pooling, validate performance improvements",
+          "subtasks": []
+        },
+        {
+          "id": 15,
+          "title": "API Documentation and Deployment Configuration",
+          "description": "Create comprehensive API documentation and deployment configuration",
+          "status": "pending",
+          "priority": "medium",
+          "dependencies": [
+            12
+          ],
+          "details": "Generate API documentation using OpenAPI/Swagger. Create deployment configuration for production. Set up environment variables and configuration management. Create deployment scripts and monitoring setup.",
+          "testStrategy": "Test API documentation accuracy, verify deployment configuration, test environment setup, validate monitoring",
+          "subtasks": []
+        }
+      ]
+    }
+  },
+  "global": {
+    "defaultTag": "master",
+    "lastModified": "2024-12-19T10:00:00.000Z"
+  },
+  "backend-development": {
     "tasks": [
       {
         "id": 1,
-        "title": "Project Setup and Environment Configuration",
-        "description": "Set up the initial project structure, dependencies, and development environment for the NotifyX Backend",
-        "details": "Initialize Node.js project with TypeScript, set up Express.js framework, configure MongoDB connection, set up development environment with proper folder structure, and configure basic middleware like CORS, helmet, and body parser.",
+        "title": "Payment Gateway Integration Setup",
+        "description": "Integrate with Razorpay or Stripe for processing recurring monthly payments for ₹49 (Basic) and ₹99 (Premium) subscription plans",
+        "details": "Set up payment gateway integration with proper error handling, webhook security, and sandbox testing. Create API endpoints for subscription creation, payment processing, and status checking. Include comprehensive testing for both success and failure scenarios.",
+        "testStrategy": "Test with sandbox environment, verify webhook security, test payment success/failure scenarios, validate recurring payment setup",
         "status": "done",
-        "priority": "high",
         "dependencies": [],
-        "complexity": 3,
-        "estimatedHours": 8,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Razorpay Account and API Keys",
+            "description": "Create Razorpay account, get API keys, and configure environment variables",
+            "details": "1. Create Razorpay account and get test API keys\n2. Set up environment variables for RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET\n3. Configure webhook secret for security\n4. Test API key connectivity",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 2,
+            "title": "Install and Configure Razorpay SDK",
+            "description": "Install Razorpay Node.js SDK and set up basic configuration",
+            "details": "1. Install razorpay package: npm install razorpay\n2. Create Razorpay instance with API keys\n3. Set up basic configuration for test/production environments\n4. Create utility functions for Razorpay operations",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 3,
+            "title": "Create Subscription Plans Configuration",
+            "description": "Define subscription plans for Basic (₹49) and Premium (₹99) with proper configuration",
+            "details": "1. Create subscription plans configuration object\n2. Define Basic plan: ₹49/month with features\n3. Define Premium plan: ₹99/month with features\n4. Set up plan validation and error handling",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 4,
+            "title": "Create Payment API Endpoints",
+            "description": "Implement API endpoints for subscription creation, payment processing, and status checking",
+            "details": "1. POST /api/payments/create-subscription - Create new subscription\n2. POST /api/payments/process-payment - Process payment\n3. GET /api/payments/status/:subscriptionId - Check payment status\n4. POST /api/payments/cancel-subscription - Cancel subscription\n5. Include proper validation and error handling",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 5,
+            "title": "Implement Webhook Security and Validation",
+            "description": "Set up secure webhook endpoint with signature verification for payment events",
+            "details": "1. Create webhook endpoint: POST /api/payments/webhook\n2. Implement Razorpay signature verification\n3. Handle payment.success and payment.failed events\n4. Add rate limiting and security headers\n5. Log all webhook events for debugging",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 6,
+            "title": "Create Comprehensive Test Suite",
+            "description": "Develop comprehensive tests for payment gateway integration including success and failure scenarios",
+            "details": "1. Unit tests for payment functions\n2. Integration tests for API endpoints\n3. Webhook testing with mock events\n4. Test payment success scenarios\n5. Test payment failure scenarios\n6. Test subscription cancellation\n7. Performance testing for concurrent payments",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 7,
+            "title": "Implement Error Handling and Logging",
+            "description": "Add comprehensive error handling, logging, and monitoring for payment operations",
+            "details": "1. Create centralized error handling for payment operations\n2. Implement detailed logging for all payment events\n3. Add monitoring and alerting for payment failures\n4. Create error recovery mechanisms\n5. Add transaction logging for audit trails",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          },
+          {
+            "id": 8,
+            "title": "Documentation and Deployment Setup",
+            "description": "Create documentation and set up deployment configuration for payment gateway integration",
+            "details": "1. Create API documentation for payment endpoints\n2. Document webhook configuration and setup\n3. Create deployment guide for production\n4. Set up environment configuration\n5. Create troubleshooting guide",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 1
+          }
+        ]
       },
       {
         "id": 2,
-        "title": "Database Schema and Models Implementation",
-        "description": "Create MongoDB schemas and Mongoose models for all collections: Users, UserProfiles, Jobs, JobNotifications, Admins, and Subscriptions",
-        "details": "Implement TypeScript interfaces and Mongoose schemas for all database collections. Include proper validation, indexing, and relationships between collections. Set up database connection with proper error handling and connection pooling.",
+        "title": "Subscription Data Model and Database Schema",
+        "description": "Create subscriptions table with proper schema for managing user subscription data",
+        "details": "Create subscriptions table with schema: subscription_id (PK), user_id (FK), plan_id (ENUM: 'basic', 'premium'), start_date, next_billing_date, status (ENUM: 'active', 'cancelled', 'payment_failed'). Include proper indexes and foreign key constraints.",
+        "testStrategy": "Test database schema creation, verify constraints, test CRUD operations, validate data integrity",
         "status": "done",
+        "dependencies": [],
         "priority": "high",
-        "dependencies": [
-          "1"
-        ],
-        "complexity": 4,
-        "estimatedHours": 12,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "subtasks": []
       },
       {
         "id": 3,
-        "title": "Authentication and Authorization System",
-        "description": "Implement JWT-based authentication system with user registration, login, logout, and role-based access control",
-        "details": "Create authentication middleware, JWT token generation and validation, password hashing with bcrypt, user registration and login endpoints, refresh token mechanism, and role-based access control for admin APIs.",
+        "title": "Payment Webhook Endpoint Implementation",
+        "description": "Implement secure webhook endpoint to handle payment events from payment gateway",
+        "details": "Create secure webhook endpoint to listen for payment.success and payment.failed events. On success: update subscription status to 'active' and set next_billing_date. On failure: update status to 'payment_failed' and trigger user notification. Include webhook signature verification for security.",
+        "testStrategy": "Test webhook endpoint with mock events, verify signature validation, test success/failure event handling, validate database updates",
         "status": "done",
-        "priority": "high",
         "dependencies": [
-          "2"
+          1,
+          2
         ],
-        "complexity": 5,
-        "estimatedHours": 16,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 4,
-        "title": "User Management Module",
-        "description": "Implement user profile management, subscription status tracking, and user data operations",
-        "details": "Create user profile CRUD operations, subscription status management, profile completion tracking, and user data validation. Implement proper error handling and input sanitization for all user operations.",
+        "title": "Automated User Provisioning System",
+        "description": "Create system to automatically provision users upon successful subscription payment",
+        "details": "Upon successful subscription payment, automatically create user entry in users table. Generate secure random password. Link user to subscription. Include proper error handling for provisioning failures.",
+        "testStrategy": "Test user creation flow, verify password generation, test error handling, validate user-subscription linking",
         "status": "done",
-        "priority": "medium",
         "dependencies": [
-          "3"
+          2,
+          3
         ],
-        "complexity": 4,
-        "estimatedHours": 12,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 5,
-        "title": "Payment Integration with Razorpay",
-        "description": "Integrate Razorpay payment gateway for subscription plan purchases and payment verification",
-        "details": "Implement Razorpay order creation, payment verification with signature validation, webhook handling for payment status updates, and subscription management based on payment success. Include proper error handling for payment failures.",
+        "title": "Secure Login Endpoint with Subscription Validation",
+        "description": "Create login API endpoint that verifies credentials and checks subscription status",
+        "details": "Implement POST /auth/login endpoint. Verify user credentials. Check subscription status (must be 'active'). Return appropriate error messages for inactive subscriptions. Include rate limiting and security measures.",
+        "testStrategy": "Test login with valid/invalid credentials, test inactive subscription handling, verify error messages, test rate limiting",
         "status": "done",
-        "priority": "high",
         "dependencies": [
-          "4"
+          2,
+          4
         ],
-        "complexity": 6,
-        "estimatedHours": 20,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 6,
-        "title": "Subscription Management System",
-        "description": "Build subscription lifecycle management including plan creation, renewal, expiry handling, and status tracking",
-        "details": "Implement subscription plan management, automatic renewal logic, expiry date calculations, subscription status updates, and integration with payment system. Include subscription analytics and reporting capabilities.",
+        "title": "User Profile Management API Enhancement",
+        "description": "Enhance existing user profile APIs to work with subscription system and profile completion tracking",
+        "details": "Update existing user profile endpoints to include subscription validation, profile completion tracking, and mandatory field validation. Ensure all user profile APIs work correctly with the new subscription system. Include proper error handling and validation.",
+        "testStrategy": "Test all user profile endpoints, verify subscription integration, test profile completion validation, validate error handling",
         "status": "done",
-        "priority": "medium",
         "dependencies": [
-          "5"
+          2,
+          4
         ],
-        "complexity": 4,
-        "estimatedHours": 14,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 7,
-        "title": "Job and Internship Management System",
-        "description": "Create job posting, management, and filtering system for both regular jobs and internships",
-        "details": "Implement job CRUD operations, eligibility criteria management, job filtering and search, job status management, and admin controls for job operations. Include proper validation for job data and eligibility requirements.",
-        "status": "done",
-        "priority": "medium",
+        "title": "Admin Dashboard API Enhancement",
+        "description": "Enhance existing admin APIs to work with subscription system and provide comprehensive admin controls",
+        "details": "Update admin endpoints to include subscription management, user analytics, payment tracking, and system monitoring. Ensure admin APIs can manage subscriptions, view user statistics, and handle subscription-related issues.",
+        "testStrategy": "Test all admin endpoints, verify subscription management features, test user analytics, validate admin controls",
+        "status": "in-progress",
         "dependencies": [
-          "3"
+          2,
+          4
         ],
-        "complexity": 5,
-        "estimatedHours": 18,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 8,
-        "title": "Job Matching Algorithm Implementation",
-        "description": "Develop intelligent job matching algorithm based on user qualifications, streams, and eligibility criteria",
-        "details": "Implement job matching logic using MongoDB aggregation, create efficient queries for finding eligible users, implement CGPA and qualification matching, and optimize performance for large user bases. Include proper indexing for performance.",
-        "status": "done",
-        "priority": "high",
+        "title": "Job Management API Enhancement",
+        "description": "Enhance existing job APIs to work with subscription system and ensure proper access control",
+        "details": "Update job creation, job listing, and job application endpoints to work with subscription tiers. Ensure job matching algorithm works with subscription validation. Include proper access control for job-related features.",
+        "testStrategy": "Test job creation and listing APIs, verify subscription-based access control, test job matching algorithm, validate job application flow",
+        "status": "pending",
         "dependencies": [
-          "7"
+          2,
+          4,
+          5
         ],
-        "complexity": 6,
-        "estimatedHours": 24,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 9,
-        "title": "Email Notification System",
-        "description": "Build automated email notification system for job alerts, welcome emails, and password resets",
-        "details": "Implement NodeMailer integration, create email templates for different notification types, implement email queue system for async processing, handle email delivery status tracking, and implement retry mechanisms for failed emails.",
-        "status": "done",
-        "priority": "medium",
+        "title": "Notification System API Enhancement",
+        "description": "Enhance existing notification APIs to work with subscription system and payment notifications",
+        "details": "Update notification endpoints to handle subscription-related notifications, payment reminders, and system notifications. Ensure notification system works with subscription status and user preferences.",
+        "testStrategy": "Test notification APIs, verify subscription notifications, test payment reminders, validate notification preferences",
+        "status": "pending",
         "dependencies": [
-          "8"
+          2,
+          4,
+          5
         ],
-        "complexity": 5,
-        "estimatedHours": 16,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "medium",
+        "subtasks": []
       },
       {
         "id": 10,
-        "title": "Admin Dashboard and Management APIs",
-        "description": "Create comprehensive admin dashboard with user management, analytics, and system administration capabilities",
-        "details": "Implement admin authentication, user management APIs, subscription analytics, system statistics dashboard, bulk operations for user management, and admin role-based permissions. Include proper audit logging for admin actions.",
-        "status": "done",
-        "priority": "medium",
+        "title": "Authentication and Authorization API Enhancement",
+        "description": "Enhance existing authentication APIs to work with subscription system and implement proper role-based access",
+        "details": "Update authentication endpoints to work with subscription validation, implement proper JWT token handling with subscription info, and ensure all auth APIs work correctly with the new subscription system.",
+        "testStrategy": "Test authentication endpoints, verify JWT token handling, test subscription validation in auth, validate role-based access",
+        "status": "pending",
         "dependencies": [
-          "9"
+          2,
+          4,
+          5
         ],
-        "complexity": 5,
-        "estimatedHours": 20,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "high",
+        "subtasks": []
       },
       {
         "id": 11,
-        "title": "Security Implementation and Hardening",
-        "description": "Implement comprehensive security measures including input validation, rate limiting, and data protection",
-        "details": "Add input validation using Joi, implement rate limiting on authentication endpoints, configure CORS properly, add XSS protection with helmet.js, implement request logging with correlation IDs, and add security headers.",
+        "title": "Resume Template Management API",
+        "description": "Create comprehensive API for resume template management with subscription-based access control",
+        "details": "Create CRUD APIs for resume templates, implement file upload handling, thumbnail generation, and subscription-based access control. Ensure templates are properly categorized by access tier (basic/premium).",
+        "testStrategy": "Test template CRUD operations, verify file upload handling, test thumbnail generation, validate subscription-based access control",
         "status": "pending",
-        "priority": "high",
         "dependencies": [
-          "10"
+          2,
+          5
         ],
-        "complexity": 4,
-        "estimatedHours": 12,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "priority": "medium",
+        "subtasks": []
       },
       {
         "id": 12,
-        "title": "API Documentation and Testing",
-        "description": "Create comprehensive API documentation using Swagger/OpenAPI and implement testing suite",
-        "details": "Set up Swagger/OpenAPI documentation for all endpoints, create unit tests for business logic, implement integration tests for API endpoints, add database transaction testing, and achieve minimum 80% code coverage.",
-        "status": "in-progress",
-        "priority": "medium",
-        "dependencies": [
-          "11"
-        ],
-        "complexity": 4,
-        "estimatedHours": 16,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
-      },
-      {
-        "id": 13,
-        "title": "Performance Optimization and Monitoring",
-        "description": "Optimize system performance and implement comprehensive monitoring and logging",
-        "details": "Implement database query optimization with proper indexing, add connection pooling for MongoDB, implement response time monitoring, add error logging with stack traces, implement payment transaction logging, and add email delivery status logging.",
+        "title": "Comprehensive API Testing and Validation",
+        "description": "Create comprehensive test suite for all existing and new APIs to ensure they work correctly with subscription system",
+        "details": "Create unit tests, integration tests, and end-to-end tests for all API endpoints. Test authentication, authorization, subscription validation, and all CRUD operations. Ensure all APIs work correctly together.",
+        "testStrategy": "Run comprehensive test suite, verify all API endpoints, test error scenarios, validate performance, test subscription integration",
         "status": "pending",
-        "priority": "medium",
         "dependencies": [
-          "12"
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
         ],
-        "complexity": 4,
-        "estimatedHours": 14,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
-      },
-      {
-        "id": 14,
-        "title": "Deployment and DevOps Setup",
-        "description": "Set up deployment pipeline, environment configuration, and containerization",
-        "details": "Create Docker containerization, set up environment-specific configuration files, implement CI/CD pipeline with automated testing, create database migration scripts, and set up staging and production environments.",
-        "status": "pending",
-        "priority": "medium",
-        "dependencies": [
-          "13"
-        ],
-        "complexity": 4,
-        "estimatedHours": 16,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
-      },
-      {
-        "id": 15,
-        "title": "Final Testing and Production Deployment",
-        "description": "Perform comprehensive testing, load testing, and deploy to production environment",
-        "details": "Execute end-to-end testing, perform load testing for job matching algorithm, conduct security testing for authentication, validate payment integration, test email delivery system, and deploy to production with monitoring setup.",
-        "status": "pending",
         "priority": "high",
-        "dependencies": [
-          "14"
-        ],
-        "complexity": 5,
-        "estimatedHours": 20,
-        "tags": [
-          "master"
-        ],
-        "createdAt": "2024-12-19T00:00:00.000Z",
-        "updatedAt": "2024-12-19T00:00:00.000Z"
+        "subtasks": []
       }
     ],
     "metadata": {
-      "created": "2025-08-24T13:28:45.891Z",
-      "updated": "2025-08-26T16:40:30.855Z",
-      "description": "Tasks for master context"
+      "created": "2025-09-24T12:28:57.010Z",
+      "updated": "2025-09-24T18:15:06.473Z",
+      "description": "Backend development tasks for X Career project"
     }
   }
 }

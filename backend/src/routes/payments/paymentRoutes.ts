@@ -1,13 +1,14 @@
 import express from 'express';
-import { validate } from '../../middleware/validation';
-import { authenticate } from '../../middleware/jwtAuth';
 import {
-  createOrder,
-  verifyPayment,
-  getPaymentHistory,
-  handleWebhook
+    cancelSubscription,
+    createOrder,
+    getPaymentHistory,
+    getPaymentStatus,
+    handleWebhook,
+    verifyPayment
 } from '../../controllers/payments/paymentController';
-import { commonSchemas } from '../../middleware/validation';
+import { authenticate } from '../../middleware/jwtAuth';
+import { commonSchemas, validate } from '../../middleware/validation';
 
 const router = express.Router();
 
@@ -52,6 +53,27 @@ router.get('/history',
     })
   }),
   getPaymentHistory
+);
+
+// Get payment status by subscription ID
+router.get('/status/:subscriptionId',
+  validate({
+    params: commonSchemas.object({
+      subscriptionId: commonSchemas.string().required()
+    })
+  }),
+  getPaymentStatus
+);
+
+// Cancel subscription
+router.post('/cancel-subscription',
+  validate({
+    body: commonSchemas.object({
+      subscriptionId: commonSchemas.string().required(),
+      reason: commonSchemas.string().optional()
+    })
+  }),
+  cancelSubscription
 );
 
 export default router;
