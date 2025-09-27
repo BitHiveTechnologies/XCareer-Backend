@@ -49,9 +49,8 @@ export const getCurrentUserProfile = async (req: AuthenticatedRequest, res: Resp
       if (userEmail) {
         user = await User.findOne({ email: userEmail }).select('-password');
         if (!user) {
-          // Create a new user for testing
+          // Create a new user for testing - let MongoDB generate the ObjectId
           user = new User({
-            _id: userId,
             email: userEmail,
             name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
             role: req.user?.role || 'user',
@@ -288,9 +287,8 @@ export const getProfileCompletionStatus = async (req: AuthenticatedRequest, res:
     // Find user by email or create if not exists (for JWT testing)
     let user = await User.findOne({ email: req.user?.email }).select('-password');
     if (!user && req.user?.email) {
-      // Create a new user for testing
+      // Create a new user for testing - let MongoDB generate the ObjectId
       user = new User({
-        _id: userId,
         clerkUserId: `jwt_${userId}`, // Use JWT ID as clerkUserId to avoid password requirement
         email: req.user.email,
         name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
