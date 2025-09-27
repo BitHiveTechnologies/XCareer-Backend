@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 {"version":3,"file":"subscriptionRoutes.d.ts","sourceRoot":"","sources":["../../../src/routes/subscriptions/subscriptionRoutes.ts"],"names":[],"mappings":"AAoBA,QAAA,MAAM,MAAM,4CAAmB,CAAC;AAyHhC,eAAe,MAAM,CAAC"}
+=======
+{"version":3,"file":"subscriptionRoutes.d.ts","sourceRoot":"","sources":["../../../src/routes/subscriptions/subscriptionRoutes.ts"],"names":[],"mappings":"AAeA,QAAA,MAAM,MAAM,4CAAmB,CAAC;AAwEhC,eAAe,MAAM,CAAC"}
+>>>>>>> origin/master

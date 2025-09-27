@@ -9,9 +9,16 @@ const subscriptionController_1 = require("../../controllers/subscriptions/subscr
 const jwtAuth_1 = require("../../middleware/jwtAuth");
 const validation_1 = require("../../middleware/validation");
 const router = express_1.default.Router();
+<<<<<<< HEAD
 // Get available subscription plans (public endpoint)
 router.get('/plans', subscriptionController_1.getAvailablePlans);
 // Apply authentication to all other subscription routes
+=======
+// Public routes (no authentication required)
+// Get available subscription plans (public)
+router.get('/plans', subscriptionController_1.getAvailablePlans);
+// User routes (require user authentication)
+>>>>>>> origin/master
 router.use(jwtAuth_1.authenticate);
 // Get current subscription
 router.get('/current', subscriptionController_1.getCurrentSubscription);
@@ -86,6 +93,7 @@ router.get('/', (0, validation_1.validate)({
 router.get('/analytics', subscriptionController_1.getSubscriptionAnalytics);
 // Process subscription expiry (cron job endpoint)
 router.post('/process-expiry', subscriptionController_1.processSubscriptionExpiry);
+<<<<<<< HEAD
 // Admin-only enhanced endpoints
 router.get('/analytics/enhanced', enhancedSubscriptionController_1.getEnhancedAnalytics);
 router.get('/metadata', (0, validation_1.validate)({
@@ -98,5 +106,21 @@ router.get('/metadata', (0, validation_1.validate)({
     })
 }), enhancedSubscriptionController_1.getSubscriptionsByMetadata);
 router.get('/statistics', enhancedSubscriptionController_1.getSubscriptionStatistics);
+=======
+// Update subscription plan (Admin only)
+router.put('/plans/:planId', (0, validation_1.validate)({
+    params: validation_2.commonSchemas.object({
+        planId: validation_2.commonSchemas.string().valid('basic', 'premium', 'enterprise').required()
+    }),
+    body: validation_2.commonSchemas.object({
+        name: validation_2.commonSchemas.string().min(1).max(100).optional(),
+        price: validation_2.commonSchemas.number().min(0).optional(),
+        duration: validation_2.commonSchemas.number().positive().optional(),
+        features: validation_2.commonSchemas.array().items(validation_2.commonSchemas.string()).optional(),
+        maxJobs: validation_2.commonSchemas.number().positive().optional(),
+        priority: validation_2.commonSchemas.string().valid('low', 'medium', 'high').optional()
+    })
+}), subscriptionController_1.updateSubscriptionPlan);
+>>>>>>> origin/master
 exports.default = router;
 //# sourceMappingURL=subscriptionRoutes.js.map

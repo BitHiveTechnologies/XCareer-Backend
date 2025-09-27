@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processSubscriptionExpiry = exports.getSubscriptionAnalytics = exports.renewSubscription = exports.cancelSubscription = exports.getSubscriptionHistory = exports.getAvailablePlans = exports.getCurrentSubscription = void 0;
+exports.updateSubscriptionPlan = exports.processSubscriptionExpiry = exports.getSubscriptionAnalytics = exports.renewSubscription = exports.cancelSubscription = exports.getSubscriptionHistory = exports.getAvailablePlans = exports.getCurrentSubscription = void 0;
 const Subscription_1 = require("../../models/Subscription");
 const User_1 = require("../../models/User");
 const logger_1 = require("../../utils/logger");
@@ -563,4 +563,74 @@ const processSubscriptionExpiry = async (_req, res) => {
     }
 };
 exports.processSubscriptionExpiry = processSubscriptionExpiry;
+/**
+ * Update subscription plan (Admin only)
+ */
+const updateSubscriptionPlan = async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const { name, price, duration, features, maxJobs, priority } = req.body;
+        // Validate plan ID
+        if (!paymentService_1.SUBSCRIPTION_PLANS[planId]) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Invalid plan ID'
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Update plan details
+        const updatedPlan = {
+            ...paymentService_1.SUBSCRIPTION_PLANS[planId],
+            ...(name && { name }),
+            ...(price !== undefined && { price }),
+            ...(duration !== undefined && { duration }),
+            ...(features && { features }),
+            ...(maxJobs !== undefined && { maxJobs }),
+            ...(priority && { priority })
+        };
+        // Update the plan in SUBSCRIPTION_PLANS
+        paymentService_1.SUBSCRIPTION_PLANS[planId] = updatedPlan;
+        logger_1.logger.info('Subscription plan updated', {
+            planId,
+            updatedFields: Object.keys(req.body),
+            adminId: req.user?.id,
+            ip: req.ip
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Subscription plan updated successfully',
+            data: {
+                plan: {
+                    id: updatedPlan.id,
+                    name: updatedPlan.name,
+                    price: updatedPlan.price,
+                    duration: updatedPlan.duration,
+                    features: updatedPlan.features,
+                    maxJobs: updatedPlan.maxJobs,
+                    priority: updatedPlan.priority
+                }
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Update subscription plan failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            planId: req.params.planId,
+            adminId: req.user?.id,
+            ip: req.ip
+        });
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to update subscription plan'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.updateSubscriptionPlan = updateSubscriptionPlan;
 //# sourceMappingURL=subscriptionController.js.map
