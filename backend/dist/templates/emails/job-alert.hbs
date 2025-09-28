@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New Job Opportunity</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #10B981; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .job-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .button { display: inline-block; background: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 New Job Opportunity!</h1>
+        </div>
+        <div class="content">
+            <h2>Great news! We found a perfect match for you.</h2>
+            
+            <div class="job-card">
+                <h3>{{jobTitle}}</h3>
+                <p><strong>Company:</strong> {{companyName}}</p>
+                <p><strong>Location:</strong> {{location}}</p>
+                <p><strong>Type:</strong> {{jobType}}</p>
+                <p><strong>Description:</strong></p>
+                <p>{{description}}</p>
+            </div>
+            
+            <p>This opportunity matches your profile perfectly! Don't miss out - apply now!</p>
+            
+            <a href="{{applicationLink}}" class="button">Apply Now</a>
+            
+            <p>Good luck with your application!</p>
+            
+            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>© 2024 NotifyX. All rights reserved.</p>
+            <p>You received this email because you're subscribed to job alerts.</p>
+        </div>
+    </div>
+</body>
+</html>

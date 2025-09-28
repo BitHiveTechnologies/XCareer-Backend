@@ -11,6 +11,7 @@ import {
 } from '../../controllers/jobs/jobController';
 import { authenticate, requireAdmin } from '../../middleware/auth';
 import { commonSchemas, validate } from '../../middleware/validation';
+import jobAlertRoutes from './jobAlertRoutes';
 
 const router = express.Router();
 
@@ -96,5 +97,8 @@ router.patch('/:jobId/toggle-status',
   }),
   toggleJobStatus
 );
+
+// Job alert routes (admin only)
+router.use('/alerts', jobAlertRoutes);
 
 export default router;

@@ -218,18 +218,64 @@ export class EmailService {
   }
 
   async sendJobAlertEmail(to: string, jobData: any): Promise<boolean> {
-    const html = `
-      <h1>New Job Opportunity: ${jobData.title}</h1>
-      <p><strong>Company:</strong> ${jobData.company}</p>
-      <p><strong>Location:</strong> ${jobData.location}</p>
-    `;
-    
-    return this.sendEmail({
-      to,
-      subject: `New Job Opportunity: ${jobData.title}`,
-      template: 'job-alert',
-      context: { html, text: `New Job: ${jobData.title} at ${jobData.company}` }
-    });
+    try {
+      // Use enhanced template if match percentage is available
+      const templateName = jobData.matchPercentage ? 'enhanced-job-alert' : 'job-alert';
+      const template = this.templates.get(templateName);
+      
+      if (!template) {
+        logger.error(`Job alert template not found: ${templateName}`);
+        // Fallback to basic template
+        const fallbackTemplate = this.templates.get('job-alert');
+        if (!fallbackTemplate) {
+          logger.error('No job alert templates available');
+          return false;
+        }
+      }
+
+      // Prepare context data for the template
+      const context = {
+        // Basic job data
+        jobTitle: jobData.title,
+        title: jobData.title,
+        companyName: jobData.company,
+        company: jobData.company,
+        location: jobData.location,
+        jobType: jobData.type,
+        type: jobData.type,
+        description: jobData.description,
+        applicationLink: jobData.applicationLink,
+        
+        // Enhanced matching data
+        matchPercentage: jobData.matchPercentage,
+        matchReasons: jobData.matchReasons,
+        userProfile: jobData.userProfile || {}
+      };
+
+      const html = template(context);
+      
+      // Enhanced subject line with match percentage
+      const subject = jobData.matchPercentage 
+        ? `🎯 ${jobData.matchPercentage}% Match: ${jobData.title} at ${jobData.company}`
+        : `New Job Opportunity: ${jobData.title}`;
+      
+      return this.sendEmail({
+        to,
+        subject,
+        template: templateName,
+        context: {
+          html,
+          text: `New Job: ${jobData.title} at ${jobData.company} - ${jobData.location}${jobData.matchPercentage ? ` (${jobData.matchPercentage}% match)` : ''}`
+        }
+      });
+    } catch (error) {
+      logger.error('Send job alert email failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to,
+        jobTitle: jobData.title
+      });
+      return false;
+    }
   }
 
   /**

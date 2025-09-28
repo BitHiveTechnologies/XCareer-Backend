@@ -122,6 +122,8 @@ exports.commonSchemas = {
     // Add number validation
     number: () => joi_1.default.number(),
     // Add array validation
-    array: () => joi_1.default.array()
+    array: () => joi_1.default.array(),
+    // Add boolean validation
+    boolean: () => joi_1.default.boolean()
 };
 //# sourceMappingURL=validation.js.map

@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const jobController_1 = require("../../controllers/jobs/jobController");
 const auth_1 = require("../../middleware/auth");
 const validation_1 = require("../../middleware/validation");
+const jobAlertRoutes_1 = __importDefault(require("./jobAlertRoutes"));
 const router = express_1.default.Router();
 // Public routes (no authentication required)
 router.get('/', jobController_1.getAllJobs);
@@ -72,5 +73,7 @@ router.patch('/:jobId/toggle-status', (0, validation_1.validate)({
         jobId: validation_1.commonSchemas.objectId.required()
     })
 }), jobController_1.toggleJobStatus);
+// Job alert routes (admin only)
+router.use('/alerts', jobAlertRoutes_1.default);
 exports.default = router;
 //# sourceMappingURL=jobRoutes.js.map
