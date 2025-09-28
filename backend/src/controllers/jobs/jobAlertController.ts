@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { logger } from '../../utils/logger';
-import { sendJobAlertsForJob, sendJobAlertsForAllActiveJobs, getJobAlertStats, retryFailedJobNotifications } from '../../services/jobAlertService';
+import { sendJobAlertsEnhanced } from '../../services/enhancedJobAlertService';
+import { getJobAlertStats, retryFailedJobNotifications } from '../../services/jobAlertService';
 import { schedulerService } from '../../services/schedulerService';
 
 /**
@@ -47,12 +48,21 @@ export const sendJobAlerts = async (req: Request, res: Response): Promise<void> 
       ip: req.ip
     });
 
-    const stats = await sendJobAlertsForJob({
+    const result = await sendJobAlertsEnhanced({
       jobId,
-      minMatchScore,
+      minimumMatchPercentage: minMatchScore,
       maxUsers,
       dryRun
     });
+
+    const stats = {
+      totalEligibleUsers: result.totalEligibleUsers,
+      emailsSent: result.emailsSent,
+      emailsFailed: result.emailsFailed,
+      duplicateNotifications: result.duplicateNotifications,
+      usersWithoutProfile: 0, // Enhanced service doesn't track this separately
+      usersWithInactiveSubscription: 0 // Enhanced service doesn't track this separately
+    };
 
     res.status(200).json({
       success: true,
@@ -113,28 +123,59 @@ export const sendAllJobAlerts = async (req: Request, res: Response): Promise<voi
       ip: req.ip
     });
 
-    const results = await sendJobAlertsForAllActiveJobs({
-      minMatchScore,
-      maxUsersPerJob,
-      dryRun
-    });
-
-    // Calculate total stats
-    const totalStats = Object.values(results).reduce((acc, stats) => ({
-      totalEligibleUsers: acc.totalEligibleUsers + stats.totalEligibleUsers,
-      emailsSent: acc.emailsSent + stats.emailsSent,
-      emailsFailed: acc.emailsFailed + stats.emailsFailed,
-      duplicateNotifications: acc.duplicateNotifications + stats.duplicateNotifications,
-      usersWithoutProfile: acc.usersWithoutProfile + stats.usersWithoutProfile,
-      usersWithInactiveSubscription: acc.usersWithInactiveSubscription + stats.usersWithInactiveSubscription
-    }), {
+    // Get all active jobs and send alerts for each
+    const { Job } = await import('../../models/Job');
+    const activeJobs = await Job.find({ isActive: true });
+    
+    const results: Record<string, any> = {};
+    let totalStats = {
       totalEligibleUsers: 0,
       emailsSent: 0,
       emailsFailed: 0,
       duplicateNotifications: 0,
       usersWithoutProfile: 0,
       usersWithInactiveSubscription: 0
-    });
+    };
+
+    for (const job of activeJobs) {
+      try {
+        const result = await sendJobAlertsEnhanced({
+          jobId: job._id.toString(),
+          minimumMatchPercentage: minMatchScore,
+          maxUsers: maxUsersPerJob,
+          dryRun
+        });
+
+        results[job._id.toString()] = {
+          totalEligibleUsers: result.totalEligibleUsers,
+          emailsSent: result.emailsSent,
+          emailsFailed: result.emailsFailed,
+          duplicateNotifications: result.duplicateNotifications,
+          usersWithoutProfile: 0,
+          usersWithInactiveSubscription: 0
+        };
+
+        totalStats.totalEligibleUsers += result.totalEligibleUsers;
+        totalStats.emailsSent += result.emailsSent;
+        totalStats.emailsFailed += result.emailsFailed;
+        totalStats.duplicateNotifications += result.duplicateNotifications;
+      } catch (error) {
+        logger.error('Failed to send alerts for job', {
+          jobId: job._id.toString(),
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        results[job._id.toString()] = {
+          totalEligibleUsers: 0,
+          emailsSent: 0,
+          emailsFailed: 0,
+          duplicateNotifications: 0,
+          usersWithoutProfile: 0,
+          usersWithInactiveSubscription: 0,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    }
 
     res.status(200).json({
       success: true,

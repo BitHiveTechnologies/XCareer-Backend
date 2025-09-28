@@ -117,7 +117,7 @@ export const sendJobAlertsEnhanced = async (
 
       // Check for existing notification (prevent duplicates)
       const existingNotification = await JobNotification.findOne({
-        userId: userMatch.userId.toString(),
+        userId: userMatch.userId,
         jobId
       });
 
@@ -141,7 +141,7 @@ export const sendJobAlertsEnhanced = async (
 
       // Create notification record
       const notification = new JobNotification({
-        userId: userMatch.userId.toString(),
+        userId: userMatch.userId,
         jobId,
         emailStatus: 'pending'
       });

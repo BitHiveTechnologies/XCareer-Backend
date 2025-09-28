@@ -25,26 +25,21 @@ const getCurrentUserProfile = async (req, res) => {
             });
             return;
         }
-        // Find user by ID or create if not exists (for JWT testing)
+        // Find user by email or create if not exists (for JWT testing)
         let user = await User_1.User.findOne({ email: req.user?.email }).select('-password');
-        if (!user) {
-            // If user not found by ID, try to find by email or create a new one
-            const userEmail = req.user?.email;
-            if (userEmail) {
-                user = await User_1.User.findOne({ email: userEmail }).select('-password');
-                if (!user) {
-                    // Create a new user for testing - let MongoDB generate the ObjectId
-                    user = new User_1.User({
-                        email: userEmail,
-                        name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
-                        role: req.user?.role || 'user',
-                        subscriptionPlan: 'basic',
-                        subscriptionStatus: 'inactive',
-                        isProfileComplete: false
-                    });
-                    await user.save();
-                }
-            }
+        if (!user && req.user?.email) {
+            // Create a new user for testing - let MongoDB generate the ObjectId
+            user = new User_1.User({
+                clerkUserId: `jwt_${req.user.id}`, // Use JWT ID as clerkUserId to avoid password requirement
+                email: req.user.email,
+                name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
+                mobile: '9876543210', // Default mobile for testing
+                role: req.user?.role || 'user',
+                subscriptionPlan: 'basic',
+                subscriptionStatus: 'inactive',
+                isProfileComplete: false
+            });
+            await user.save();
         }
         if (!user) {
             res.status(404).json({

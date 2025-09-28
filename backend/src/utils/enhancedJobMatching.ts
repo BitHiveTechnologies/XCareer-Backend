@@ -172,7 +172,7 @@ export const calculateEnhancedMatchPercentage = (
   const eligible = scores.overall >= criteria.minimumMatchPercentage;
 
   return {
-    userId: userProfile.userId.toString(),
+    userId: '', // Will be set by the calling function
     matchPercentage: Math.round(scores.overall * 100) / 100, // Round to 2 decimal places
     detailedScores: {
       qualification: Math.round(scores.qualification * 100) / 100,
@@ -433,6 +433,7 @@ export const findEligibleUsersForJobEnhanced = async (
         const matchResult = calculateEnhancedMatchPercentage(profile, job.eligibility, matchingCriteria);
         
         // Add user details to result
+        matchResult.userId = user._id.toString();
         (matchResult as any).email = user.email;
         (matchResult as any).name = user.name;
         (matchResult as any).userProfile = {

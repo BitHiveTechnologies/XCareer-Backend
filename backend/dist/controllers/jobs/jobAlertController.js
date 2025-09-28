@@ -1,7 +1,41 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.triggerSchedulerTask = exports.getSchedulerStatus = exports.retryFailedNotifications = exports.getJobAlertStatistics = exports.sendAllJobAlerts = exports.sendJobAlerts = void 0;
 const logger_1 = require("../../utils/logger");
+const enhancedJobAlertService_1 = require("../../services/enhancedJobAlertService");
 const jobAlertService_1 = require("../../services/jobAlertService");
 const schedulerService_1 = require("../../services/schedulerService");
 /**
@@ -40,12 +74,20 @@ const sendJobAlerts = async (req, res) => {
             dryRun,
             ip: req.ip
         });
-        const stats = await (0, jobAlertService_1.sendJobAlertsForJob)({
+        const result = await (0, enhancedJobAlertService_1.sendJobAlertsEnhanced)({
             jobId,
-            minMatchScore,
+            minimumMatchPercentage: minMatchScore,
             maxUsers,
             dryRun
         });
+        const stats = {
+            totalEligibleUsers: result.totalEligibleUsers,
+            emailsSent: result.emailsSent,
+            emailsFailed: result.emailsFailed,
+            duplicateNotifications: result.duplicateNotifications,
+            usersWithoutProfile: 0, // Enhanced service doesn't track this separately
+            usersWithInactiveSubscription: 0 // Enhanced service doesn't track this separately
+        };
         res.status(200).json({
             success: true,
             message: dryRun ? 'Job alerts dry run completed' : 'Job alerts sent successfully',
@@ -98,27 +140,55 @@ const sendAllJobAlerts = async (req, res) => {
             dryRun,
             ip: req.ip
         });
-        const results = await (0, jobAlertService_1.sendJobAlertsForAllActiveJobs)({
-            minMatchScore,
-            maxUsersPerJob,
-            dryRun
-        });
-        // Calculate total stats
-        const totalStats = Object.values(results).reduce((acc, stats) => ({
-            totalEligibleUsers: acc.totalEligibleUsers + stats.totalEligibleUsers,
-            emailsSent: acc.emailsSent + stats.emailsSent,
-            emailsFailed: acc.emailsFailed + stats.emailsFailed,
-            duplicateNotifications: acc.duplicateNotifications + stats.duplicateNotifications,
-            usersWithoutProfile: acc.usersWithoutProfile + stats.usersWithoutProfile,
-            usersWithInactiveSubscription: acc.usersWithInactiveSubscription + stats.usersWithInactiveSubscription
-        }), {
+        // Get all active jobs and send alerts for each
+        const { Job } = await Promise.resolve().then(() => __importStar(require('../../models/Job')));
+        const activeJobs = await Job.find({ isActive: true });
+        const results = {};
+        let totalStats = {
             totalEligibleUsers: 0,
             emailsSent: 0,
             emailsFailed: 0,
             duplicateNotifications: 0,
             usersWithoutProfile: 0,
             usersWithInactiveSubscription: 0
-        });
+        };
+        for (const job of activeJobs) {
+            try {
+                const result = await (0, enhancedJobAlertService_1.sendJobAlertsEnhanced)({
+                    jobId: job._id.toString(),
+                    minimumMatchPercentage: minMatchScore,
+                    maxUsers: maxUsersPerJob,
+                    dryRun
+                });
+                results[job._id.toString()] = {
+                    totalEligibleUsers: result.totalEligibleUsers,
+                    emailsSent: result.emailsSent,
+                    emailsFailed: result.emailsFailed,
+                    duplicateNotifications: result.duplicateNotifications,
+                    usersWithoutProfile: 0,
+                    usersWithInactiveSubscription: 0
+                };
+                totalStats.totalEligibleUsers += result.totalEligibleUsers;
+                totalStats.emailsSent += result.emailsSent;
+                totalStats.emailsFailed += result.emailsFailed;
+                totalStats.duplicateNotifications += result.duplicateNotifications;
+            }
+            catch (error) {
+                logger_1.logger.error('Failed to send alerts for job', {
+                    jobId: job._id.toString(),
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+                results[job._id.toString()] = {
+                    totalEligibleUsers: 0,
+                    emailsSent: 0,
+                    emailsFailed: 0,
+                    duplicateNotifications: 0,
+                    usersWithoutProfile: 0,
+                    usersWithInactiveSubscription: 0,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+            }
+        }
         res.status(200).json({
             success: true,
             message: dryRun ? 'All job alerts dry run completed' : 'All job alerts sent successfully',
