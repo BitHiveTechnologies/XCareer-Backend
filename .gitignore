@@ -27,3 +27,9 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+# Local dev and secrets
+.cursor/
+.taskmaster/
+backend/.env*
+backend/.env.backup-cloud
+backend/dist/
