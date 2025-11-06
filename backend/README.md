@@ -66,12 +66,24 @@ npm run dev:build
 ### 4. Production Build
 
 ```bash
-# Build the project
+# Build the project (cleans dist, compiles TypeScript, copies assets)
 npm run build
+
+# Build for production with NODE_ENV=production
+npm run build:production
 
 # Start production server
 npm start
+
+# Start production server with NODE_ENV=production
+npm run start:prod
 ```
+
+**Build Process:**
+- `prebuild`: Automatically cleans the `dist` directory
+- `build`: Compiles TypeScript and copies static assets (templates, etc.)
+- `postbuild`: Verifies the build was successful
+- Output: All compiled JavaScript files in `dist/` directory
 
 ## 📁 Project Structure
 
@@ -95,11 +107,24 @@ src/
 
 ## 🔧 Available Scripts
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
+### Development
+- `npm run dev` - Start development server with hot reload (nodemon + ts-node)
 - `npm run dev:build` - Build and start in development mode
-- `npm run clean` - Remove build artifacts
+
+### Building
+- `npm run build` - Build TypeScript to JavaScript (includes prebuild clean and postbuild verification)
+- `npm run build:production` - Build with NODE_ENV=production
+- `npm run clean` - Remove build artifacts (dist directory)
+- `npm run verify:build` - Verify build output exists
+
+### Production
+- `npm start` - Start production server (runs `dist/index.js`)
+- `npm run start:prod` - Start with NODE_ENV=production
+
+### Testing & Utilities
+- `npm run seed:test-data` - Seed test data
+- `npm run create:admin` - Create admin user
+- `npm run fix:indexes` - Fix database indexes
 
 ## 🌐 API Endpoints
 
@@ -143,10 +168,40 @@ Testing framework setup coming soon:
 
 ## 🚀 Deployment
 
-- **Docker**: Containerization support
-- **Environment Configs**: Development, staging, production
-- **CI/CD**: Automated testing and deployment pipeline
-- **Monitoring**: Production environment monitoring
+### Docker Deployment
+
+The project includes a production-ready Dockerfile:
+
+```bash
+# Build Docker image
+docker build -f Dockerfile.prod -t notifyx-backend:latest .
+
+# Run container
+docker run -p 3001:3001 --env-file .env notifyx-backend:latest
+```
+
+**Docker Build Process:**
+1. **Builder Stage**: Installs all dependencies (including devDependencies for TypeScript)
+2. **Builder Stage**: Compiles TypeScript and copies static assets
+3. **Production Stage**: Installs only production dependencies
+4. **Production Stage**: Copies only the `dist` directory (optimized image size)
+
+### Build Features
+- ✅ Cross-platform build script (works on Windows, macOS, Linux)
+- ✅ Automatic cleanup of old build artifacts
+- ✅ Static asset copying (templates, etc.)
+- ✅ Build verification to ensure successful compilation
+- ✅ Optimized Docker builds with multi-stage builds
+- ✅ Production-ready with proper environment handling
+
+### Deployment Checklist
+- [ ] Set all required environment variables
+- [ ] Run `npm run build` to verify build works locally
+- [ ] Test production build with `npm run start:prod`
+- [ ] Build Docker image and test container
+- [ ] Configure production database connection
+- [ ] Set up monitoring and logging
+- [ ] Configure reverse proxy (nginx) if needed
 
 ## 📝 Environment Variables
 
