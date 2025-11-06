@@ -12,8 +12,7 @@ export interface IUser extends BaseDocument {
   clerkUserId?: string; // Clerk user ID for external auth
   email: string; // Unique, serves as username
   password?: string; // Hashed - optional when using Clerk
-  name: string;
-  mobile: string;
+  // Personal information (name, mobile) is now stored in UserProfile model
   role: 'user' | 'admin' | 'super_admin'; // User role for access control
   subscriptionPlan: 'basic' | 'premium'; // ₹49 or ₹99
   subscriptionStatus: 'active' | 'inactive' | 'expired';
@@ -28,8 +27,8 @@ export interface IUserProfile extends BaseDocument {
   userId: ObjectId; // Reference to Users
   firstName: string;
   lastName: string;
-  email: string;
-  contactNumber: string;
+  fullName: string; // Computed field: firstName + lastName
+  contactNumber: string; // Mobile number
   dateOfBirth: Date;
   qualification: string; // B.E, B.Tech, M.Tech, etc.
   customQualification?: string; // If "Others" selected
@@ -38,6 +37,10 @@ export interface IUserProfile extends BaseDocument {
   yearOfPassout: number; // 2023-2029
   cgpaOrPercentage: number;
   collegeName: string;
+  skills?: string[]; // Array of skills
+  linkedinUrl?: string;
+  githubUrl?: string;
+  resumeUrl?: string;
 }
 
 // Job interface

@@ -68,7 +68,7 @@ class UserProvisioningService {
             result.user = user;
             // Step 3: Create user profile
             if (data.profileData) {
-                const profile = await this.createUserProfile(user._id, data.profileData, user.email, user.mobile);
+                const profile = await this.createUserProfile(user._id, data.profileData, user.email);
                 if (profile) {
                     result.profile = profile;
                 }
@@ -118,8 +118,6 @@ class UserProvisioningService {
         try {
             const userData = {
                 email: data.email,
-                name: data.name,
-                mobile: data.mobile || '9876543210', // Default mobile if not provided
                 role: 'user',
                 subscriptionPlan: data.subscriptionPlan || 'basic',
                 subscriptionStatus: data.subscriptionStatus || 'inactive'
@@ -152,16 +150,16 @@ class UserProvisioningService {
     /**
      * Create user profile
      */
-    static async createUserProfile(userId, profileData, userEmail, userMobile) {
+    static async createUserProfile(userId, profileData, userEmail) {
         try {
             const profile = new UserProfile_1.UserProfile({
                 userId,
                 firstName: profileData.firstName || 'User',
                 lastName: profileData.lastName || '',
-                email: userEmail,
-                contactNumber: userMobile,
+                fullName: `${profileData.firstName || 'User'} ${profileData.lastName || ''}`.trim(),
+                contactNumber: profileData.contactNumber || '9876543210',
                 dateOfBirth: profileData.dateOfBirth || new Date('1995-01-01'),
-                qualification: profileData.qualification || 'B.Tech',
+                qualification: profileData.qualification || 'Not specified',
                 stream: profileData.stream || 'CSE',
                 yearOfPassout: profileData.yearOfPassout || new Date().getFullYear(),
                 cgpaOrPercentage: profileData.cgpaOrPercentage || 7.0,
@@ -254,10 +252,6 @@ class UserProvisioningService {
         try {
             // Update user fields if provided
             const updateData = {};
-            if (data.name && data.name !== user.name)
-                updateData.name = data.name;
-            if (data.mobile && data.mobile !== user.mobile)
-                updateData.mobile = data.mobile;
             if (data.subscriptionPlan && data.subscriptionPlan !== user.subscriptionPlan) {
                 updateData.subscriptionPlan = data.subscriptionPlan;
             }
@@ -295,7 +289,7 @@ class UserProvisioningService {
                 }
                 else {
                     // Create new profile
-                    const profile = await this.createUserProfile(user._id, data.profileData, user.email, user.mobile);
+                    const profile = await this.createUserProfile(user._id, data.profileData, user.email);
                     if (profile) {
                         result.profile = profile;
                         result.warnings?.push('New user profile created');
@@ -404,10 +398,13 @@ class UserProvisioningService {
         try {
             const userData = {
                 email: paymentData.customer?.email || paymentData.email,
-                name: paymentData.customer?.name || 'User',
-                mobile: paymentData.customer?.contact || '0000000000',
                 subscriptionPlan: this.determinePlanFromAmount(paymentData.amount),
                 subscriptionStatus: 'active',
+                profileData: {
+                    firstName: paymentData.customer?.name?.split(' ')[0] || 'User',
+                    lastName: paymentData.customer?.name?.split(' ').slice(1).join(' ') || '',
+                    contactNumber: paymentData.customer?.contact || '0000000000'
+                },
                 metadata: {
                     source: 'payment_webhook',
                     campaign: 'razorpay_payment',

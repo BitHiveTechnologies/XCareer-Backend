@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateUserProfile = exports.getCurrentUser = void 0;
-const logger_1 = require("../../utils/logger");
-const User_1 = require("../../models/User");
-const UserProfile_1 = require("../../models/UserProfile");
 const backend_1 = require("@clerk/backend");
 const clerk_1 = require("../../config/clerk");
+const User_1 = require("../../models/User");
+const UserProfile_1 = require("../../models/UserProfile");
+const logger_1 = require("../../utils/logger");
 /**
  * Get current authenticated user profile
  */
@@ -51,10 +51,8 @@ const getCurrentUser = async (req, res) => {
                 user: {
                     id: user._id,
                     clerkUserId: user.clerkUserId,
-                    name: user.name,
                     email: user.email,
                     role: user.role,
-                    mobile: user.mobile,
                     subscriptionStatus: user.subscriptionStatus,
                     subscriptionPlan: user.subscriptionPlan,
                     isProfileComplete: user.isProfileComplete
@@ -128,10 +126,7 @@ const updateUserProfile = async (req, res) => {
             });
             return;
         }
-        // Update user mobile if provided
-        if (mobile) {
-            user.mobile = mobile;
-        }
+        // Note: mobile is now handled in UserProfile, not User model
         // Update user profile
         let userProfile = await UserProfile_1.UserProfile.findOne({ userId: user._id });
         if (!userProfile) {
@@ -181,9 +176,7 @@ const updateUserProfile = async (req, res) => {
                 message: 'Profile updated successfully',
                 user: {
                     id: user._id,
-                    name: user.name,
                     email: user.email,
-                    mobile: user.mobile,
                     isProfileComplete: user.isProfileComplete
                 },
                 profile: {

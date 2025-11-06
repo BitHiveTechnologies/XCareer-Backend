@@ -64,17 +64,8 @@ const userSchema = new mongoose_1.Schema({
         },
         minlength: [8, 'Password must be at least 8 characters long']
     },
-    name: {
-        type: String,
-        required: [true, 'Name is required'],
-        trim: true,
-        maxlength: [100, 'Name cannot exceed 100 characters']
-    },
-    mobile: {
-        type: String,
-        required: [true, 'Mobile number is required'],
-        match: [/^[6-9]\d{9}$/, 'Please enter a valid Indian mobile number']
-    },
+    // Personal information is now stored in UserProfile model
+    // This keeps the User model focused on authentication and subscription data
     role: {
         type: String,
         enum: {

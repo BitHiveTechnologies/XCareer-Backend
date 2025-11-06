@@ -1,13 +1,12 @@
 export interface UserProvisioningData {
     email: string;
-    name: string;
-    mobile?: string;
     clerkUserId?: string;
     subscriptionPlan?: 'basic' | 'premium' | 'enterprise';
     subscriptionStatus?: 'active' | 'inactive' | 'expired';
     profileData?: {
         firstName?: string;
         lastName?: string;
+        contactNumber?: string;
         qualification?: string;
         stream?: string;
         yearOfPassout?: number;

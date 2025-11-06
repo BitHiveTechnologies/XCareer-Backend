@@ -41,32 +41,40 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Create user (password will be hashed by User model pre-save middleware)
     const user = new User({
-      name,
       email,
       password,
-      mobile,
       subscriptionPlan: 'basic',
       subscriptionStatus: 'inactive'
     });
 
     await user.save();
 
-    // Create user profile
-    const userProfile = new UserProfile({
-      userId: user._id,
-      firstName: name.split(' ')[0] || name,
-      lastName: name.split(' ').slice(1).join(' ') || '',
-      email,
-      contactNumber: mobile,
-      dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
-      qualification,
-      stream,
-      yearOfPassout,
-      cgpaOrPercentage,
-      collegeName: 'Not specified' // Default value, can be updated later
-    });
+    // Create user profile only if minimum mandatory profile fields are provided
+    let userProfile: (typeof UserProfile)['prototype'] | null = null;
+    const hasRequiredProfileFields = (
+      typeof mobile === 'string' && mobile.trim() !== '' &&
+      typeof qualification === 'string' && qualification.trim() !== '' &&
+      typeof stream === 'string' && stream.trim() !== '' &&
+      typeof yearOfPassout !== 'undefined' &&
+      typeof cgpaOrPercentage !== 'undefined'
+    );
 
-    await userProfile.save();
+    if (hasRequiredProfileFields) {
+      userProfile = new UserProfile({
+        userId: user._id,
+        firstName: name.split(' ')[0] || name,
+        lastName: name.split(' ').slice(1).join(' ') || '',
+        fullName: name, // pre-save will compute too
+        contactNumber: mobile,
+        dateOfBirth: new Date('1995-01-01'), // default valid DOB
+        qualification,
+        stream,
+        yearOfPassout,
+        cgpaOrPercentage,
+        collegeName: 'Not specified'
+      });
+      await userProfile.save();
+    }
 
     // Generate tokens
     const tokenPayload = {
@@ -92,9 +100,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: {
           id: user._id,
-          name: user.name,
           email: user.email,
-          role: 'user'
+          role: 'user',
+          firstName: userProfile?.firstName,
+          lastName: userProfile?.lastName,
+          fullName: userProfile?.fullName,
+          contactNumber: userProfile?.contactNumber
         },
         accessToken,
         refreshToken,
@@ -189,14 +200,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       ip: req.ip
     });
 
+    // Get user profile for additional info
+    const userProfile = await UserProfile.findOne({ userId: user._id });
+
     res.status(200).json({
       success: true,
       data: {
         user: {
           id: user._id,
-          name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          firstName: userProfile?.firstName,
+          lastName: userProfile?.lastName,
+          fullName: userProfile?.fullName,
+          contactNumber: userProfile?.contactNumber
         },
         accessToken,
         refreshToken,
@@ -376,10 +393,12 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       data: {
         user: {
           id: user._id,
-          name: user.name,
           email: user.email,
           role: 'user',
-          mobile: user.mobile,
+          firstName: userProfile?.firstName,
+          lastName: userProfile?.lastName,
+          fullName: userProfile?.fullName,
+          contactNumber: userProfile?.contactNumber,
           subscriptionStatus: user.subscriptionStatus,
           subscriptionPlan: user.subscriptionPlan
         },

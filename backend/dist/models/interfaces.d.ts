@@ -8,8 +8,6 @@ export interface IUser extends BaseDocument {
     clerkUserId?: string;
     email: string;
     password?: string;
-    name: string;
-    mobile: string;
     role: 'user' | 'admin' | 'super_admin';
     subscriptionPlan: 'basic' | 'premium';
     subscriptionStatus: 'active' | 'inactive' | 'expired';
@@ -22,7 +20,7 @@ export interface IUserProfile extends BaseDocument {
     userId: ObjectId;
     firstName: string;
     lastName: string;
-    email: string;
+    fullName: string;
     contactNumber: string;
     dateOfBirth: Date;
     qualification: string;
@@ -32,6 +30,10 @@ export interface IUserProfile extends BaseDocument {
     yearOfPassout: number;
     cgpaOrPercentage: number;
     collegeName: string;
+    skills?: string[];
+    linkedinUrl?: string;
+    githubUrl?: string;
+    resumeUrl?: string;
 }
 export interface IJob extends BaseDocument {
     _id: ObjectId;

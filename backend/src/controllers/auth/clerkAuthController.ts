@@ -1,9 +1,9 @@
+import { createClerkClient } from '@clerk/backend';
 import { Request, Response } from 'express';
-import { logger } from '../../utils/logger';
+import { clerkConfig } from '../../config/clerk';
 import { User } from '../../models/User';
 import { UserProfile } from '../../models/UserProfile';
-import { createClerkClient } from '@clerk/backend';
-import { clerkConfig } from '../../config/clerk';
+import { logger } from '../../utils/logger';
 
 export interface ClerkAuthRequest extends Request {
   user?: {
@@ -69,10 +69,8 @@ export const getCurrentUser = async (req: ClerkAuthRequest, res: Response): Prom
         user: {
           id: user._id,
           clerkUserId: user.clerkUserId,
-          name: user.name,
           email: user.email,
           role: user.role,
-          mobile: user.mobile,
           subscriptionStatus: user.subscriptionStatus,
           subscriptionPlan: user.subscriptionPlan,
           isProfileComplete: user.isProfileComplete
@@ -149,10 +147,7 @@ export const updateUserProfile = async (req: ClerkAuthRequest, res: Response): P
       return;
     }
 
-    // Update user mobile if provided
-    if (mobile) {
-      user.mobile = mobile;
-    }
+    // Note: mobile is now handled in UserProfile, not User model
 
     // Update user profile
     let userProfile = await UserProfile.findOne({ userId: user._id });
@@ -201,9 +196,7 @@ export const updateUserProfile = async (req: ClerkAuthRequest, res: Response): P
         message: 'Profile updated successfully',
         user: {
           id: user._id,
-          name: user.name,
           email: user.email,
-          mobile: user.mobile,
           isProfileComplete: user.isProfileComplete
         },
         profile: {

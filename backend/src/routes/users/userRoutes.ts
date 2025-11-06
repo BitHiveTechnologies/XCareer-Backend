@@ -1,17 +1,16 @@
 import express from 'express';
-import { validate } from '../../middleware/validation';
-import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 import {
-  getCurrentUserProfile,
-  updateCurrentUserProfile,
-  getProfileCompletionStatus,
-  getUserProfile,
-  updateUserProfile,
-  getAllUsers,
-  deleteUser,
-  getUserStats
+    deleteUser,
+    getAllUsers,
+    getCurrentUserProfile,
+    getProfileCompletionStatus,
+    getUserProfile,
+    getUserStats,
+    updateCurrentUserProfile,
+    updateUserProfile
 } from '../../controllers/users/userController';
-import { commonSchemas } from '../../middleware/validation';
+import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
+import { commonSchemas, validate } from '../../middleware/validation';
 
 const router = express.Router();
 
@@ -31,17 +30,13 @@ router.put('/me',
       stream: commonSchemas.string().max(100).optional(),
       yearOfPassout: commonSchemas.number().integer().min(2000).max(new Date().getFullYear() + 5).optional(),
       cgpaOrPercentage: commonSchemas.number().min(0).max(100).optional(),
-      collegeName: commonSchemas.string().max(200).optional(),
+      collegeName: commonSchemas.string().allow('', null).max(200).optional(),
       // Additional fields
       dateOfBirth: commonSchemas.date.optional(),
-      address: commonSchemas.string().max(500).optional(),
-      city: commonSchemas.string().max(100).optional(),
-      state: commonSchemas.string().max(100).optional(),
-      pincode: commonSchemas.string().pattern(/^[1-9][0-9]{5}$/).optional(),
-      skills: commonSchemas.string().max(500).optional(),
-      resumeUrl: commonSchemas.string().uri().optional(),
-      linkedinUrl: commonSchemas.string().uri().optional(),
-      githubUrl: commonSchemas.string().uri().optional()
+      skills: commonSchemas.string().allow('', null).max(500).optional(),
+      resumeUrl: commonSchemas.uri().allow('', null).optional(),
+      linkedinUrl: commonSchemas.uri().allow('', null).optional(),
+      githubUrl: commonSchemas.uri().allow('', null).optional()
     })
   }),
   updateCurrentUserProfile
@@ -59,10 +54,6 @@ router.put('/profile/:userId',
       // Profile fields
       dateOfBirth: commonSchemas.date.optional(),
       gender: commonSchemas.string().valid('male', 'female', 'other').optional(),
-      address: commonSchemas.string().max(500).optional(),
-      city: commonSchemas.string().max(100).optional(),
-      state: commonSchemas.string().max(100).optional(),
-      pincode: commonSchemas.string().pattern(/^[1-9][0-9]{5}$/).optional(),
       // Education fields
       highestQualification: commonSchemas.string().max(100).optional(),
       stream: commonSchemas.string().max(100).optional(),

@@ -32,8 +32,6 @@ const getCurrentUserProfile = async (req, res) => {
             user = new User_1.User({
                 clerkUserId: `jwt_${req.user.id}`, // Use JWT ID as clerkUserId to avoid password requirement
                 email: req.user.email,
-                name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
-                mobile: '9876543210', // Default mobile for testing
                 role: req.user?.role || 'user',
                 subscriptionPlan: 'basic',
                 subscriptionStatus: 'inactive',
@@ -53,20 +51,49 @@ const getCurrentUserProfile = async (req, res) => {
         }
         // Find user profile
         const profile = await UserProfile_1.UserProfile.findOne({ userId: user._id });
-        // Combine user and profile data
+        // Update profile completion status if profile exists
+        if (profile) {
+            const mandatoryFields = ['firstName', 'lastName', 'contactNumber', 'stream', 'yearOfPassout', 'cgpaOrPercentage', 'dateOfBirth', 'qualification'];
+            const completedFields = mandatoryFields.filter(field => {
+                const value = profile[field];
+                return value && value !== '' && value !== 0 && value !== 'Not specified';
+            });
+            const isComplete = completedFields.length === mandatoryFields.length;
+            // Update user's profile completion status if it has changed
+            if (user.isProfileComplete !== isComplete) {
+                await User_1.User.findByIdAndUpdate(user._id, { isProfileComplete: isComplete });
+                user.isProfileComplete = isComplete;
+            }
+        }
+        // Combine user and profile data - consolidated structure
         const userData = {
             id: user._id,
             clerkUserId: user.clerkUserId,
             email: user.email,
-            name: user.name,
-            mobile: user.mobile,
             role: user.role,
             subscriptionPlan: user.subscriptionPlan,
             subscriptionStatus: user.subscriptionStatus,
             isProfileComplete: user.isProfileComplete,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
-            profile: profile || null
+            // Personal information from profile
+            firstName: profile?.firstName || '',
+            lastName: profile?.lastName || '',
+            fullName: profile?.fullName || '',
+            contactNumber: profile?.contactNumber || '',
+            dateOfBirth: profile?.dateOfBirth || null,
+            qualification: profile?.qualification || '',
+            stream: profile?.stream || '',
+            yearOfPassout: profile?.yearOfPassout || null,
+            cgpaOrPercentage: profile?.cgpaOrPercentage || null,
+            collegeName: profile?.collegeName || '',
+            // Additional profile fields
+            customQualification: profile?.customQualification || '',
+            customStream: profile?.customStream || '',
+            skills: profile?.skills || '',
+            linkedinUrl: profile?.linkedinUrl || '',
+            githubUrl: profile?.githubUrl || '',
+            resumeUrl: profile?.resumeUrl || ''
         };
         logger_1.logger.info('Current user profile retrieved', {
             userId: user._id,
@@ -120,8 +147,6 @@ const updateCurrentUserProfile = async (req, res) => {
             user = new User_1.User({
                 clerkUserId: `jwt_${userId}`, // Use JWT ID as clerkUserId to avoid password requirement
                 email: req.user.email,
-                name: req.user?.firstName && req.user?.lastName ? `${req.user.firstName} ${req.user.lastName}` : 'Test User',
-                mobile: '9876543210', // Default mobile for testing
                 role: req.user?.role || 'user',
                 subscriptionPlan: 'basic',
                 subscriptionStatus: 'inactive',
@@ -139,36 +164,35 @@ const updateCurrentUserProfile = async (req, res) => {
             });
             return;
         }
-        // Update basic user info if provided
-        if (updateData.name || updateData.mobile) {
-            const userUpdates = {};
-            if (updateData.name)
-                userUpdates.name = updateData.name;
-            if (updateData.mobile)
-                userUpdates.mobile = updateData.mobile;
-            await User_1.User.findByIdAndUpdate(user._id, userUpdates);
-        }
+        // User model no longer stores personal information
+        // All personal data is now stored in UserProfile
         // Update or create user profile
         let profile = await UserProfile_1.UserProfile.findOne({ userId: user._id });
         if (profile) {
             // Update existing profile
             Object.assign(profile, updateData);
+            // Ensure fullName is populated before validation/save
+            if (profile.firstName || profile.lastName) {
+                const first = (profile.firstName || '').toString().trim();
+                const last = (profile.lastName || '').toString().trim();
+                profile.fullName = `${first} ${last}`.trim();
+            }
             await profile.save();
         }
         else {
             // Create new profile with all required fields
             profile = new UserProfile_1.UserProfile({
                 userId: user._id,
-                firstName: req.user?.firstName || 'Test',
-                lastName: req.user?.lastName || 'User',
-                email: user.email,
-                contactNumber: updateData.mobile || user.mobile,
+                firstName: updateData.firstName || req.user?.firstName || 'Test',
+                lastName: updateData.lastName || req.user?.lastName || 'User',
+                fullName: `${(updateData.firstName || req.user?.firstName || 'Test').toString().trim()} ${(updateData.lastName || req.user?.lastName || 'User').toString().trim()}`.trim(),
+                contactNumber: updateData.contactNumber || updateData.mobile || '9876543210',
                 dateOfBirth: updateData.dateOfBirth || new Date('1995-01-01'),
-                qualification: updateData.qualification || 'B.Tech',
+                qualification: updateData.qualification || 'Not specified',
                 stream: updateData.stream || 'CSE',
                 yearOfPassout: updateData.yearOfPassout || new Date().getFullYear(),
                 cgpaOrPercentage: updateData.cgpaOrPercentage || 8.0,
-                collegeName: updateData.collegeName || '',
+                collegeName: updateData.collegeName || 'Not specified',
                 // Additional optional fields
                 skills: updateData.skills || '',
                 linkedinUrl: updateData.linkedinUrl || '',
@@ -181,13 +205,13 @@ const updateCurrentUserProfile = async (req, res) => {
             await profile.save();
         }
         // Update user's profile completion status
-        // Check if profile is complete by verifying required fields
-        const requiredFields = ['qualification', 'stream', 'yearOfPassout', 'cgpaOrPercentage', 'collegeName'];
-        const completedFields = requiredFields.filter(field => {
+        // Check if profile is complete by verifying mandatory fields only
+        const mandatoryFields = ['firstName', 'lastName', 'contactNumber', 'stream', 'yearOfPassout', 'cgpaOrPercentage', 'dateOfBirth', 'qualification'];
+        const completedFields = mandatoryFields.filter(field => {
             const value = profile[field];
             return value && value !== '' && value !== 0 && value !== 'Not specified';
         });
-        const isComplete = completedFields.length === requiredFields.length;
+        const isComplete = completedFields.length === mandatoryFields.length;
         await User_1.User.findByIdAndUpdate(user._id, { isProfileComplete: isComplete });
         // Get updated user data
         const updatedUser = await User_1.User.findById(user._id).select('-password');
@@ -196,22 +220,41 @@ const updateCurrentUserProfile = async (req, res) => {
             userId: user._id,
             ip: req.ip
         });
+        // Return consolidated user data
+        const userData = {
+            id: updatedUser?._id,
+            clerkUserId: updatedUser?.clerkUserId,
+            email: updatedUser?.email,
+            role: updatedUser?.role,
+            subscriptionPlan: updatedUser?.subscriptionPlan,
+            subscriptionStatus: updatedUser?.subscriptionStatus,
+            isProfileComplete: updatedUser?.isProfileComplete,
+            createdAt: updatedUser?.createdAt,
+            updatedAt: updatedUser?.updatedAt,
+            // Personal information from profile
+            firstName: updatedProfile?.firstName || '',
+            lastName: updatedProfile?.lastName || '',
+            fullName: updatedProfile?.fullName || '',
+            contactNumber: updatedProfile?.contactNumber || '',
+            dateOfBirth: updatedProfile?.dateOfBirth || null,
+            qualification: updatedProfile?.qualification || '',
+            stream: updatedProfile?.stream || '',
+            yearOfPassout: updatedProfile?.yearOfPassout || null,
+            cgpaOrPercentage: updatedProfile?.cgpaOrPercentage || null,
+            collegeName: updatedProfile?.collegeName || '',
+            // Additional profile fields
+            customQualification: updatedProfile?.customQualification || '',
+            customStream: updatedProfile?.customStream || '',
+            skills: updatedProfile?.skills || '',
+            linkedinUrl: updatedProfile?.linkedinUrl || '',
+            githubUrl: updatedProfile?.githubUrl || '',
+            resumeUrl: updatedProfile?.resumeUrl || ''
+        };
         res.status(200).json({
             success: true,
             message: 'Profile updated successfully',
             data: {
-                user: {
-                    id: updatedUser?._id,
-                    clerkUserId: updatedUser?.clerkUserId,
-                    email: updatedUser?.email,
-                    name: updatedUser?.name,
-                    mobile: updatedUser?.mobile,
-                    role: updatedUser?.role,
-                    subscriptionPlan: updatedUser?.subscriptionPlan,
-                    subscriptionStatus: updatedUser?.subscriptionStatus,
-                    isProfileComplete: updatedUser?.isProfileComplete,
-                    profile: updatedProfile
-                }
+                user: userData
             },
             timestamp: new Date().toISOString()
         });
@@ -358,18 +401,34 @@ const getUserProfile = async (req, res) => {
         }
         // Find user profile
         const profile = await UserProfile_1.UserProfile.findOne({ userId });
-        // Combine user and profile data
+        // Combine user and profile data - consolidated structure
         const userData = {
             id: user._id,
             email: user.email,
-            name: user.name,
-            mobile: user.mobile,
+            role: user.role,
             subscriptionPlan: user.subscriptionPlan,
             subscriptionStatus: user.subscriptionStatus,
             isProfileComplete: user.isProfileComplete,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
-            profile: profile || null
+            // Personal information from profile
+            firstName: profile?.firstName || '',
+            lastName: profile?.lastName || '',
+            fullName: profile?.fullName || '',
+            contactNumber: profile?.contactNumber || '',
+            dateOfBirth: profile?.dateOfBirth || null,
+            qualification: profile?.qualification || '',
+            stream: profile?.stream || '',
+            yearOfPassout: profile?.yearOfPassout || null,
+            cgpaOrPercentage: profile?.cgpaOrPercentage || null,
+            collegeName: profile?.collegeName || '',
+            // Additional profile fields
+            customQualification: profile?.customQualification || '',
+            customStream: profile?.customStream || '',
+            skills: profile?.skills || '',
+            linkedinUrl: profile?.linkedinUrl || '',
+            githubUrl: profile?.githubUrl || '',
+            resumeUrl: profile?.resumeUrl || ''
         };
         res.status(200).json({
             success: true,
@@ -451,8 +510,6 @@ const updateUserProfile = async (req, res) => {
                 user: {
                     id: updatedUser?._id,
                     email: updatedUser?.email,
-                    name: updatedUser?.name,
-                    mobile: updatedUser?.mobile,
                     subscriptionPlan: updatedUser?.subscriptionPlan,
                     subscriptionStatus: updatedUser?.subscriptionStatus,
                     isProfileComplete: updatedUser?.isProfileComplete,

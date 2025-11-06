@@ -19,11 +19,11 @@ export const provisionUser = async (req: AuthRequest, res: Response): Promise<vo
     const userData: UserProvisioningData = req.body;
 
     // Validate required fields
-    if (!userData.email || !userData.name) {
+    if (!userData.email) {
       res.status(400).json({
         success: false,
         error: {
-          message: 'Email and name are required'
+          message: 'Email is required'
         },
         timestamp: new Date().toISOString()
       });
@@ -199,10 +199,13 @@ export const provisionFromExternal = async (req: AuthRequest, res: Response): Pr
       case 'razorpay':
         userData = {
           email: data.customer?.email || data.email,
-          name: data.customer?.name || 'User',
-          mobile: data.customer?.contact || '0000000000',
           subscriptionPlan: data.plan || 'basic',
           subscriptionStatus: 'active',
+          profileData: {
+            firstName: data.customer?.name?.split(' ')[0] || 'User',
+            lastName: data.customer?.name?.split(' ').slice(1).join(' ') || '',
+            contactNumber: data.customer?.contact || '0000000000'
+          },
           metadata: {
             source: 'razorpay_webhook',
             campaign: 'payment_webhook',
@@ -213,10 +216,13 @@ export const provisionFromExternal = async (req: AuthRequest, res: Response): Pr
       case 'clerk':
         userData = {
           email: data.email_addresses?.[0]?.email_address || data.email,
-          name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'User',
           clerkUserId: data.id,
           subscriptionPlan: 'basic',
           subscriptionStatus: 'inactive',
+          profileData: {
+            firstName: data.first_name || 'User',
+            lastName: data.last_name || ''
+          },
           metadata: {
             source: 'clerk_auth',
             campaign: 'external_auth',
@@ -227,19 +233,18 @@ export const provisionFromExternal = async (req: AuthRequest, res: Response): Pr
       case 'csv_import':
         userData = {
           email: data.email,
-          name: data.name,
-          mobile: data.mobile,
-          subscriptionPlan: data.subscriptionPlan || 'basic',
-          subscriptionStatus: data.subscriptionStatus || 'inactive',
           profileData: {
-            firstName: data.firstName,
-            lastName: data.lastName,
+            firstName: data.firstName || data.name?.split(' ')[0] || 'User',
+            lastName: data.lastName || data.name?.split(' ').slice(1).join(' ') || '',
+            contactNumber: data.mobile || '0000000000',
             qualification: data.qualification,
             stream: data.stream,
             yearOfPassout: data.yearOfPassout,
             cgpaOrPercentage: data.cgpaOrPercentage,
             collegeName: data.collegeName
           },
+          subscriptionPlan: data.subscriptionPlan || 'basic',
+          subscriptionStatus: data.subscriptionStatus || 'inactive',
           metadata: {
             source: 'csv_import',
             campaign: 'bulk_import',
@@ -314,19 +319,18 @@ export const testProvisioning = async (req: AuthRequest, res: Response): Promise
   try {
     const testData: UserProvisioningData = {
       email: `test_${Date.now()}@example.com`,
-      name: 'Test User',
-      mobile: '9876543210',
       subscriptionPlan: 'basic',
-      subscriptionStatus: 'active',
       profileData: {
         firstName: 'Test',
         lastName: 'User',
+        contactNumber: '9876543210',
         qualification: 'B.Tech',
         stream: 'CSE',
         yearOfPassout: 2023,
         cgpaOrPercentage: 8.5,
         collegeName: 'Test College'
       },
+      subscriptionStatus: 'active',
       metadata: {
         source: 'test_provisioning',
         campaign: 'admin_test',

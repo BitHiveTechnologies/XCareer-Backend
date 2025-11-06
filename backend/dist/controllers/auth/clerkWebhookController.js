@@ -4,9 +4,9 @@ exports.handleWebhook = void 0;
 const svix_1 = require("svix");
 // Note: headers import removed as it's not needed for webhook verification
 const clerk_1 = require("../../config/clerk");
-const logger_1 = require("../../utils/logger");
 const User_1 = require("../../models/User");
 const UserProfile_1 = require("../../models/UserProfile");
+const logger_1 = require("../../utils/logger");
 /**
  * Handle Clerk webhook events
  */
@@ -178,7 +178,6 @@ const handleUserUpdated = async (data) => {
             return;
         }
         // Update user fields
-        user.name = `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Unknown User';
         user.email = primaryEmail;
         user.role = data.public_metadata?.role || 'user';
         user.updatedAt = new Date();
@@ -188,7 +187,6 @@ const handleUserUpdated = async (data) => {
         if (userProfile) {
             userProfile.firstName = data.first_name || '';
             userProfile.lastName = data.last_name || '';
-            userProfile.email = primaryEmail;
             userProfile.updatedAt = new Date();
             await userProfile.save();
         }

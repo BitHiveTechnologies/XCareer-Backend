@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { Webhook } from 'svix';
 // Note: headers import removed as it's not needed for webhook verification
 import { clerkConfig } from '../../config/clerk';
-import { logger } from '../../utils/logger';
 import { User } from '../../models/User';
 import { UserProfile } from '../../models/UserProfile';
+import { logger } from '../../utils/logger';
 
 export interface ClerkWebhookPayload {
   data: {
@@ -216,7 +216,6 @@ const handleUserUpdated = async (data: ClerkWebhookPayload['data']): Promise<voi
     }
 
     // Update user fields
-    user.name = `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Unknown User';
     user.email = primaryEmail;
     user.role = data.public_metadata?.role || 'user';
     user.updatedAt = new Date();
@@ -228,7 +227,6 @@ const handleUserUpdated = async (data: ClerkWebhookPayload['data']): Promise<voi
     if (userProfile) {
       userProfile.firstName = data.first_name || '';
       userProfile.lastName = data.last_name || '';
-      userProfile.email = primaryEmail;
       userProfile.updatedAt = new Date();
       await userProfile.save();
     }

@@ -616,8 +616,6 @@ async function handleSubscriptionCharged(payload: any): Promise<void> {
       // Use user provisioning service for automated setup
       const provisioningData = {
         email: user.email,
-        name: user.name,
-        mobile: user.mobile,
         subscriptionPlan: UserProvisioningService['determinePlanFromAmount'](amount),
         subscriptionStatus: 'active' as const,
         metadata: {

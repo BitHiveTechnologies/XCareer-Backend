@@ -10,11 +10,11 @@ const provisionUser = async (req, res) => {
     try {
         const userData = req.body;
         // Validate required fields
-        if (!userData.email || !userData.name) {
+        if (!userData.email) {
             res.status(400).json({
                 success: false,
                 error: {
-                    message: 'Email and name are required'
+                    message: 'Email is required'
                 },
                 timestamp: new Date().toISOString()
             });
@@ -179,10 +179,13 @@ const provisionFromExternal = async (req, res) => {
             case 'razorpay':
                 userData = {
                     email: data.customer?.email || data.email,
-                    name: data.customer?.name || 'User',
-                    mobile: data.customer?.contact || '0000000000',
                     subscriptionPlan: data.plan || 'basic',
                     subscriptionStatus: 'active',
+                    profileData: {
+                        firstName: data.customer?.name?.split(' ')[0] || 'User',
+                        lastName: data.customer?.name?.split(' ').slice(1).join(' ') || '',
+                        contactNumber: data.customer?.contact || '0000000000'
+                    },
                     metadata: {
                         source: 'razorpay_webhook',
                         campaign: 'payment_webhook',
@@ -193,10 +196,13 @@ const provisionFromExternal = async (req, res) => {
             case 'clerk':
                 userData = {
                     email: data.email_addresses?.[0]?.email_address || data.email,
-                    name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'User',
                     clerkUserId: data.id,
                     subscriptionPlan: 'basic',
                     subscriptionStatus: 'inactive',
+                    profileData: {
+                        firstName: data.first_name || 'User',
+                        lastName: data.last_name || ''
+                    },
                     metadata: {
                         source: 'clerk_auth',
                         campaign: 'external_auth',
@@ -207,19 +213,18 @@ const provisionFromExternal = async (req, res) => {
             case 'csv_import':
                 userData = {
                     email: data.email,
-                    name: data.name,
-                    mobile: data.mobile,
-                    subscriptionPlan: data.subscriptionPlan || 'basic',
-                    subscriptionStatus: data.subscriptionStatus || 'inactive',
                     profileData: {
-                        firstName: data.firstName,
-                        lastName: data.lastName,
+                        firstName: data.firstName || data.name?.split(' ')[0] || 'User',
+                        lastName: data.lastName || data.name?.split(' ').slice(1).join(' ') || '',
+                        contactNumber: data.mobile || '0000000000',
                         qualification: data.qualification,
                         stream: data.stream,
                         yearOfPassout: data.yearOfPassout,
                         cgpaOrPercentage: data.cgpaOrPercentage,
                         collegeName: data.collegeName
                     },
+                    subscriptionPlan: data.subscriptionPlan || 'basic',
+                    subscriptionStatus: data.subscriptionStatus || 'inactive',
                     metadata: {
                         source: 'csv_import',
                         campaign: 'bulk_import',
@@ -292,19 +297,18 @@ const testProvisioning = async (req, res) => {
     try {
         const testData = {
             email: `test_${Date.now()}@example.com`,
-            name: 'Test User',
-            mobile: '9876543210',
             subscriptionPlan: 'basic',
-            subscriptionStatus: 'active',
             profileData: {
                 firstName: 'Test',
                 lastName: 'User',
+                contactNumber: '9876543210',
                 qualification: 'B.Tech',
                 stream: 'CSE',
                 yearOfPassout: 2023,
                 cgpaOrPercentage: 8.5,
                 collegeName: 'Test College'
             },
+            subscriptionStatus: 'active',
             metadata: {
                 source: 'test_provisioning',
                 campaign: 'admin_test',

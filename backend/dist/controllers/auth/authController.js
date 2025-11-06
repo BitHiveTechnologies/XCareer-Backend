@@ -30,29 +30,35 @@ const register = async (req, res) => {
         }
         // Create user (password will be hashed by User model pre-save middleware)
         const user = new User_1.User({
-            name,
             email,
             password,
-            mobile,
             subscriptionPlan: 'basic',
             subscriptionStatus: 'inactive'
         });
         await user.save();
-        // Create user profile
-        const userProfile = new UserProfile_1.UserProfile({
-            userId: user._id,
-            firstName: name.split(' ')[0] || name,
-            lastName: name.split(' ').slice(1).join(' ') || '',
-            email,
-            contactNumber: mobile,
-            dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
-            qualification,
-            stream,
-            yearOfPassout,
-            cgpaOrPercentage,
-            collegeName: 'Not specified' // Default value, can be updated later
-        });
-        await userProfile.save();
+        // Create user profile only if minimum mandatory profile fields are provided
+        let userProfile = null;
+        const hasRequiredProfileFields = (typeof mobile === 'string' && mobile.trim() !== '' &&
+            typeof qualification === 'string' && qualification.trim() !== '' &&
+            typeof stream === 'string' && stream.trim() !== '' &&
+            typeof yearOfPassout !== 'undefined' &&
+            typeof cgpaOrPercentage !== 'undefined');
+        if (hasRequiredProfileFields) {
+            userProfile = new UserProfile_1.UserProfile({
+                userId: user._id,
+                firstName: name.split(' ')[0] || name,
+                lastName: name.split(' ').slice(1).join(' ') || '',
+                fullName: name, // pre-save will compute too
+                contactNumber: mobile,
+                dateOfBirth: new Date('1995-01-01'), // default valid DOB
+                qualification,
+                stream,
+                yearOfPassout,
+                cgpaOrPercentage,
+                collegeName: 'Not specified'
+            });
+            await userProfile.save();
+        }
         // Generate tokens
         const tokenPayload = {
             userId: user._id.toString(),
@@ -74,9 +80,12 @@ const register = async (req, res) => {
             data: {
                 user: {
                     id: user._id,
-                    name: user.name,
                     email: user.email,
-                    role: 'user'
+                    role: 'user',
+                    firstName: userProfile?.firstName,
+                    lastName: userProfile?.lastName,
+                    fullName: userProfile?.fullName,
+                    contactNumber: userProfile?.contactNumber
                 },
                 accessToken,
                 refreshToken,
@@ -163,14 +172,19 @@ const login = async (req, res) => {
             email: user.email,
             ip: req.ip
         });
+        // Get user profile for additional info
+        const userProfile = await UserProfile_1.UserProfile.findOne({ userId: user._id });
         res.status(200).json({
             success: true,
             data: {
                 user: {
                     id: user._id,
-                    name: user.name,
                     email: user.email,
-                    role: user.role
+                    role: user.role,
+                    firstName: userProfile?.firstName,
+                    lastName: userProfile?.lastName,
+                    fullName: userProfile?.fullName,
+                    contactNumber: userProfile?.contactNumber
                 },
                 accessToken,
                 refreshToken,
@@ -336,10 +350,12 @@ const getCurrentUser = async (req, res) => {
             data: {
                 user: {
                     id: user._id,
-                    name: user.name,
                     email: user.email,
                     role: 'user',
-                    mobile: user.mobile,
+                    firstName: userProfile?.firstName,
+                    lastName: userProfile?.lastName,
+                    fullName: userProfile?.fullName,
+                    contactNumber: userProfile?.contactNumber,
                     subscriptionStatus: user.subscriptionStatus,
                     subscriptionPlan: user.subscriptionPlan
                 },

@@ -30,28 +30,21 @@ router.post('/register', (0, validation_1.validate)({
             'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
             'any.required': 'Password is required'
         }),
-        mobile: joi_1.default.string().pattern(/^[6-9]\d{9}$/).required().messages({
-            'string.pattern.base': 'Please provide a valid Indian mobile number',
-            'any.required': 'Mobile number is required'
+        mobile: joi_1.default.string().pattern(/^[6-9]\d{9}$/).optional().messages({
+            'string.pattern.base': 'Please provide a valid Indian mobile number'
         }),
-        qualification: joi_1.default.string().required().messages({
-            'any.required': 'Qualification is required'
-        }),
-        stream: joi_1.default.string().required().messages({
-            'any.required': 'Stream is required'
-        }),
-        yearOfPassout: joi_1.default.number().integer().min(2000).max(new Date().getFullYear() + 5).required().messages({
+        qualification: joi_1.default.string().optional(),
+        stream: joi_1.default.string().optional(),
+        yearOfPassout: joi_1.default.number().integer().min(2000).max(new Date().getFullYear() + 5).optional().messages({
             'number.base': 'Year of passout must be a number',
             'number.integer': 'Year of passout must be an integer',
             'number.min': 'Year of passout must be 2000 or later',
-            'number.max': 'Year of passout cannot be more than 5 years in the future',
-            'any.required': 'Year of passout is required'
+            'number.max': 'Year of passout cannot be more than 5 years in the future'
         }),
-        cgpaOrPercentage: joi_1.default.number().min(0).max(100).required().messages({
+        cgpaOrPercentage: joi_1.default.number().min(0).max(100).optional().messages({
             'number.base': 'CGPA/Percentage must be a number',
             'number.min': 'CGPA/Percentage cannot be negative',
-            'number.max': 'CGPA/Percentage cannot exceed 100',
-            'any.required': 'CGPA/Percentage is required'
+            'number.max': 'CGPA/Percentage cannot exceed 100'
         })
     })
 }), authController_1.register);
