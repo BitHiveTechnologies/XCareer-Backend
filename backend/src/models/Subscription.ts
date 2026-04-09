@@ -30,13 +30,39 @@ const subscriptionSchema = new Schema<ISubscription>({
   },
   paymentId: {
     type: String,
-    required: [true, 'Payment ID is required'],
-    trim: true
+    required: false,
+    default: '',
+    trim: true,
+    index: true,
+    sparse: true
   },
   orderId: {
     type: String,
     required: [true, 'Order ID is required'],
+    unique: true,
     trim: true
+  },
+  paymentSessionId: {
+    type: String,
+    required: false,
+    default: '',
+    trim: true
+  },
+  provider: {
+    type: String,
+    enum: {
+      values: ['cashfree'],
+      message: 'Provider must be cashfree'
+    },
+    default: 'cashfree'
+  },
+  paymentStatus: {
+    type: String,
+    enum: {
+      values: ['CREATED', 'PENDING', 'SUCCESS', 'FAILED', 'USER_DROPPED', 'REFUNDED', 'CANCELLED'],
+      message: 'Invalid payment status'
+    },
+    default: 'CREATED'
   },
   status: {
     type: String,
@@ -97,7 +123,7 @@ const subscriptionSchema = new Schema<ISubscription>({
   metadata: {
     source: {
       type: String,
-      enum: ['web', 'mobile', 'admin', 'api', 'razorpay_webhook', 'clerk', 'csv_import', 'test_provisioning'],
+      enum: ['web', 'mobile', 'admin', 'api', 'razorpay_webhook', 'cashfree_webhook', 'cashfree_api', 'clerk', 'csv_import', 'test_provisioning'],
       default: 'web'
     },
     campaign: {
@@ -132,6 +158,9 @@ subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ paymentId: 1 });
 subscriptionSchema.index({ orderId: 1 });
 subscriptionSchema.index({ createdAt: -1 });
+subscriptionSchema.index({ paymentSessionId: 1 });
+subscriptionSchema.index({ provider: 1 });
+subscriptionSchema.index({ paymentStatus: 1 });
 
 // Compound indexes for common queries
 subscriptionSchema.index({ userId: 1, status: 1 });
@@ -156,8 +185,13 @@ subscriptionSchema.pre('save', function(next) {
     return next(new Error('End date must be after start date'));
   }
   
-  // Allow past dates for expired subscriptions, test scenarios, or automated provisioning
-  if (this.startDate < new Date() && this.status !== 'expired' && process.env.NODE_ENV !== 'test' && this.metadata?.source !== 'automated_provisioning') {
+  // Allow dates from today (set to start of day for comparison)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(this.startDate);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate < today && this.status !== 'expired' && process.env.NODE_ENV !== 'test' && this.metadata?.source !== 'automated_provisioning') {
     return next(new Error('Start date must be today or in the future'));
   }
   
@@ -172,8 +206,15 @@ subscriptionSchema.pre('findOneAndUpdate', function(next) {
     return next(new Error('End date must be after start date'));
   }
   
-  if (update.startDate && update.startDate < new Date() && process.env.NODE_ENV !== 'test' && update.metadata?.source !== 'automated_provisioning') {
-    return next(new Error('Start date must be today or in the future'));
+  if (update.startDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(update.startDate);
+    checkDate.setHours(0, 0, 0, 0);
+
+    if (checkDate < today && process.env.NODE_ENV !== 'test' && update.metadata?.source !== 'automated_provisioning') {
+      return next(new Error('Start date must be today or in the future'));
+    }
   }
   
   next();

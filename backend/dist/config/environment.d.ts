@@ -18,9 +18,11 @@ export declare const config: {
     EMAIL_USER: string;
     EMAIL_PASS: string;
     SUPPORT_EMAIL: string;
-    RAZORPAY_KEY_ID: string;
-    RAZORPAY_KEY_SECRET: string;
-    RAZORPAY_WEBHOOK_SECRET: string;
+    CASHFREE_CLIENT_ID: string;
+    CASHFREE_CLIENT_SECRET: string;
+    CASHFREE_WEBHOOK_SECRET: string;
+    CASHFREE_ENV: string;
+    CASHFREE_API_VERSION: string;
     RATE_LIMIT_WINDOW_MS: number;
     RATE_LIMIT_MAX_REQUESTS: number;
     LOG_LEVEL: string;

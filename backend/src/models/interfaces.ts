@@ -102,8 +102,11 @@ export interface ISubscription extends BaseDocument {
   userId: ObjectId;
   plan: 'basic' | 'premium' | 'enterprise';
   amount: number;
-  paymentId: string; // Razorpay payment ID
-  orderId: string; // Razorpay order ID
+  provider?: 'cashfree';
+  paymentId?: string; // Cashfree payment ID (cf_payment_id)
+  orderId: string; // Cashfree order ID
+  paymentSessionId?: string;
+  paymentStatus?: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'USER_DROPPED' | 'REFUNDED' | 'CANCELLED';
   status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
   startDate: Date;
   endDate: Date;

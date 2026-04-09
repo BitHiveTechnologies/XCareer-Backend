@@ -33,10 +33,12 @@ exports.config = {
     EMAIL_USER: process.env['EMAIL_USER'] || '',
     EMAIL_PASS: process.env['EMAIL_PASS'] || '',
     SUPPORT_EMAIL: process.env['SUPPORT_EMAIL'] || 'support@notifyx.com',
-    // Razorpay configuration
-    RAZORPAY_KEY_ID: process.env['RAZORPAY_KEY_ID'] || '',
-    RAZORPAY_KEY_SECRET: process.env['RAZORPAY_KEY_SECRET'] || '',
-    RAZORPAY_WEBHOOK_SECRET: process.env['RAZORPAY_WEBHOOK_SECRET'] || '',
+    // Cashfree configuration
+    CASHFREE_CLIENT_ID: process.env['CASHFREE_CLIENT_ID'] || '',
+    CASHFREE_CLIENT_SECRET: process.env['CASHFREE_CLIENT_SECRET'] || '',
+    CASHFREE_WEBHOOK_SECRET: process.env['CASHFREE_WEBHOOK_SECRET'] || '',
+    CASHFREE_ENV: process.env['CASHFREE_ENV'] || 'sandbox',
+    CASHFREE_API_VERSION: process.env['CASHFREE_API_VERSION'] || '2023-08-01',
     // Rate limiting
     RATE_LIMIT_WINDOW_MS: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000', 10), // 15 minutes
     RATE_LIMIT_MAX_REQUESTS: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100', 10),
@@ -53,8 +55,9 @@ const validateEnvironment = () => {
     const requiredVars = [
         'CLERK_SECRET_KEY',
         'CLERK_PUBLISHABLE_KEY',
-        'RAZORPAY_KEY_ID',
-        'RAZORPAY_KEY_SECRET',
+        'CASHFREE_CLIENT_ID',
+        'CASHFREE_CLIENT_SECRET',
+        'CASHFREE_WEBHOOK_SECRET',
         'EMAIL_USER',
         'EMAIL_PASS'
     ];

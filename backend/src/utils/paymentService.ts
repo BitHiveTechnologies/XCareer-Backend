@@ -1,19 +1,12 @@
 import crypto from 'crypto';
-import Razorpay from 'razorpay';
 import { config } from '../config/environment';
 import { logger } from './logger';
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: config.RAZORPAY_KEY_ID,
-  key_secret: config.RAZORPAY_KEY_SECRET
-});
 
 export interface PaymentPlan {
   id: string;
   name: string;
   price: number;
-  duration: number; // in days
+  duration: number;
   features: string[];
   maxJobs: number;
   priority: 'low' | 'medium' | 'high';
@@ -24,24 +17,48 @@ export interface CreateOrderOptions {
   plan: string;
   amount: number;
   currency?: string;
+  customer?: {
+    customerId?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  returnUrl?: string;
+  notifyUrl?: string;
   notes?: Record<string, any>;
 }
 
-export interface PaymentVerificationData {
+export interface CashfreeOrderResponse {
+  cfOrderId?: string;
   orderId: string;
-  paymentId: string;
-  signature: string;
-}
-
-export interface SubscriptionDetails {
-  plan: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  paymentSessionId: string;
+  currency: string;
   amount: number;
+  status: string;
+  orderMeta?: {
+    return_url?: string;
+    notify_url?: string;
+  };
+  customerDetails?: Record<string, any>;
+  createdAt?: string;
 }
 
-// Available subscription plans
+export interface CashfreePaymentRecord {
+  cf_payment_id?: string;
+  payment_status?: string;
+  payment_amount?: number;
+  payment_currency?: string;
+  payment_message?: string;
+  payment_time?: string;
+  bank_reference?: string;
+  auth_id?: string | null;
+}
+
+export interface WebhookVerificationResult {
+  valid: boolean;
+  reason?: string;
+}
+
 export const SUBSCRIPTION_PLANS: Record<string, PaymentPlan> = {
   basic: {
     id: 'basic',
@@ -87,16 +104,46 @@ export const SUBSCRIPTION_PLANS: Record<string, PaymentPlan> = {
   }
 };
 
+const getCashfreeBaseUrl = (): string => {
+  if (config.CASHFREE_ENV === 'production') {
+    return 'https://api.cashfree.com';
+  }
+  return 'https://sandbox.cashfree.com';
+};
+
+const getCashfreeHeaders = (): Record<string, string> => ({
+  'Content-Type': 'application/json',
+  'x-client-id': config.CASHFREE_CLIENT_ID,
+  'x-client-secret': config.CASHFREE_CLIENT_SECRET,
+  'x-api-version': config.CASHFREE_API_VERSION,
+});
+
+const buildOrderId = (userId: string): string => {
+  return `cf_${userId}_${Date.now()}`;
+};
+
 /**
- * Create a new Razorpay order
+ * Create a new Cashfree order
  */
-export const createRazorpayOrder = async (options: CreateOrderOptions) => {
+export const createCashfreeOrder = async (options: CreateOrderOptions) => {
   try {
-    const orderOptions = {
-      amount: Math.round(options.amount * 100), // Convert to paise
-      currency: options.currency || 'INR',
-      receipt: `order_${Date.now()}_${options.userId}`,
-      notes: {
+    const orderId = buildOrderId(options.userId);
+    const payload = {
+      order_id: orderId,
+      order_amount: Number(options.amount),
+      order_currency: options.currency || 'INR',
+      customer_details: {
+        customer_id: options.customer?.customerId || options.userId,
+        customer_name: options.customer?.name || 'CareerX User',
+        customer_email: options.customer?.email || undefined,
+        customer_phone: options.customer?.phone || '9999999999'
+      },
+      order_note: options.notes?.['orderNote'] || `Subscription payment for ${options.plan}`,
+      order_meta: {
+        ...(options.returnUrl ? { return_url: options.returnUrl } : {}),
+        ...(options.notifyUrl ? { notify_url: options.notifyUrl } : {})
+      },
+      order_tags: {
         userId: options.userId,
         plan: options.plan,
         purpose: 'subscription_payment',
@@ -104,30 +151,52 @@ export const createRazorpayOrder = async (options: CreateOrderOptions) => {
       }
     };
 
-    const order = await razorpay.orders.create(orderOptions);
-    
-    logger.info('Razorpay order created', {
+    const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders`, {
+      method: 'POST',
+      headers: getCashfreeHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    const data: any = await response.json();
+
+    if (!response.ok) {
+      logger.error('Cashfree order creation API error', {
+        status: response.status,
+        data,
+        environment: config.CASHFREE_ENV
+      });
+      throw new Error(data?.message || data?.error || `Cashfree order creation failed (${response.status})`);
+    }
+
+    logger.info('Cashfree order created', {
       userId: options.userId,
-      orderId: order.id,
+      orderId: data.order_id || orderId,
+      cfOrderId: data.cf_order_id,
       amount: options.amount,
-      plan: options.plan
+      plan: options.plan,
+      environment: config.CASHFREE_ENV
     });
 
     return {
       success: true,
       order: {
-        id: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        receipt: order.receipt,
-        status: order.status
-      }
+        orderId: data.order_id || orderId,
+        cfOrderId: data.cf_order_id,
+        paymentSessionId: data.payment_session_id,
+        amount: data.order_amount ?? options.amount,
+        currency: data.order_currency ?? options.currency ?? 'INR',
+        status: data.order_status ?? 'ACTIVE',
+        orderMeta: data.order_meta,
+        customerDetails: data.customer_details,
+        createdAt: data.created_at
+      } satisfies CashfreeOrderResponse
     };
   } catch (error) {
-    logger.error('Failed to create Razorpay order', {
+    logger.error('Failed to create Cashfree order', {
       error: error instanceof Error ? error.message : 'Unknown error',
       userId: options.userId,
-      plan: options.plan
+      plan: options.plan,
+      environment: config.CASHFREE_ENV
     });
 
     return {
@@ -138,48 +207,111 @@ export const createRazorpayOrder = async (options: CreateOrderOptions) => {
 };
 
 /**
- * Verify payment signature
+ * Fetch a Cashfree order by order ID
  */
-export const verifyPaymentSignature = (data: PaymentVerificationData): boolean => {
+export const fetchCashfreeOrder = async (orderId: string) => {
   try {
-    const text = `${data.orderId}|${data.paymentId}`;
-    const expectedSignature = crypto
-      .createHmac('sha256', config.RAZORPAY_KEY_SECRET)
-      .update(text)
-      .digest('hex');
-
-    return expectedSignature === data.signature;
-  } catch (error) {
-    logger.error('Payment signature verification failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      orderId: data.orderId,
-      paymentId: data.paymentId
+    const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
+      headers: getCashfreeHeaders()
     });
-    return false;
-  }
-};
 
-/**
- * Fetch payment details from Razorpay
- */
-export const fetchPaymentDetails = async (paymentId: string) => {
-  try {
-    const payment = await razorpay.payments.fetch(paymentId);
+    const data: any = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || `Failed to fetch Cashfree order (${response.status})`);
+    }
+
     return {
       success: true,
-      payment
+      order: data
     };
   } catch (error) {
-    logger.error('Failed to fetch payment details', {
+    logger.error('Failed to fetch Cashfree order', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      paymentId
+      orderId
     });
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch payment'
+      error: error instanceof Error ? error.message : 'Failed to fetch order'
     };
   }
+};
+
+/**
+ * Fetch payments for a Cashfree order
+ */
+export const fetchCashfreeOrderPayments = async (orderId: string) => {
+  try {
+    const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders/${encodeURIComponent(orderId)}/payments`, {
+      method: 'GET',
+      headers: getCashfreeHeaders()
+    });
+
+    const data: any = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || `Failed to fetch order payments (${response.status})`);
+    }
+
+    return {
+      success: true,
+      payments: Array.isArray(data) ? data : data?.payments || []
+    };
+  } catch (error) {
+    logger.error('Failed to fetch Cashfree order payments', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      orderId
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch payments'
+    };
+  }
+};
+
+/**
+ * Verify webhook signature using the Cashfree webhook secret.
+ * Cashfree webhook docs use raw payload plus timestamp headers.
+ */
+export const verifyCashfreeWebhookSignature = (
+  rawBody: string,
+  signature: string | undefined,
+  timestamp: string | undefined
+): WebhookVerificationResult => {
+  if (!signature) {
+    return { valid: false, reason: 'Webhook signature missing' };
+  }
+
+  if (!timestamp) {
+    return { valid: false, reason: 'Webhook timestamp missing' };
+  }
+
+  const secret = config.CASHFREE_WEBHOOK_SECRET;
+  if (!secret) {
+    return { valid: false, reason: 'Webhook secret not configured' };
+  }
+
+  const candidates = [
+    `${timestamp}.${rawBody}`,
+    `${timestamp}${rawBody}`,
+    rawBody,
+  ];
+
+  for (const payload of candidates) {
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('base64');
+
+    if (expected === signature) {
+      return { valid: true };
+    }
+  }
+
+  return { valid: false, reason: 'Invalid webhook signature' };
 };
 
 /**
@@ -226,15 +358,14 @@ export const getPlanPrice = (planId: string, currency: string = 'INR'): number =
     throw new Error(`Invalid plan: ${planId}`);
   }
 
-  // Simple currency conversion (in production, use real-time rates)
   const conversionRates: Record<string, number> = {
-    'INR': 1,
-    'USD': 0.012, // 1 INR = 0.012 USD (approximate)
-    'EUR': 0.011  // 1 INR = 0.011 EUR (approximate)
+    INR: 1,
+    USD: 0.012,
+    EUR: 0.011
   };
 
   const rate = conversionRates[currency] || 1;
-  return Math.round(plan.price * rate * 100) / 100; // Round to 2 decimal places
+  return Math.round(plan.price * rate * 100) / 100;
 };
 
 /**
@@ -262,7 +393,7 @@ export const generatePaymentReceipt = (paymentData: {
 };
 
 /**
- * Handle payment failure
+ * Handle payment failure - retained for compatibility with existing callers.
  */
 export const handlePaymentFailure = async (orderId: string, reason: string) => {
   try {
@@ -271,12 +402,6 @@ export const handlePaymentFailure = async (orderId: string, reason: string) => {
       reason,
       timestamp: new Date().toISOString()
     });
-
-    // In a real application, you might want to:
-    // 1. Update order status in database
-    // 2. Send failure notification to user
-    // 3. Log failure for analytics
-    // 4. Trigger retry mechanism
 
     return {
       success: true,
@@ -299,44 +424,11 @@ export const handlePaymentFailure = async (orderId: string, reason: string) => {
 };
 
 /**
- * Process refund
+ * Refunds are not part of the first Cashfree migration pass.
  */
-export const processRefund = async (paymentId: string, amount: number, reason: string) => {
-  try {
-    const refund = await razorpay.payments.refund(paymentId, {
-      amount: Math.round(amount * 100), // Convert to paise
-      notes: {
-        reason
-      }
-    });
-
-    logger.info('Refund processed successfully', {
-      paymentId,
-      refundId: refund.id,
-      amount,
-      reason
-    });
-
-    return {
-      success: true,
-      refund: {
-        id: refund.id,
-        paymentId: refund.payment_id,
-        amount: refund.amount,
-        status: refund.status
-      }
-    };
-  } catch (error) {
-    logger.error('Failed to process refund', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      paymentId,
-      amount,
-      reason
-    });
-
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to process refund'
-    };
-  }
+export const processRefund = async (_paymentId: string, _amount: number, _reason: string) => {
+  return {
+    success: false,
+    error: 'Refund processing is not implemented for the Cashfree migration yet'
+  };
 };

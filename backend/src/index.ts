@@ -92,12 +92,22 @@ app.use(cors({
     'Accept',
     'Authorization',
     'Cache-Control',
-    'Pragma'
+    'Pragma',
+    'x-webhook-signature',
+    'x-webhook-timestamp',
+    'x-api-version',
+    'x-client-id',
+    'x-client-secret'
   ],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(morgan('combined')); // Logging
-app.use(express.json({ limit: '10mb' })); // Body parser
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf.toString('utf8');
+  }
+})); // Body parser with raw payload capture for webhooks
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint

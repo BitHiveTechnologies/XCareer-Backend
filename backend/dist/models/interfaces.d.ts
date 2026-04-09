@@ -85,8 +85,11 @@ export interface ISubscription extends BaseDocument {
     userId: ObjectId;
     plan: 'basic' | 'premium' | 'enterprise';
     amount: number;
-    paymentId: string;
+    provider?: 'cashfree';
+    paymentId?: string;
     orderId: string;
+    paymentSessionId?: string;
+    paymentStatus?: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'USER_DROPPED' | 'REFUNDED' | 'CANCELLED';
     status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
     startDate: Date;
     endDate: Date;

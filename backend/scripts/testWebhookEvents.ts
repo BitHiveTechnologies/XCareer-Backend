@@ -3,8 +3,8 @@
 /**
  * Comprehensive Webhook Events Test Suite
  * 
- * This script tests all subscription webhook events to ensure proper handling
- * of Razorpay webhook notifications for subscription lifecycle management.
+ * This script tests subscription webhook handling for Cashfree notifications
+ * to ensure proper handling of payment lifecycle management.
  */
 
 import axios from 'axios';
@@ -14,7 +14,7 @@ import { logger } from '../src/utils/logger';
 
 // Configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
-const WEBHOOK_SECRET = config.RAZORPAY_WEBHOOK_SECRET || 'default_webhook_secret';
+const WEBHOOK_SECRET = config.CASHFREE_WEBHOOK_SECRET || 'default_webhook_secret';
 
 // Test results tracking
 const testResults = {
@@ -38,7 +38,7 @@ const createWebhookSignature = (payload: any): string => {
   return crypto
     .createHmac('sha256', WEBHOOK_SECRET)
     .update(JSON.stringify(payload))
-    .digest('hex');
+    .digest('base64');
 };
 
 // Helper function to send webhook request
@@ -50,7 +50,8 @@ const sendWebhookRequest = async (event: string, payload: any) => {
     const response = await axios.post(`${BASE_URL}/api/v1/payments/webhook`, webhookPayload, {
       headers: {
         'Content-Type': 'application/json',
-        'x-razorpay-signature': signature
+        'x-webhook-signature': signature,
+        'x-webhook-timestamp': Date.now().toString()
       }
     });
     return { success: true, data: response.data, status: response.status };

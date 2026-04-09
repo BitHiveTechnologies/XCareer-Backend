@@ -64,13 +64,39 @@ const subscriptionSchema = new mongoose_1.Schema({
     },
     paymentId: {
         type: String,
-        required: [true, 'Payment ID is required'],
-        trim: true
+        required: false,
+        default: '',
+        trim: true,
+        index: true,
+        sparse: true
     },
     orderId: {
         type: String,
         required: [true, 'Order ID is required'],
+        unique: true,
         trim: true
+    },
+    paymentSessionId: {
+        type: String,
+        required: false,
+        default: '',
+        trim: true
+    },
+    provider: {
+        type: String,
+        enum: {
+            values: ['cashfree'],
+            message: 'Provider must be cashfree'
+        },
+        default: 'cashfree'
+    },
+    paymentStatus: {
+        type: String,
+        enum: {
+            values: ['CREATED', 'PENDING', 'SUCCESS', 'FAILED', 'USER_DROPPED', 'REFUNDED', 'CANCELLED'],
+            message: 'Invalid payment status'
+        },
+        default: 'CREATED'
     },
     status: {
         type: String,
@@ -131,7 +157,7 @@ const subscriptionSchema = new mongoose_1.Schema({
     metadata: {
         source: {
             type: String,
-            enum: ['web', 'mobile', 'admin', 'api', 'razorpay_webhook', 'clerk', 'csv_import', 'test_provisioning'],
+            enum: ['web', 'mobile', 'admin', 'api', 'razorpay_webhook', 'cashfree_webhook', 'cashfree_api', 'clerk', 'csv_import', 'test_provisioning'],
             default: 'web'
         },
         campaign: {
@@ -166,6 +192,9 @@ subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ paymentId: 1 });
 subscriptionSchema.index({ orderId: 1 });
 subscriptionSchema.index({ createdAt: -1 });
+subscriptionSchema.index({ paymentSessionId: 1 });
+subscriptionSchema.index({ provider: 1 });
+subscriptionSchema.index({ paymentStatus: 1 });
 // Compound indexes for common queries
 subscriptionSchema.index({ userId: 1, status: 1 });
 subscriptionSchema.index({ userId: 1, plan: 1 });

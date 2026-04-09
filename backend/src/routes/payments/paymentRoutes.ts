@@ -8,6 +8,7 @@ import {
     verifyPayment
 } from '../../controllers/payments/paymentController';
 import { authenticate } from '../../middleware/jwtAuth';
+import { paymentLimiter } from '../../middleware/rateLimiter';
 import { commonSchemas, validate } from '../../middleware/validation';
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.use(authenticate);
 
 // Create payment order
 router.post('/create-order',
+  paymentLimiter,
   validate({
     body: commonSchemas.object({
       plan: commonSchemas.string().valid('basic', 'premium', 'enterprise').required(),
@@ -32,13 +34,11 @@ router.post('/create-order',
 
 // Verify payment
 router.post('/verify',
+  paymentLimiter,
   validate({
     body: commonSchemas.object({
-      razorpay_order_id: commonSchemas.string().required(),
-      razorpay_payment_id: commonSchemas.string().required(),
-      razorpay_signature: commonSchemas.string().required(),
-      plan: commonSchemas.string().valid('basic', 'premium', 'enterprise').required(),
-      amount: commonSchemas.number().positive().required()
+      orderId: commonSchemas.string().required(),
+      paymentId: commonSchemas.string().optional()
     })
   }),
   verifyPayment
@@ -46,6 +46,7 @@ router.post('/verify',
 
 // Get payment history
 router.get('/history',
+  paymentLimiter,
   validate({
     query: commonSchemas.object({
       page: commonSchemas.pagination.page.optional(),
@@ -57,6 +58,7 @@ router.get('/history',
 
 // Get payment status by subscription ID
 router.get('/status/:subscriptionId',
+  paymentLimiter,
   validate({
     params: commonSchemas.object({
       subscriptionId: commonSchemas.string().required()
@@ -67,6 +69,7 @@ router.get('/status/:subscriptionId',
 
 // Cancel subscription
 router.post('/cancel-subscription',
+  paymentLimiter,
   validate({
     body: commonSchemas.object({
       subscriptionId: commonSchemas.string().required(),

@@ -63,9 +63,15 @@ const getCurrentSubscription = async (req, res) => {
                     status: subscription.status,
                     startDate: subscription.startDate,
                     endDate: subscription.endDate,
+                    expiresAt: subscription.endDate,
                     amount: subscription.amount,
+                    paymentId: subscription.paymentId,
+                    orderId: subscription.orderId,
+                    paymentSessionId: subscription.paymentSessionId,
+                    paymentStatus: subscription.paymentStatus,
                     daysRemaining: Math.max(0, daysRemaining),
-                    isActive: daysRemaining > 0
+                    isActive: daysRemaining > 0,
+                    features: planDetails?.features || []
                 }
             },
             timestamp: new Date().toISOString()
