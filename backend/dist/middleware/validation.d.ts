@@ -8,22 +8,22 @@ export interface ValidationSchema {
 export declare const validate: (schema: ValidationSchema) => (req: Request, res: Response, next: NextFunction) => void;
 export declare const validateRequest: (schema: ValidationSchema) => (req: Request, res: Response, next: NextFunction) => void;
 export declare const commonSchemas: {
-    objectId: any;
-    email: any;
-    password: any;
-    phoneNumber: any;
-    date: any;
+    objectId: Joi.StringSchema<string>;
+    email: Joi.StringSchema<string>;
+    password: Joi.StringSchema<string>;
+    phoneNumber: Joi.StringSchema<string>;
+    date: Joi.DateSchema<Date>;
     pagination: {
-        page: any;
-        limit: any;
-        sortBy: any;
-        sortOrder: any;
+        page: Joi.NumberSchema<number>;
+        limit: Joi.NumberSchema<number>;
+        sortBy: Joi.StringSchema<string>;
+        sortOrder: Joi.StringSchema<string>;
     };
-    string: () => any;
-    object: (schema: any) => any;
-    uri: () => any;
-    number: () => any;
-    array: () => any;
-    boolean: () => any;
+    string: () => Joi.StringSchema<string>;
+    object: (schema: any) => Joi.ObjectSchema<any>;
+    uri: () => Joi.StringSchema<string>;
+    number: () => Joi.NumberSchema<number>;
+    array: () => Joi.ArraySchema<any[]>;
+    boolean: () => Joi.BooleanSchema<boolean>;
 };
 //# sourceMappingURL=validation.d.ts.map

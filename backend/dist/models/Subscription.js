@@ -215,8 +215,12 @@ subscriptionSchema.pre('save', function (next) {
     if (this.startDate >= this.endDate) {
         return next(new Error('End date must be after start date'));
     }
-    // Allow past dates for expired subscriptions, test scenarios, or automated provisioning
-    if (this.startDate < new Date() && this.status !== 'expired' && process.env.NODE_ENV !== 'test' && this.metadata?.source !== 'automated_provisioning') {
+    // Allow dates from today (set to start of day for comparison)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(this.startDate);
+    checkDate.setHours(0, 0, 0, 0);
+    if (checkDate < today && this.status !== 'expired' && process.env.NODE_ENV !== 'test' && this.metadata?.source !== 'automated_provisioning') {
         return next(new Error('Start date must be today or in the future'));
     }
     next();
@@ -227,8 +231,14 @@ subscriptionSchema.pre('findOneAndUpdate', function (next) {
     if (update.startDate && update.endDate && update.startDate >= update.endDate) {
         return next(new Error('End date must be after start date'));
     }
-    if (update.startDate && update.startDate < new Date() && process.env.NODE_ENV !== 'test' && update.metadata?.source !== 'automated_provisioning') {
-        return next(new Error('Start date must be today or in the future'));
+    if (update.startDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const checkDate = new Date(update.startDate);
+        checkDate.setHours(0, 0, 0, 0);
+        if (checkDate < today && process.env.NODE_ENV !== 'test' && update.metadata?.source !== 'automated_provisioning') {
+            return next(new Error('Start date must be today or in the future'));
+        }
     }
     next();
 });

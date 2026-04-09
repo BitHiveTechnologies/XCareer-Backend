@@ -23,18 +23,18 @@ export interface CreateOrderOptions {
     notes?: Record<string, any>;
 }
 export interface CashfreeOrderResponse {
-    cf_order_id?: string;
-    order_id: string;
-    payment_session_id: string;
-    order_currency: string;
-    order_amount: number;
-    order_status: string;
-    order_meta?: {
+    cfOrderId?: string;
+    orderId: string;
+    paymentSessionId: string;
+    currency: string;
+    amount: number;
+    status: string;
+    orderMeta?: {
         return_url?: string;
         notify_url?: string;
     };
-    customer_details?: Record<string, any>;
-    created_at?: string;
+    customerDetails?: Record<string, any>;
+    createdAt?: string;
 }
 export interface CashfreePaymentRecord {
     cf_payment_id?: string;
@@ -78,7 +78,7 @@ export declare const createCashfreeOrder: (options: CreateOrderOptions) => Promi
  */
 export declare const fetchCashfreeOrder: (orderId: string) => Promise<{
     success: boolean;
-    order: unknown;
+    order: any;
     error?: undefined;
 } | {
     success: boolean;

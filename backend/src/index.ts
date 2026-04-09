@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -19,6 +20,9 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env['PORT'] || 5000;
+
+// Enable gzip compression
+app.use(compression());
 
 // Enhanced Security Middleware
 app.use(helmet({

@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelSubscription = exports.getPaymentStatus = exports.handleWebhook = exports.getPaymentHistory = exports.verifyPayment = exports.createOrder = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const environment_1 = require("../../config/environment");
 const Subscription_1 = require("../../models/Subscription");
 const User_1 = require("../../models/User");
@@ -9,11 +13,27 @@ const logger_1 = require("../../utils/logger");
 const getUserByRequest = async (req) => {
     if (req.user?.id == null)
         return null;
-    const byId = await User_1.User.findById(req.user.id);
-    if (byId)
-        return byId;
-    if (req.user?.email) {
-        return User_1.User.findOne({ email: req.user.email });
+    try {
+        // Try by ObjectId first if it's potentially a valid ID
+        if (mongoose_1.default.Types.ObjectId.isValid(req.user.id)) {
+            const byId = await User_1.User.findById(req.user.id);
+            if (byId)
+                return byId;
+        }
+        // Fallback to clerkUserId or other string IDs
+        const byClerk = await User_1.User.findOne({ clerkUserId: req.user.id });
+        if (byClerk)
+            return byClerk;
+        // Last resort: find by email
+        if (req.user?.email) {
+            return await User_1.User.findOne({ email: req.user.email });
+        }
+    }
+    catch (error) {
+        logger_1.logger.error('Error fetching user for payment request', {
+            userId: req.user.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
     return null;
 };
@@ -331,9 +351,9 @@ const verifyPayment = async (req, res) => {
             paymentSessionId: subscription.paymentSessionId,
             metadata: { source: 'api', notes: 'Updated after client-side confirmation' }
         });
-        const responseStatus = normalizedPaymentStatus === 'SUCCESS'
+        const responseStatus = paymentStatus === 'SUCCESS'
             ? 'completed'
-            : normalizedPaymentStatus === 'FAILED' || normalizedPaymentStatus === 'USER_DROPPED' || normalizedPaymentStatus === 'CANCELLED' || normalizedPaymentStatus === 'REFUNDED'
+            : paymentStatus === 'FAILED' || paymentStatus === 'USER_DROPPED' || paymentStatus === 'CANCELLED' || paymentStatus === 'REFUNDED'
                 ? 'failed'
                 : 'processing';
         res.status(200).json({

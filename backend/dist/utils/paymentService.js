@@ -101,6 +101,11 @@ const createCashfreeOrder = async (options) => {
         });
         const data = await response.json();
         if (!response.ok) {
+            logger_1.logger.error('Cashfree order creation API error', {
+                status: response.status,
+                data,
+                environment: environment_1.config.CASHFREE_ENV
+            });
             throw new Error(data?.message || data?.error || `Cashfree order creation failed (${response.status})`);
         }
         logger_1.logger.info('Cashfree order created', {
