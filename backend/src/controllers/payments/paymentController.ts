@@ -336,7 +336,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       paymentStatus: 'CREATED',
       metadata: {
         source: 'web',
-        notes: 'Created during Cashfree order initiation'
+        notes: 'Created during Cashfree order initiation',
+        customerEmail,
+        customerName
       }
     });
 

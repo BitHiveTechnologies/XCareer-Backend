@@ -160,11 +160,25 @@ src/
 
 ## 🧪 Testing
 
-Testing framework setup coming soon:
-- Unit tests for business logic
-- Integration tests for API endpoints
-- Database transaction testing
-- Minimum 80% code coverage target
+The backend uses Jest, Supertest, and MongoMemoryServer for comprehensive testing without affecting the production database.
+
+### Running Tests
+
+```bash
+# Run all tests (unit + integration)
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only integration tests
+npm run test:integration
+
+# Run tests and generate coverage report
+npm run test:coverage
+```
+
+Test results are output to the terminal, and the coverage report is saved in the `/coverage` directory.
 
 ## 🚀 Deployment
 

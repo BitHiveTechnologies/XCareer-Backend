@@ -39,6 +39,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Validate name is present before using split
+    if (!name && !email) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Name or email is required' },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     // Create user (password will be hashed by User model pre-save middleware)
     const user = new User({
       email,
@@ -60,11 +70,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     );
 
     if (hasRequiredProfileFields) {
+      // Guard against undefined name — fall back to email prefix
+      const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : email.split('@')[0];
       userProfile = new UserProfile({
         userId: user._id,
-        firstName: name.split(' ')[0] || name,
-        lastName: name.split(' ').slice(1).join(' ') || '',
-        fullName: name, // pre-save will compute too
+        firstName: safeName.split(' ')[0] || safeName,
+        lastName: safeName.split(' ').slice(1).join(' ') || '',
+        fullName: safeName, // pre-save will compute too
         contactNumber: mobile,
         dateOfBirth: new Date('1995-01-01'), // default valid DOB
         qualification,
@@ -388,6 +400,14 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       ip: req.ip
     });
 
+    // Build subscriptionInfo for frontend premium badge
+    const now = new Date();
+    const subEndDate = user.subscriptionEndDate ? new Date(user.subscriptionEndDate) : null;
+    const isSubActive = user.subscriptionStatus === 'active' && subEndDate != null && now < subEndDate;
+    const daysRemaining = isSubActive && subEndDate
+      ? Math.ceil((subEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
     res.status(200).json({
       success: true,
       data: {
@@ -399,8 +419,17 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
           lastName: userProfile?.lastName,
           fullName: userProfile?.fullName,
           contactNumber: userProfile?.contactNumber,
+          mobile: userProfile?.contactNumber,
+          mustChangePassword: user.mustChangePassword,
           subscriptionStatus: user.subscriptionStatus,
-          subscriptionPlan: user.subscriptionPlan
+          subscriptionPlan: user.subscriptionPlan,
+          subscriptionInfo: {
+            isActive: isSubActive,
+            daysRemaining,
+            plan: user.subscriptionPlan,
+            startDate: user.subscriptionStartDate,
+            endDate: user.subscriptionEndDate
+          }
         },
         profile: userProfile ? {
           qualification: userProfile.qualification,
