@@ -11,16 +11,22 @@ const validation_1 = require("../../middleware/validation");
 const router = express_1.default.Router();
 // Webhook endpoint (no authentication required)
 router.post('/webhook', paymentController_1.handleWebhook);
-// Apply authentication to all other payment routes
-router.use(jwtAuth_1.authenticate);
-// Create payment order
-router.post('/create-order', rateLimiter_1.paymentLimiter, (0, validation_1.validate)({
+// Apply authentication to other payment routes (optional for create-order)
+// router.use(authenticate); // Removing global use to be more specific
+// Create payment order (authentication optional for NotifyX auto-creation)
+router.post('/create-order', rateLimiter_1.paymentLimiter, 
+// authenticate is now inside createOrder or applied selectively
+(0, validation_1.validate)({
     body: validation_1.commonSchemas.object({
         plan: validation_1.commonSchemas.string().valid('basic', 'premium', 'enterprise').required(),
         amount: validation_1.commonSchemas.number().positive().required(),
-        currency: validation_1.commonSchemas.string().valid('INR', 'USD').default('INR')
+        currency: validation_1.commonSchemas.string().valid('INR', 'USD').default('INR'),
+        email: validation_1.commonSchemas.string().email().optional(),
+        name: validation_1.commonSchemas.string().optional()
     })
 }), paymentController_1.createOrder);
+// Other routes still require authentication
+router.use(jwtAuth_1.authenticate);
 // Verify payment
 router.post('/verify', rateLimiter_1.paymentLimiter, (0, validation_1.validate)({
     body: validation_1.commonSchemas.object({

@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+// Load environment variables immediately
+dotenv.config();
+
 import compression from 'compression';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -14,9 +17,6 @@ import { createIndexes } from './services/indexingService';
 
 // Import all models to ensure they are registered with mongoose
 import './models';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env['PORT'] || 5000;

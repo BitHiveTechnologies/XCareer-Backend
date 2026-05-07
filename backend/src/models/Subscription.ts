@@ -6,7 +6,7 @@ const subscriptionSchema = new Schema<ISubscription>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'User ID is required']
+    required: false
   },
   plan: {
     type: String,
@@ -141,6 +141,7 @@ const subscriptionSchema = new Schema<ISubscription>({
   }
 }, {
   timestamps: true,
+  strict: false, // Allow extra fields in the root
   toJSON: {
     transform: function(_doc, ret) {
       delete (ret as any).__v;

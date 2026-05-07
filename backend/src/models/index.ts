@@ -6,6 +6,9 @@ export { JobApplication } from './JobApplication';
 export { Admin, adminSchema } from './Admin';
 export { Subscription, subscriptionSchema } from './Subscription';
 export { JobNotification, jobNotificationSchema } from './JobNotification';
+export { SystemSettings } from './SystemSettings';
+export { Testimonial } from './Testimonial';
+export { Resume } from './Resume';
 
 // Export all interfaces
 export * from './interfaces';
@@ -18,7 +21,10 @@ export const MODEL_NAMES = {
   JOB_APPLICATION: 'JobApplication',
   ADMIN: 'Admin',
   SUBSCRIPTION: 'Subscription',
-  JOB_NOTIFICATION: 'JobNotification'
+  JOB_NOTIFICATION: 'JobNotification',
+  SYSTEM_SETTINGS: 'SystemSettings',
+  TESTIMONIAL: 'Testimonial',
+  RESUME: 'Resume'
 } as const;
 
 // Export collection names for reference
@@ -29,5 +35,8 @@ export const COLLECTION_NAMES = {
   JOB_APPLICATIONS: 'jobapplications',
   ADMINS: 'admins',
   SUBSCRIPTIONS: 'subscriptions',
-  JOB_NOTIFICATIONS: 'jobnotifications'
+  JOB_NOTIFICATIONS: 'jobnotifications',
+  SYSTEM_SETTINGS: 'systemsettings',
+  TESTIMONIALS: 'testimonials',
+  RESUMES: 'resumes'
 } as const;

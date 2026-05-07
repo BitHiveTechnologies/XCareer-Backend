@@ -217,6 +217,68 @@ export class EmailService {
     }
   }
 
+  async sendSubscriptionWelcomeCredentialsEmail(to: string, name: string, password: string, plan: string): Promise<boolean> {
+    try {
+      const template = this.templates.get('subscription-welcome-credentials');
+      
+      const context = {
+        name,
+        email: to,
+        password,
+        plan: plan || 'Basic',
+        loginUrl: `${config.FRONTEND_URL || 'http://localhost:3000'}/login`,
+        supportEmail: config.SUPPORT_EMAIL || 'support@notifyx.com',
+        features: this.getPlanFeatures(plan || 'basic')
+      };
+
+      if (template) {
+        const html = template(context);
+        return this.sendEmail({
+          to,
+          subject: `Your NotifyX Account Credentials 🔐`,
+          template: 'subscription-welcome-credentials',
+          context: { html, text: `Welcome to NotifyX, ${name}! Your account has been created. Username: ${to}, Password: ${password}. Please log in at ${context.loginUrl}` }
+        });
+      } else {
+        // Fallback
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h1 style="color: #4F46E5;">Welcome to NotifyX! 🎉</h1>
+            <p>Hello ${name},</p>
+            <p>Thank you for subscribing to our <strong>${plan}</strong> plan! We've automatically created an account for you so you can get started immediately.</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin-top: 0;"><strong>Your Login Credentials:</strong></p>
+              <p><strong>Username:</strong> ${to}</p>
+              <p><strong>Password:</strong> <span style="font-family: monospace; background: #eee; padding: 2px 4px;">${password}</span></p>
+            </div>
+            
+            <p>For security reasons, we recommend that you change your password after your first login.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${context.loginUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Log In to Your Profile</a>
+            </div>
+            
+            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
+          </div>
+        `;
+        
+        return this.sendEmail({
+          to,
+          subject: `Your NotifyX Account Credentials 🔐`,
+          template: 'subscription-welcome-credentials',
+          context: { html, text: `Welcome to NotifyX, ${name}! Your account has been created. Username: ${to}, Password: ${password}.` }
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to send welcome credentials email', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to
+      });
+      return false;
+    }
+  }
+
   async sendJobAlertEmail(to: string, jobData: any): Promise<boolean> {
     try {
       // Use enhanced template if match percentage is available

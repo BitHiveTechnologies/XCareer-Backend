@@ -45,7 +45,7 @@ export const createIndexes = async (): Promise<void> => {
     // These indexes will be added when those models are properly exported
 
     // Subscription Model Indexes
-    await createIndexSafely(Subscription.collection, { userId: 1 }, { unique: true }); // One active subscription per user
+    await createIndexSafely(Subscription.collection, { userId: 1 }); // Index for fetching user subscriptions
     await createIndexSafely(Subscription.collection, { status: 1 });
     await createIndexSafely(Subscription.collection, { plan: 1 });
     await createIndexSafely(Subscription.collection, { startDate: -1 });

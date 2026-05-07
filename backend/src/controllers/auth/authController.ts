@@ -492,15 +492,12 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Hash new password
-    const saltRounds = config.BCRYPT_ROUNDS;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password
-    user.password = hashedNewPassword;
+    // Update password and clear mustChangePassword flag
+    user.password = newPassword;
+    user.mustChangePassword = false;
     await user.save();
 
-    logger.info('Password changed successfully', {
+    logger.info('Password changed successfully and flag cleared', {
       userId,
       ip: req.ip
     });

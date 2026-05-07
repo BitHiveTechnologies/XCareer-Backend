@@ -64,6 +64,10 @@ const userSchema = new Schema<IUser>({
   isProfileComplete: {
     type: Boolean,
     default: false
+  },
+  mustChangePassword: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true,

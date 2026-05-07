@@ -14,6 +14,7 @@ export interface IUser extends BaseDocument {
     subscriptionStartDate: Date;
     subscriptionEndDate: Date;
     isProfileComplete: boolean;
+    mustChangePassword?: boolean;
 }
 export interface IUserProfile extends BaseDocument {
     _id: ObjectId;
@@ -55,6 +56,7 @@ export interface IJob extends BaseDocument {
     isActive: boolean;
     postedBy: ObjectId;
     applications?: ObjectId[];
+    companyLogo?: string;
 }
 export interface IJobNotification extends BaseDocument {
     _id: ObjectId;
@@ -103,6 +105,7 @@ export interface ISubscription extends BaseDocument {
         campaign?: string;
         referrer?: string;
         notes?: string;
+        [key: string]: any;
     };
 }
 export interface IJobApplication extends BaseDocument {
@@ -131,6 +134,18 @@ export interface ISystemSettings extends BaseDocument {
     description: string;
     category: 'general' | 'email' | 'payment' | 'security';
 }
+export interface ITestimonial extends BaseDocument {
+    _id: ObjectId;
+    userId?: ObjectId;
+    name: string;
+    role: string;
+    content: string;
+    rating: number;
+    avatar?: string;
+    isApproved: boolean;
+    isVerified: boolean;
+    linkedinUrl?: string;
+}
 export interface INotification extends BaseDocument {
     _id: ObjectId;
     userId: ObjectId;
@@ -146,5 +161,14 @@ export interface INotification extends BaseDocument {
     actionText?: string;
     expiresAt?: Date;
     metadata?: Record<string, any>;
+}
+export interface IResume extends BaseDocument {
+    _id: ObjectId;
+    userId: ObjectId;
+    data: any;
+    templateId: string;
+    previewUrl?: string;
+    pdfUrl?: string;
+    isPublic: boolean;
 }
 //# sourceMappingURL=interfaces.d.ts.map

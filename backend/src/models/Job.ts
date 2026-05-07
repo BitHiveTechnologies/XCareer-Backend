@@ -121,7 +121,11 @@ const jobSchema = new Schema<IJob>({
   applications: [{
     type: Schema.Types.ObjectId,
     ref: 'JobApplication'
-  }]
+  }],
+  companyLogo: {
+    type: String,
+    trim: true
+  }
 }, {
   timestamps: true,
   toJSON: {

@@ -21,6 +21,10 @@ const resumeTemplateRoutes_1 = __importDefault(require("./resumeTemplateRoutes")
 const subscriptionRoutes_1 = __importDefault(require("./subscriptions/subscriptionRoutes"));
 const userProvisioningRoutes_1 = __importDefault(require("./userProvisioningRoutes"));
 const userRoutes_1 = __importDefault(require("./users/userRoutes"));
+const testimonialRoutes_1 = __importDefault(require("./testimonialRoutes"));
+const systemSettingsRoutes_1 = __importDefault(require("./admin/systemSettingsRoutes"));
+const logoRoutes_1 = __importDefault(require("./admin/logoRoutes"));
+const resumeRoutes_1 = __importDefault(require("./resumeRoutes"));
 const router = express_1.default.Router();
 // API version prefix
 const API_VERSION = '/v1';
@@ -59,6 +63,14 @@ router.use(`${API_VERSION}/rbac`, rbacRoutes_1.default);
 router.use(`${API_VERSION}/templates`, resumeTemplateRoutes_1.default);
 // Performance monitoring routes (admin only)
 router.use(`${API_VERSION}/performance`, performanceRoutes_1.default);
+// Testimonial routes
+router.use(`${API_VERSION}/testimonials`, testimonialRoutes_1.default);
+// Admin System Settings routes
+router.use(`${API_VERSION}/admin/settings`, systemSettingsRoutes_1.default);
+// Admin Logo routes
+router.use(`${API_VERSION}/admin/logos`, logoRoutes_1.default);
+// Resume routes
+router.use(`${API_VERSION}/resumes`, resumeRoutes_1.default);
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
     res.status(200).json({
@@ -79,7 +91,11 @@ router.get(`${API_VERSION}`, (_req, res) => {
             provisioning: `${API_VERSION}/provisioning`,
             rbac: `${API_VERSION}/rbac`,
             templates: `${API_VERSION}/templates`,
-            performance: `${API_VERSION}/performance`
+            performance: `${API_VERSION}/performance`,
+            testimonials: `${API_VERSION}/testimonials`,
+            adminSettings: `${API_VERSION}/admin/settings`,
+            adminLogos: `${API_VERSION}/admin/logos`,
+            resumes: `${API_VERSION}/resumes`
         },
         timestamp: new Date().toISOString()
     });

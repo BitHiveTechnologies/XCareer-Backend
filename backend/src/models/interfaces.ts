@@ -19,6 +19,7 @@ export interface IUser extends BaseDocument {
   subscriptionStartDate: Date;
   subscriptionEndDate: Date;
   isProfileComplete: boolean;
+  mustChangePassword?: boolean; // Required if password was system-generated
 }
 
 // User Profile interface
@@ -64,6 +65,7 @@ export interface IJob extends BaseDocument {
   isActive: boolean;
   postedBy: ObjectId; // Admin user ID
   applications?: ObjectId[]; // Job applications
+  companyLogo?: string; // S3/Cloudinary URL or relative path
 }
 
 // Job Notification interface
@@ -99,7 +101,7 @@ export interface IAdmin extends BaseDocument {
 // Subscription interface
 export interface ISubscription extends BaseDocument {
   _id: ObjectId;
-  userId: ObjectId;
+  userId?: ObjectId;
   plan: 'basic' | 'premium' | 'enterprise';
   amount: number;
   provider?: 'cashfree';
@@ -120,6 +122,7 @@ export interface ISubscription extends BaseDocument {
     campaign?: string; // Marketing campaign that led to subscription
     referrer?: string; // Referral source
     notes?: string; // Admin notes
+    [key: string]: any;
   };
 }
 
@@ -155,6 +158,20 @@ export interface ISystemSettings extends BaseDocument {
   category: 'general' | 'email' | 'payment' | 'security';
 }
 
+// Testimonial interface
+export interface ITestimonial extends BaseDocument {
+  _id: ObjectId;
+  userId?: ObjectId; // Optional if manual
+  name: string;
+  role: string;
+  content: string;
+  rating: number; // 1-5
+  avatar?: string;
+  isApproved: boolean;
+  isVerified: boolean;
+  linkedinUrl?: string;
+}
+
 // Notification interface
 export interface INotification extends BaseDocument {
   _id: ObjectId;
@@ -171,4 +188,15 @@ export interface INotification extends BaseDocument {
   actionText?: string;
   expiresAt?: Date;
   metadata?: Record<string, any>;
+}
+
+// Resume interface
+export interface IResume extends BaseDocument {
+  _id: ObjectId;
+  userId: ObjectId;
+  data: any; // Flexible JSON for resume fields
+  templateId: string; // vinod, professional, creative
+  previewUrl?: string; // S3/Cloudinary URL or relative path
+  pdfUrl?: string; // S3/Cloudinary URL or relative path
+  isPublic: boolean;
 }

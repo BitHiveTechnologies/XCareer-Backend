@@ -16,6 +16,11 @@ import resumeTemplateRoutes from './resumeTemplateRoutes';
 import subscriptionRoutes from './subscriptions/subscriptionRoutes';
 import userProvisioningRoutes from './userProvisioningRoutes';
 import userRoutes from './users/userRoutes';
+import testimonialRoutes from './testimonialRoutes';
+import systemSettingsRoutes from './admin/systemSettingsRoutes';
+import logoRoutes from './admin/logoRoutes';
+import resumeRoutes from './resumeRoutes';
+
 
 const router = express.Router();
 
@@ -75,6 +80,18 @@ router.use(`${API_VERSION}/templates`, resumeTemplateRoutes);
 // Performance monitoring routes (admin only)
 router.use(`${API_VERSION}/performance`, performanceRoutes);
 
+// Testimonial routes
+router.use(`${API_VERSION}/testimonials`, testimonialRoutes);
+
+// Admin System Settings routes
+router.use(`${API_VERSION}/admin/settings`, systemSettingsRoutes);
+
+// Admin Logo routes
+router.use(`${API_VERSION}/admin/logos`, logoRoutes);
+// Resume routes
+router.use(`${API_VERSION}/resumes`, resumeRoutes);
+
+
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
   res.status(200).json({
@@ -95,7 +112,11 @@ router.get(`${API_VERSION}`, (_req, res) => {
       provisioning: `${API_VERSION}/provisioning`,
       rbac: `${API_VERSION}/rbac`,
       templates: `${API_VERSION}/templates`,
-      performance: `${API_VERSION}/performance`
+      performance: `${API_VERSION}/performance`,
+      testimonials: `${API_VERSION}/testimonials`,
+      adminSettings: `${API_VERSION}/admin/settings`,
+      adminLogos: `${API_VERSION}/admin/logos`,
+      resumes: `${API_VERSION}/resumes`
     },
     timestamp: new Date().toISOString()
   });

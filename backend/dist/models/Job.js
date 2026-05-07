@@ -155,7 +155,11 @@ const jobSchema = new mongoose_1.Schema({
     applications: [{
             type: mongoose_1.Schema.Types.ObjectId,
             ref: 'JobApplication'
-        }]
+        }],
+    companyLogo: {
+        type: String,
+        trim: true
+    }
 }, {
     timestamps: true,
     toJSON: {

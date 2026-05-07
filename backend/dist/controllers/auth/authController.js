@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.changePassword = exports.getCurrentUser = exports.logout = exports.refreshToken = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const environment_1 = require("../../config/environment");
 const User_1 = require("../../models/User");
 const UserProfile_1 = require("../../models/UserProfile");
 const jwt_1 = require("../../utils/jwt");
@@ -442,13 +441,11 @@ const changePassword = async (req, res) => {
             });
             return;
         }
-        // Hash new password
-        const saltRounds = environment_1.config.BCRYPT_ROUNDS;
-        const hashedNewPassword = await bcryptjs_1.default.hash(newPassword, saltRounds);
-        // Update password
-        user.password = hashedNewPassword;
+        // Update password and clear mustChangePassword flag
+        user.password = newPassword;
+        user.mustChangePassword = false;
         await user.save();
-        logger_1.logger.info('Password changed successfully', {
+        logger_1.logger.info('Password changed successfully and flag cleared', {
             userId,
             ip: req.ip
         });

@@ -11,7 +11,10 @@ import {
   validateSubscriptionPlan,
   verifyCashfreeWebhookSignature
 } from '../../utils/paymentService';
+import { UserProvisioningService } from '../../services/userProvisioningService';
+import { autoCreateUserAndSendCredentials } from '../../utils/userManagement';
 import { logger } from '../../utils/logger';
+
 
 interface CashfreeWebhookBody {
   type?: string;
@@ -124,10 +127,54 @@ const upsertSubscriptionFromCashfreePayment = async (params: {
   const normalizedPaymentStatus = normalizePaymentStatus(params.paymentStatus);
   const subscriptionStatus = mapPaymentToSubscriptionStatus(normalizedPaymentStatus);
 
-  let subscription = await Subscription.findOne({ userId: params.userId, orderId: params.orderId });
-  if (subscription == null && params.paymentId) {
-    subscription = await Subscription.findOne({ userId: params.userId, paymentId: params.paymentId });
+  let subscription = await Subscription.findOne({ orderId: params.orderId });
+  
+  let user = await User.findById(params.userId);
+  if (!user && params.userId.startsWith('temp_')) {
+      // Find user by email from metadata
+      const email = params.metadata?.customerEmail;
+      if (email) {
+          user = await User.findOne({ email });
+      }
   }
+
+  // If user still not found and payment is successful, auto-create using UserProvisioningService
+  if (!user && normalizedPaymentStatus === 'SUCCESS') {
+      const email = params.metadata?.customerEmail;
+      if (email) {
+          logger.info('User not found for successful payment, auto-creating via UserProvisioningService', { email, orderId: params.orderId });
+          const provisioningResult = await UserProvisioningService.provisionUser({
+              email,
+              subscriptionPlan: params.plan as any,
+              subscriptionStatus: 'active',
+              profileData: {
+                  firstName: params.metadata?.customerName?.split(' ')[0] || 'User',
+                  lastName: params.metadata?.customerName?.split(' ').slice(1).join(' ') || ''
+              },
+              metadata: {
+                  source: 'payment_auto_provisioning',
+                  notes: `Auto-created from payment order ${params.orderId}`
+              }
+          });
+          
+          if (provisioningResult.success && provisioningResult.user) {
+              user = provisioningResult.user;
+              // Link the existing subscription if it was already created
+              if (subscription) {
+                  subscription.userId = user._id;
+              }
+          }
+      }
+  }
+
+  if (user) {
+    // Ensure params.userId is updated if it was a temp ID
+    params.userId = String(user._id);
+  } else if (normalizedPaymentStatus === 'SUCCESS') {
+    logger.error('Failed to find or create user for successful payment', { orderId: params.orderId });
+  }
+
+  const isObjectId = mongoose.Types.ObjectId.isValid(params.userId);
 
   if (subscription) {
     subscription.plan = params.plan as any;
@@ -141,14 +188,20 @@ const upsertSubscriptionFromCashfreePayment = async (params: {
       subscription.startDate = now;
       subscription.endDate = endDate;
     }
+    
+    if (isObjectId) {
+      subscription.userId = params.userId as any;
+    }
+
     subscription.metadata = {
       ...subscription.metadata,
       ...params.metadata,
+      tempUserId: !isObjectId ? params.userId : undefined,
       source: params.metadata?.source || subscription.metadata?.source || 'web'
     };
   } else {
     subscription = new Subscription({
-      userId: params.userId,
+      userId: isObjectId ? params.userId : undefined,
       plan: params.plan,
       amount: params.amount,
       orderId: params.orderId,
@@ -160,6 +213,7 @@ const upsertSubscriptionFromCashfreePayment = async (params: {
       startDate: now,
       endDate,
       metadata: {
+        tempUserId: !isObjectId ? params.userId : undefined,
         source: params.metadata?.source || 'web',
         campaign: params.metadata?.campaign,
         referrer: params.metadata?.referrer,
@@ -170,14 +224,14 @@ const upsertSubscriptionFromCashfreePayment = async (params: {
 
   await subscription.save();
 
-  if (normalizedPaymentStatus === 'SUCCESS') {
+  if (normalizedPaymentStatus === 'SUCCESS' && isObjectId) {
     await User.findByIdAndUpdate(params.userId, {
       subscriptionPlan: params.plan,
       subscriptionStatus: 'active',
       subscriptionStartDate: subscription.startDate,
       subscriptionEndDate: subscription.endDate
     });
-  } else if (normalizedPaymentStatus === 'FAILED' || normalizedPaymentStatus === 'USER_DROPPED' || normalizedPaymentStatus === 'CANCELLED') {
+  } else if ((normalizedPaymentStatus === 'FAILED' || normalizedPaymentStatus === 'USER_DROPPED' || normalizedPaymentStatus === 'CANCELLED') && isObjectId) {
     await User.findByIdAndUpdate(params.userId, {
       subscriptionStatus: 'inactive'
     });
@@ -211,11 +265,11 @@ const resolveCashfreePaymentFromOrder = async (orderId: string, paymentId?: stri
 
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { plan, amount, currency = 'INR' } = req.body;
-    const user = await getUserByRequest(req);
+    const { plan, amount, currency = 'INR', email, name } = req.body;
+    let user = await getUserByRequest(req);
 
-    if (user == null) {
-      res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
+    if (user == null && !email) {
+      res.status(401).json({ success: false, error: { message: 'Authentication required or email must be provided' }, timestamp: new Date().toISOString() });
       return;
     }
 
@@ -239,19 +293,26 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Use user ID if authenticated, else use a placeholder or derived ID
+    const userId = user ? String(user._id) : `temp_${Date.now()}`;
+    const customerEmail = user ? user.email : email;
+    const customerName = user ? (user as any).name : (name || email.split('@')[0]);
+
     const createResult = await createCashfreeOrder({
-      userId: String(user._id),
+      userId,
       plan,
       amount: planDetails.price,
       currency,
       customer: {
-        customerId: String(user._id),
-        email: user.email,
-        name: user.email.split('@')[0],
+        customerId: userId,
+        email: customerEmail,
+        name: customerName,
         phone: '9999999999'
       },
       notes: {
-        orderNote: `Subscription payment for ${plan}`
+        orderNote: `Subscription payment for ${plan}`,
+        customerEmail,
+        customerName
       },
       returnUrl: `${config.FRONTEND_URL}/profile?payment=success&order_id={order_id}`
     });
@@ -267,7 +328,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     const order = createResult.order;
     const subscription = await upsertSubscriptionFromCashfreePayment({
-      userId: String(user._id),
+      userId,
       plan,
       amount: planDetails.price,
       orderId: order.orderId,
@@ -280,7 +341,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     });
 
     logger.info('Payment order created', {
-      userId: String(user._id),
+      userId: userId,
       orderId: order.orderId,
       cfOrderId: order.cfOrderId,
       amount: planDetails.price,
@@ -554,7 +615,31 @@ export const handleWebhook = async (req: CashfreeRequest, res: Response): Promis
       subscription.status = 'completed' as any;
       subscription.startDate = subscription.startDate || new Date();
       subscription.endDate = calculateSubscriptionEndDate(subscription.plan, subscription.startDate || new Date());
-      await User.findByIdAndUpdate(subscription.userId, {
+      
+      let userId = subscription.userId;
+      
+      // Handle guest checkout in webhook
+      if (String(userId).startsWith('temp_')) {
+          const email = subscription.metadata?.customerEmail || subscription.metadata?.email;
+          if (email) {
+              logger.info('Guest checkout detected in webhook, provisioning user', { email, orderId });
+              const provisioningResult = await UserProvisioningService.provisionUser({
+                  email,
+                  subscriptionPlan: subscription.plan,
+                  subscriptionStatus: 'active',
+                  metadata: {
+                      source: 'webhook_auto_provisioning',
+                      notes: `Auto-created from webhook for order ${orderId}`
+                  }
+              });
+              if (provisioningResult.success && provisioningResult.user) {
+                  userId = provisioningResult.user._id;
+                  subscription.userId = userId;
+              }
+          }
+      }
+
+      await User.findByIdAndUpdate(userId, {
         subscriptionPlan: subscription.plan,
         subscriptionStatus: 'active',
         subscriptionStartDate: subscription.startDate,

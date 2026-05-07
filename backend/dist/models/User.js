@@ -101,6 +101,10 @@ const userSchema = new mongoose_1.Schema({
     isProfileComplete: {
         type: Boolean,
         default: false
+    },
+    mustChangePassword: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true,
