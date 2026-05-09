@@ -1,52 +1,23 @@
-import dotenv from 'dotenv';
-// Load environment variables immediately
-dotenv.config();
-
-import compression from 'compression';
-import cors from 'cors';
 import express from 'express';
+import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import dotenv from 'dotenv';
 import { connectDB } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
-import { apiLimiter } from './middleware/rateLimiter';
-import { requestSizeLimiter, requestTimeout } from './middleware/requestLimiter';
-import { securityMiddleware, suspiciousActivityMiddleware } from './middleware/security';
-import { createIndexes } from './services/indexingService';
 
 // Import all models to ensure they are registered with mongoose
 import './models';
 
+// Load environment variables
+dotenv.config();
+
 const app = express();
 const PORT = process.env['PORT'] || 5000;
 
-// Enable gzip compression
-app.use(compression());
-
-// Enhanced Security Middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-  crossOriginEmbedderPolicy: false
-})); // Enhanced security headers
-
-// Request size and timeout limits
-app.use(requestSizeLimiter(2 * 1024 * 1024)); // 2MB limit
-app.use(requestTimeout(30000)); // 30 second timeout
-
-// Security middleware
-app.use(securityMiddleware);
-app.use(suspiciousActivityMiddleware);
-
-// Rate limiting
-app.use(apiLimiter);
+// Middleware
+app.use(helmet()); // Security headers
 
 // Enhanced CORS configuration
 const allowedOrigins = [
@@ -96,22 +67,17 @@ app.use(cors({
     'Accept',
     'Authorization',
     'Cache-Control',
-    'Pragma',
-    'x-webhook-signature',
-    'x-webhook-timestamp',
-    'x-api-version',
-    'x-client-id',
-    'x-client-secret'
+    'Pragma'
   ],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(morgan('combined')); // Logging
-app.use(express.json({
+app.use(express.json({ 
   limit: '10mb',
-  verify: (req, _res, buf) => {
-    (req as any).rawBody = buf.toString('utf8');
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf.toString();
   }
-})); // Body parser with raw payload capture for webhooks
+})); // Body parser
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
@@ -218,9 +184,6 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    
-    // Initialize database indexes
-    await createIndexes();
     
     app.listen(PORT, () => {
       console.log(`🚀 NotifyX Backend server running on port ${PORT}`);

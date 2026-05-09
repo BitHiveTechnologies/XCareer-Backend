@@ -27,11 +27,19 @@ router.post('/login', (req, res) => {
         }
         // Generate a simple user ID
         const userId = `user_${Date.now()}`;
-        // Generate JWT token using JWT utility
+        // Generate JWT token
         const token = (0, jwt_1.generateToken)({
+            id: userId,
             userId: userId,
             email,
-            role: role
+            firstName,
+            lastName,
+            role: role,
+            type: role === 'admin' || role === 'super_admin' ? 'admin' : 'user',
+            metadata: {
+                source: 'jwt-auth-route',
+                generatedAt: new Date().toISOString()
+            }
         });
         logger_1.logger.info('JWT token generated for testing', {
             userId,
@@ -46,8 +54,8 @@ router.post('/login', (req, res) => {
                 user: {
                     id: userId,
                     email,
-                    firstName: firstName,
-                    lastName: lastName,
+                    firstName,
+                    lastName,
                     role
                 }
             },

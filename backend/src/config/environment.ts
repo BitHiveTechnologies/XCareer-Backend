@@ -33,7 +33,6 @@ export const config = {
   EMAIL_PORT: parseInt(process.env['EMAIL_PORT'] || '587', 10),
   EMAIL_USER: process.env['EMAIL_USER'] || '',
   EMAIL_PASS: process.env['EMAIL_PASS'] || '',
-  SUPPORT_EMAIL: process.env['SUPPORT_EMAIL'] || 'support@notifyx.com',
   
   // Cashfree configuration
   CASHFREE_CLIENT_ID: process.env['CASHFREE_CLIENT_ID'] || '',
@@ -64,7 +63,6 @@ export const validateEnvironment = (): void => {
     'CLERK_PUBLISHABLE_KEY',
     'CASHFREE_CLIENT_ID',
     'CASHFREE_CLIENT_SECRET',
-    'CASHFREE_WEBHOOK_SECRET',
     'EMAIL_USER',
     'EMAIL_PASS'
   ];

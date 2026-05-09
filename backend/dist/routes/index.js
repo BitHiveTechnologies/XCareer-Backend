@@ -4,27 +4,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const adminAuth_1 = __importDefault(require("./admin/adminAuth"));
-const adminRoutes_1 = __importDefault(require("./admin/adminRoutes"));
+const userRoutes_1 = __importDefault(require("./users/userRoutes"));
+const paymentRoutes_1 = __importDefault(require("./payments/paymentRoutes"));
+const subscriptionRoutes_1 = __importDefault(require("./subscriptions/subscriptionRoutes"));
+const jobRoutes_1 = __importDefault(require("./jobs/jobRoutes"));
+const jobApplicationRoutes_1 = __importDefault(require("./jobs/jobApplicationRoutes"));
+const jobMatchingRoutes_1 = __importDefault(require("./jobs/jobMatchingRoutes"));
 const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
 const clerkAuthRoutes_1 = __importDefault(require("./auth/clerkAuthRoutes"));
 const jwtAuthRoutes_1 = __importDefault(require("./auth/jwtAuthRoutes"));
-const jobApplicationRoutes_1 = __importDefault(require("./jobs/jobApplicationRoutes"));
-const jobMatchingRoutes_1 = __importDefault(require("./jobs/jobMatchingRoutes"));
-const jobRoutes_1 = __importDefault(require("./jobs/jobRoutes"));
 const emailNotificationRoutes_1 = __importDefault(require("./notifications/emailNotificationRoutes"));
-const notificationRoutes_1 = __importDefault(require("./notifications/notificationRoutes"));
-const paymentRoutes_1 = __importDefault(require("./payments/paymentRoutes"));
-const performanceRoutes_1 = __importDefault(require("./performanceRoutes"));
-const rbacRoutes_1 = __importDefault(require("./rbacRoutes"));
-const resumeTemplateRoutes_1 = __importDefault(require("./resumeTemplateRoutes"));
-const subscriptionRoutes_1 = __importDefault(require("./subscriptions/subscriptionRoutes"));
-const userProvisioningRoutes_1 = __importDefault(require("./userProvisioningRoutes"));
-const userRoutes_1 = __importDefault(require("./users/userRoutes"));
-const testimonialRoutes_1 = __importDefault(require("./testimonialRoutes"));
-const systemSettingsRoutes_1 = __importDefault(require("./admin/systemSettingsRoutes"));
-const logoRoutes_1 = __importDefault(require("./admin/logoRoutes"));
-const resumeRoutes_1 = __importDefault(require("./resumeRoutes"));
+const adminAuth_1 = __importDefault(require("./admin/adminAuth"));
+const adminRoutes_1 = __importDefault(require("./admin/adminRoutes"));
 const router = express_1.default.Router();
 // API version prefix
 const API_VERSION = '/v1';
@@ -47,30 +38,19 @@ router.use(`${API_VERSION}/jobs`, jobRoutes_1.default);
 router.use(`${API_VERSION}/applications`, jobApplicationRoutes_1.default);
 // Job matching routes
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes_1.default);
-// Email notification routes (admin only)
-router.use(`${API_VERSION}/notifications/email`, emailNotificationRoutes_1.default);
-// User notification routes
-router.use(`${API_VERSION}/notifications`, notificationRoutes_1.default);
+// Email notification routes
+router.use(`${API_VERSION}/notifications`, emailNotificationRoutes_1.default);
 // Admin authentication routes (public)
 router.use(`${API_VERSION}/admin`, adminAuth_1.default);
 // Admin management routes (protected)
 router.use(`${API_VERSION}/admin`, adminRoutes_1.default);
-// User provisioning routes (admin only)
-router.use(`${API_VERSION}/provisioning`, userProvisioningRoutes_1.default);
-// RBAC routes (role-based access control)
-router.use(`${API_VERSION}/rbac`, rbacRoutes_1.default);
-// Resume template routes
-router.use(`${API_VERSION}/templates`, resumeTemplateRoutes_1.default);
-// Performance monitoring routes (admin only)
-router.use(`${API_VERSION}/performance`, performanceRoutes_1.default);
-// Testimonial routes
-router.use(`${API_VERSION}/testimonials`, testimonialRoutes_1.default);
-// Admin System Settings routes
-router.use(`${API_VERSION}/admin/settings`, systemSettingsRoutes_1.default);
-// Admin Logo routes
-router.use(`${API_VERSION}/admin/logos`, logoRoutes_1.default);
-// Resume routes
-router.use(`${API_VERSION}/resumes`, resumeRoutes_1.default);
+// Mock testimonials route to prevent 404s
+router.get(`${API_VERSION}/testimonials`, (_req, res) => {
+    res.status(200).json({
+        success: true,
+        data: [] // Frontend will fall back to dummy data if array is empty
+    });
+});
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
     res.status(200).json({
@@ -87,15 +67,7 @@ router.get(`${API_VERSION}`, (_req, res) => {
             applications: `${API_VERSION}/applications`,
             matching: `${API_VERSION}/matching`,
             notifications: `${API_VERSION}/notifications`,
-            admin: `${API_VERSION}/admin`,
-            provisioning: `${API_VERSION}/provisioning`,
-            rbac: `${API_VERSION}/rbac`,
-            templates: `${API_VERSION}/templates`,
-            performance: `${API_VERSION}/performance`,
-            testimonials: `${API_VERSION}/testimonials`,
-            adminSettings: `${API_VERSION}/admin/settings`,
-            adminLogos: `${API_VERSION}/admin/logos`,
-            resumes: `${API_VERSION}/resumes`
+            admin: `${API_VERSION}/admin`
         },
         timestamp: new Date().toISOString()
     });

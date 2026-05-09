@@ -4,14 +4,20 @@ import { config } from '../config/environment';
 
 export interface JWTPayload {
   userId: string;
+  id: string;
   email: string;
   role: 'user' | 'admin' | 'super_admin';
+  type: 'user' | 'admin';
+  firstName?: string;
+  lastName?: string;
+  metadata?: any;
   iat?: number;
   exp?: number;
 }
 
 export interface RefreshTokenPayload {
   userId: string;
+  id: string;
   tokenVersion: number;
   iat?: number;
   exp?: number;
@@ -24,7 +30,7 @@ export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
   try {
     const token = (jwt as any).sign(payload, config.JWT_SECRET, {
       expiresIn: config.JWT_EXPIRE,
-      issuer: 'notifyx-backend',
+      issuer: 'notifyx-api',
       audience: 'notifyx-users'
     });
     
@@ -49,7 +55,7 @@ export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
 export const verifyToken = (token: string): JWTPayload => {
   try {
     const decoded = (jwt as any).verify(token, config.JWT_SECRET, {
-      issuer: 'notifyx-backend',
+      issuer: 'notifyx-api',
       audience: 'notifyx-users'
     }) as JWTPayload;
     
@@ -82,7 +88,7 @@ export const generateRefreshToken = (payload: Omit<RefreshTokenPayload, 'iat' | 
   try {
     const token = (jwt as any).sign(payload, config.JWT_SECRET, {
       expiresIn: config.JWT_REFRESH_EXPIRE,
-      issuer: 'notifyx-backend',
+      issuer: 'notifyx-api',
       audience: 'notifyx-users'
     });
     
@@ -106,7 +112,7 @@ export const generateRefreshToken = (payload: Omit<RefreshTokenPayload, 'iat' | 
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   try {
     const decoded = (jwt as any).verify(token, config.JWT_SECRET, {
-      issuer: 'notifyx-backend',
+      issuer: 'notifyx-api',
       audience: 'notifyx-users'
     }) as RefreshTokenPayload;
     

@@ -1,16 +1,5 @@
 import { Request, Response } from 'express';
-interface AuthenticatedRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        role: 'user' | 'admin' | 'super_admin';
-        type: 'user' | 'admin';
-        clerkUserId?: string;
-        metadata?: any;
-    };
-}
+import { AuthenticatedRequest } from '../../types/express';
 /**
  * Get current authenticated user's profile
  */
@@ -43,5 +32,4 @@ export declare const deleteUser: (req: Request, res: Response) => Promise<void>;
  * Get user statistics (admin only)
  */
 export declare const getUserStats: (req: Request, res: Response) => Promise<void>;
-export {};
 //# sourceMappingURL=userController.d.ts.map

@@ -116,7 +116,6 @@ const sampleData = {
     {
       firstName: 'John',
       lastName: 'Doe',
-      fullName: 'John Doe',
       email: 'john.doe@example.com',
       contactNumber: '9876543210',
       dateOfBirth: new Date('1995-03-15'),
@@ -129,7 +128,6 @@ const sampleData = {
     {
       firstName: 'Jane',
       lastName: 'Smith',
-      fullName: 'Jane Smith',
       email: 'jane.smith@example.com',
       contactNumber: '9876543211',
       dateOfBirth: new Date('1997-07-22'),
@@ -142,7 +140,6 @@ const sampleData = {
     {
       firstName: 'Mike',
       lastName: 'Wilson',
-      fullName: 'Mike Wilson',
       email: 'mike.wilson@example.com',
       contactNumber: '9876543212',
       dateOfBirth: new Date('1994-11-08'),
@@ -155,7 +152,6 @@ const sampleData = {
     {
       firstName: 'Sarah',
       lastName: 'Johnson',
-      fullName: 'Sarah Johnson',
       email: 'sarah.johnson@example.com',
       contactNumber: '9876543213',
       dateOfBirth: new Date('1996-04-12'),
@@ -168,7 +164,6 @@ const sampleData = {
     {
       firstName: 'Alex',
       lastName: 'Brown',
-      fullName: 'Alex Brown',
       email: 'alex.brown@example.com',
       contactNumber: '9876543214',
       dateOfBirth: new Date('1998-09-30'),
@@ -493,7 +488,7 @@ async function seedDatabase() {
       logger.info(`User ${index + 1}:`);
       logger.info(`  Email: ${user.email}`);
       logger.info(`  Password: ${sampleData.users[index].password}`);
-      logger.info(`  Email: ${user.email}`);
+      logger.info(`  Name: ${user.name}`);
       logger.info(`  Subscription: ${user.subscriptionPlan} (${user.subscriptionStatus})`);
       logger.info('');
     });

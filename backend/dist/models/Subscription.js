@@ -53,50 +53,17 @@ const subscriptionSchema = new mongoose_1.Schema({
     amount: {
         type: Number,
         required: [true, 'Subscription amount is required'],
-        min: [0, 'Amount cannot be negative'],
-        validate: {
-            validator: function (value) {
-                const expectedAmounts = { basic: 49, premium: 99, enterprise: 299 };
-                return value === expectedAmounts[this.plan];
-            },
-            message: 'Amount does not match the selected plan'
-        }
+        min: [0, 'Amount cannot be negative']
     },
     paymentId: {
         type: String,
-        required: false,
-        default: '',
-        trim: true,
-        index: true,
-        sparse: true
+        required: [true, 'Payment ID is required'],
+        trim: true
     },
     orderId: {
         type: String,
         required: [true, 'Order ID is required'],
-        unique: true,
         trim: true
-    },
-    paymentSessionId: {
-        type: String,
-        required: false,
-        default: '',
-        trim: true
-    },
-    provider: {
-        type: String,
-        enum: {
-            values: ['cashfree'],
-            message: 'Provider must be cashfree'
-        },
-        default: 'cashfree'
-    },
-    paymentStatus: {
-        type: String,
-        enum: {
-            values: ['CREATED', 'PENDING', 'SUCCESS', 'FAILED', 'USER_DROPPED', 'REFUNDED', 'CANCELLED'],
-            message: 'Invalid payment status'
-        },
-        default: 'CREATED'
     },
     status: {
         type: String,
@@ -109,19 +76,7 @@ const subscriptionSchema = new mongoose_1.Schema({
     },
     startDate: {
         type: Date,
-        required: [true, 'Start date is required'],
-        validate: {
-            validator: function (value) {
-                // Allow past dates for expired subscriptions or test scenarios
-                if (this.status === 'expired' || process.env.NODE_ENV === 'test') {
-                    return true;
-                }
-                // Allow dates within the last 7 days for flexibility in testing and edge cases
-                const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                return value >= weekAgo;
-            },
-            message: 'Start date must be within the last 7 days or in the future (except for expired subscriptions)'
-        }
+        required: [true, 'Start date is required']
     },
     endDate: {
         type: Date,
@@ -131,46 +86,6 @@ const subscriptionSchema = new mongoose_1.Schema({
                 return value > this.startDate;
             },
             message: 'End date must be after start date'
-        }
-    },
-    nextBillingDate: {
-        type: Date,
-        required: false
-    },
-    autoRenew: {
-        type: Boolean,
-        default: true
-    },
-    trialEndDate: {
-        type: Date,
-        required: false
-    },
-    cancellationDate: {
-        type: Date,
-        required: false
-    },
-    cancellationReason: {
-        type: String,
-        required: false,
-        trim: true
-    },
-    metadata: {
-        source: {
-            type: String,
-            enum: ['web', 'mobile', 'admin', 'api', 'razorpay_webhook', 'cashfree_webhook', 'cashfree_api', 'clerk', 'csv_import', 'test_provisioning'],
-            default: 'web'
-        },
-        campaign: {
-            type: String,
-            trim: true
-        },
-        referrer: {
-            type: String,
-            trim: true
-        },
-        notes: {
-            type: String,
-            trim: true
         }
     }
 }, {
@@ -192,36 +107,15 @@ subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ paymentId: 1 });
 subscriptionSchema.index({ orderId: 1 });
 subscriptionSchema.index({ createdAt: -1 });
-subscriptionSchema.index({ paymentSessionId: 1 });
-subscriptionSchema.index({ provider: 1 });
-subscriptionSchema.index({ paymentStatus: 1 });
 // Compound indexes for common queries
 subscriptionSchema.index({ userId: 1, status: 1 });
 subscriptionSchema.index({ userId: 1, plan: 1 });
 subscriptionSchema.index({ status: 1, startDate: 1 });
 subscriptionSchema.index({ status: 1, endDate: 1 });
-subscriptionSchema.index({ nextBillingDate: 1 });
-subscriptionSchema.index({ autoRenew: 1 });
-subscriptionSchema.index({ trialEndDate: 1 });
-subscriptionSchema.index({ cancellationDate: 1 });
-subscriptionSchema.index({ 'metadata.source': 1 });
-subscriptionSchema.index({ 'metadata.campaign': 1 });
-// Additional compound indexes for advanced queries
-subscriptionSchema.index({ userId: 1, autoRenew: 1 });
-subscriptionSchema.index({ status: 1, nextBillingDate: 1 });
-subscriptionSchema.index({ plan: 1, status: 1, startDate: 1 });
 // Pre-save middleware to validate dates
 subscriptionSchema.pre('save', function (next) {
     if (this.startDate >= this.endDate) {
         return next(new Error('End date must be after start date'));
-    }
-    // Allow dates from today (set to start of day for comparison)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(this.startDate);
-    checkDate.setHours(0, 0, 0, 0);
-    if (checkDate < today && this.status !== 'expired' && process.env.NODE_ENV !== 'test' && this.metadata?.source !== 'automated_provisioning') {
-        return next(new Error('Start date must be today or in the future'));
     }
     next();
 });
@@ -231,14 +125,8 @@ subscriptionSchema.pre('findOneAndUpdate', function (next) {
     if (update.startDate && update.endDate && update.startDate >= update.endDate) {
         return next(new Error('End date must be after start date'));
     }
-    if (update.startDate) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const checkDate = new Date(update.startDate);
-        checkDate.setHours(0, 0, 0, 0);
-        if (checkDate < today && process.env.NODE_ENV !== 'test' && update.metadata?.source !== 'automated_provisioning') {
-            return next(new Error('Start date must be today or in the future'));
-        }
+    if (update.startDate && update.startDate < new Date()) {
+        return next(new Error('Start date must be today or in the future'));
     }
     next();
 });
@@ -265,9 +153,12 @@ subscriptionSchema.methods.getDaysRemaining = function () {
     if (!this.isActive())
         return 0;
     const now = new Date();
-    const endDate = new Date(this.endDate);
-    const diffTime = endDate.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const end = new Date(this.endDate);
+    const today = new Date();
+    end.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = end.getTime() - today.getTime();
+    return Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
 };
 // Instance method to get days since start
 subscriptionSchema.methods.getDaysSinceStart = function () {
@@ -287,12 +178,7 @@ subscriptionSchema.methods.getTotalDuration = function () {
 };
 // Instance method to get plan display name
 subscriptionSchema.methods.getPlanDisplay = function () {
-    const planMap = {
-        basic: 'Basic Plan (₹49)',
-        premium: 'Premium Plan (₹99)',
-        enterprise: 'Enterprise Plan (₹299)'
-    };
-    return planMap[this.plan] || this.plan;
+    return this.plan === 'basic' ? 'Basic Plan (₹49)' : 'Premium Plan (₹99)';
 };
 // Instance method to get status display
 subscriptionSchema.methods.getStatusDisplay = function () {
@@ -300,54 +186,9 @@ subscriptionSchema.methods.getStatusDisplay = function () {
         pending: 'Pending',
         completed: 'Active',
         failed: 'Failed',
-        refunded: 'Refunded',
-        cancelled: 'Cancelled',
-        expired: 'Expired'
+        refunded: 'Refunded'
     };
     return statusMap[this.status] || this.status;
-};
-// Instance method to check if subscription is in trial period
-subscriptionSchema.methods.isInTrial = function () {
-    if (!this.trialEndDate)
-        return false;
-    const now = new Date();
-    return now <= this.trialEndDate && this.status === 'completed';
-};
-// Instance method to get trial days remaining
-subscriptionSchema.methods.getTrialDaysRemaining = function () {
-    if (!this.trialEndDate)
-        return 0;
-    const now = new Date();
-    const trialEnd = new Date(this.trialEndDate);
-    const diffTime = trialEnd.getTime() - now.getTime();
-    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-};
-// Instance method to check if subscription can be renewed
-subscriptionSchema.methods.canRenew = function () {
-    return this.status === 'completed' && this.autoRenew && this.endDate > new Date();
-};
-// Instance method to get renewal date
-subscriptionSchema.methods.getRenewalDate = function () {
-    if (!this.nextBillingDate)
-        return null;
-    return new Date(this.nextBillingDate);
-};
-// Instance method to check if subscription is expiring soon (within 7 days)
-subscriptionSchema.methods.isExpiringSoon = function () {
-    if (this.status !== 'completed')
-        return false;
-    const now = new Date();
-    const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
-    return this.endDate <= sevenDaysFromNow && this.endDate > now;
-};
-// Instance method to get subscription value
-subscriptionSchema.methods.getSubscriptionValue = function () {
-    const planValues = {
-        basic: 49,
-        premium: 99,
-        enterprise: 299
-    };
-    return planValues[this.plan] || 0;
 };
 // Static method to find active subscriptions
 subscriptionSchema.statics.findActiveSubscriptions = function () {
@@ -388,56 +229,6 @@ subscriptionSchema.statics.findByDateRange = function (startDate, endDate) {
             { startDate: { $lte: startDate }, endDate: { $gte: endDate } }
         ]
     });
-};
-// Static method to find subscriptions for renewal
-subscriptionSchema.statics.findForRenewal = function () {
-    const now = new Date();
-    const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
-    return this.find({
-        status: 'completed',
-        autoRenew: true,
-        endDate: { $lte: threeDaysFromNow, $gte: now }
-    });
-};
-// Static method to find trial subscriptions
-subscriptionSchema.statics.findTrialSubscriptions = function () {
-    const now = new Date();
-    return this.find({
-        status: 'completed',
-        trialEndDate: { $exists: true, $gte: now }
-    });
-};
-// Static method to find subscriptions by metadata
-subscriptionSchema.statics.findByMetadata = function (metadata) {
-    return this.find({ metadata });
-};
-// Static method to get subscription statistics
-subscriptionSchema.statics.getStatistics = async function () {
-    const total = await this.countDocuments();
-    const active = await this.countDocuments({
-        status: 'completed',
-        endDate: { $gte: new Date() }
-    });
-    const expired = await this.countDocuments({
-        status: 'completed',
-        endDate: { $lt: new Date() }
-    });
-    const cancelled = await this.countDocuments({ status: 'cancelled' });
-    return {
-        total,
-        active,
-        expired,
-        cancelled,
-        activePercentage: total > 0 ? ((active / total) * 100).toFixed(2) : 0
-    };
-};
-// Static method to find subscriptions by source
-subscriptionSchema.statics.findBySource = function (source) {
-    return this.find({ 'metadata.source': source });
-};
-// Static method to find subscriptions by campaign
-subscriptionSchema.statics.findByCampaign = function (campaign) {
-    return this.find({ 'metadata.campaign': campaign });
 };
 // Virtual for subscription status
 subscriptionSchema.virtual('subscriptionStatus').get(function () {

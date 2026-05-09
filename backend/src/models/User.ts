@@ -1,7 +1,7 @@
-import bcrypt from 'bcryptjs';
 import mongoose, { Schema } from 'mongoose';
-import { config } from '../config/environment';
+import bcrypt from 'bcryptjs';
 import { IUser } from './interfaces';
+import { config } from '../config/environment';
 
 // User schema
 const userSchema = new Schema<IUser>({
@@ -27,8 +27,17 @@ const userSchema = new Schema<IUser>({
     },
     minlength: [8, 'Password must be at least 8 characters long']
   },
-  // Personal information is now stored in UserProfile model
-  // This keeps the User model focused on authentication and subscription data
+  name: {
+    type: String,
+    required: [true, 'Name is required'],
+    trim: true,
+    maxlength: [100, 'Name cannot exceed 100 characters']
+  },
+  mobile: {
+    type: String,
+    match: [/^[6-9]\d{9}$/, 'Please enter a valid Indian mobile number'],
+    default: ''
+  },
   role: {
     type: String,
     enum: {
@@ -48,8 +57,8 @@ const userSchema = new Schema<IUser>({
   subscriptionStatus: {
     type: String,
     enum: {
-      values: ['active', 'inactive', 'expired'],
-      message: 'Subscription status must be active, inactive, or expired'
+      values: ['active', 'inactive', 'expired', 'completed'],
+      message: 'Subscription status must be active, inactive, expired, or completed'
     },
     default: 'inactive'
   },
@@ -143,7 +152,8 @@ userSchema.methods.getSubscriptionDaysRemaining = function(): number {
   const now = new Date();
   const endDate = new Date((this as any).subscriptionEndDate);
   const diffTime = endDate.getTime() - now.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return days > 0 ? days : 0;
 };
 
 // Static method to find users by subscription status

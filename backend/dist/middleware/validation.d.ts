@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 export interface ValidationSchema {
     body?: Joi.ObjectSchema;
@@ -24,6 +24,5 @@ export declare const commonSchemas: {
     uri: () => Joi.StringSchema<string>;
     number: () => Joi.NumberSchema<number>;
     array: () => Joi.ArraySchema<any[]>;
-    boolean: () => Joi.BooleanSchema<boolean>;
 };
 //# sourceMappingURL=validation.d.ts.map

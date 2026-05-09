@@ -66,6 +66,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     // Populate req.user with Clerk user data
     req.user = {
       id: clerkUser.id,
+      userId: clerkUser.id,
       email: clerkUser.emailAddresses[0]?.emailAddress || '',
       firstName: clerkUser.firstName || '',
       lastName: clerkUser.lastName || '',
@@ -189,6 +190,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
           req.user = {
             id: clerkUser.id,
+            userId: clerkUser.id,
             email: clerkUser.emailAddresses[0]?.emailAddress || '',
             firstName: clerkUser.firstName || '',
             lastName: clerkUser.lastName || '',

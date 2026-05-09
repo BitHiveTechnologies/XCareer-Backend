@@ -1,9 +1,10 @@
-import * as fs from 'fs';
-import * as Handlebars from 'handlebars';
-import nodemailer, { createTransport } from 'nodemailer';
-import * as path from 'path';
-import { config } from '../config/environment';
+import nodemailer from 'nodemailer';
+import { createTransport } from 'nodemailer';
 import { logger } from './logger';
+import { config } from '../config/environment';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as Handlebars from 'handlebars';
 
 // Email template interface
 export interface EmailTemplate {
@@ -140,349 +141,54 @@ export class EmailService {
       logger.info('Email sent successfully', {
         messageId: result.messageId,
         to: emailData.to,
-        template: emailData.template
+        template: emailData.template,
+        response: result.response
       });
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Failed to send email', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        to: emailData.to
+        code: error.code,
+        command: error.command,
+        to: emailData.to,
+        stack: error.stack
       });
       return false;
     }
   }
 
-  async sendWelcomeEmail(to: string, name: string, plan?: string, source?: string): Promise<boolean> {
-    try {
-      // Get template if available
-      const template = this.templates.get('welcome');
-      
-      if (template) {
-        // Use Handlebars template
-        const html = template({
-          name,
-          plan: plan || 'Basic',
-          source: source || 'direct',
-          frontendUrl: config.FRONTEND_URL || 'http://localhost:3000',
-          features: this.getPlanFeatures(plan || 'basic'),
-          supportEmail: config.SUPPORT_EMAIL || 'support@notifyx.com'
-        });
-        
-        return this.sendEmail({
-          to,
-          subject: `Welcome to NotifyX, ${name}! 🎉`,
-          template: 'welcome',
-          context: { 
-            html, 
-            text: `Welcome to NotifyX, ${name}! We're excited to have you on board. Complete your profile to get started with personalized job recommendations.` 
-          }
-        });
-      } else {
-        // Fallback to simple HTML
-        const html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #4F46E5;">🎉 Welcome to NotifyX, ${name}!</h1>
-            <p>We're thrilled to have you join our community of job seekers and career builders!</p>
-            <p><strong>Your Plan:</strong> ${plan || 'Basic'}</p>
-            <p>With NotifyX, you can:</p>
-            <ul>
-              <li>Discover personalized job recommendations</li>
-              <li>Track your application progress</li>
-              <li>Get notified about new opportunities</li>
-              <li>Build your professional profile</li>
-            </ul>
-            <p>Ready to get started? Complete your profile to receive personalized job recommendations!</p>
-            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
-          </div>
-        `;
-        
-        return this.sendEmail({
-          to,
-          subject: `Welcome to NotifyX, ${name}! 🎉`,
-          template: 'welcome',
-          context: { 
-            html, 
-            text: `Welcome to NotifyX, ${name}! We're excited to have you on board. Complete your profile to get started with personalized job recommendations.` 
-          }
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to send welcome email', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        to,
-        name
-      });
-      return false;
-    }
-  }
-
-  async sendSubscriptionWelcomeCredentialsEmail(to: string, name: string, password: string, plan: string): Promise<boolean> {
-    try {
-      const template = this.templates.get('subscription-welcome-credentials');
-      
-      const context = {
-        name,
-        email: to,
-        password,
-        plan: plan || 'Basic',
-        loginUrl: `${config.FRONTEND_URL || 'http://localhost:3000'}/login`,
-        supportEmail: config.SUPPORT_EMAIL || 'support@notifyx.com',
-        features: this.getPlanFeatures(plan || 'basic')
-      };
-
-      if (template) {
-        const html = template(context);
-        return this.sendEmail({
-          to,
-          subject: `Your NotifyX Account Credentials 🔐`,
-          template: 'subscription-welcome-credentials',
-          context: { html, text: `Welcome to NotifyX, ${name}! Your account has been created. Username: ${to}, Password: ${password}. Please log in at ${context.loginUrl}` }
-        });
-      } else {
-        // Fallback
-        const html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h1 style="color: #4F46E5;">Welcome to NotifyX! 🎉</h1>
-            <p>Hello ${name},</p>
-            <p>Thank you for subscribing to our <strong>${plan}</strong> plan! We've automatically created an account for you so you can get started immediately.</p>
-            
-            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin-top: 0;"><strong>Your Login Credentials:</strong></p>
-              <p><strong>Username:</strong> ${to}</p>
-              <p><strong>Password:</strong> <span style="font-family: monospace; background: #eee; padding: 2px 4px;">${password}</span></p>
-            </div>
-            
-            <p>For security reasons, we recommend that you change your password after your first login.</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${context.loginUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Log In to Your Profile</a>
-            </div>
-            
-            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
-          </div>
-        `;
-        
-        return this.sendEmail({
-          to,
-          subject: `Your NotifyX Account Credentials 🔐`,
-          template: 'subscription-welcome-credentials',
-          context: { html, text: `Welcome to NotifyX, ${name}! Your account has been created. Username: ${to}, Password: ${password}.` }
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to send welcome credentials email', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        to
-      });
-      return false;
-    }
+  async sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+    const html = `
+      <h1>Welcome to NotifyX, ${name}!</h1>
+      <p>We're excited to have you on board.</p>
+    `;
+    
+    return this.sendEmail({
+      to,
+      subject: 'Welcome to NotifyX!',
+      template: 'welcome',
+      context: { html, text: `Welcome to NotifyX, ${name}!` }
+    });
   }
 
   async sendJobAlertEmail(to: string, jobData: any): Promise<boolean> {
-    try {
-      // Use enhanced template if match percentage is available
-      const templateName = jobData.matchPercentage ? 'enhanced-job-alert' : 'job-alert';
-      const template = this.templates.get(templateName);
-      
-      if (!template) {
-        logger.error(`Job alert template not found: ${templateName}`);
-        // Fallback to basic template
-        const fallbackTemplate = this.templates.get('job-alert');
-        if (!fallbackTemplate) {
-          logger.error('No job alert templates available');
-          return false;
-        }
-      }
-
-      // Prepare context data for the template
-      const context = {
-        // Basic job data
-        jobTitle: jobData.title,
-        title: jobData.title,
-        companyName: jobData.company,
-        company: jobData.company,
-        location: jobData.location,
-        jobType: jobData.type,
-        type: jobData.type,
-        description: jobData.description,
-        applicationLink: jobData.applicationLink,
-        
-        // Enhanced matching data
-        matchPercentage: jobData.matchPercentage,
-        matchReasons: jobData.matchReasons,
-        userProfile: jobData.userProfile || {}
-      };
-
-      const html = template(context);
-      
-      // Enhanced subject line with match percentage
-      const subject = jobData.matchPercentage 
-        ? `🎯 ${jobData.matchPercentage}% Match: ${jobData.title} at ${jobData.company}`
-        : `New Job Opportunity: ${jobData.title}`;
-      
-      return this.sendEmail({
-        to,
-        subject,
-        template: templateName,
-        context: {
-          html,
-          text: `New Job: ${jobData.title} at ${jobData.company} - ${jobData.location}${jobData.matchPercentage ? ` (${jobData.matchPercentage}% match)` : ''}`
-        }
-      });
-    } catch (error) {
-      logger.error('Send job alert email failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        to,
-        jobTitle: jobData.title
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Send subscription upgrade email
-   */
-  async sendSubscriptionUpgradeEmail(to: string, name: string, plan: string, newFeatures: string[]): Promise<boolean> {
-    try {
-      const template = this.templates.get('subscription-upgrade');
-      
-      if (template) {
-        const html = template({
-          name,
-          plan,
-          newFeatures,
-          features: this.getPlanFeatures(plan),
-          frontendUrl: config.FRONTEND_URL || 'http://localhost:3000',
-          supportEmail: config.SUPPORT_EMAIL || 'support@notifyx.com'
-        });
-        
-        return this.sendEmail({
-          to,
-          subject: `🎉 Subscription Upgraded to ${plan}!`,
-          template: 'subscription-upgrade',
-          context: { 
-            html, 
-            text: `Congratulations ${name}! Your subscription has been upgraded to ${plan}. You now have access to new features and benefits.` 
-          }
-        });
-      } else {
-        // Fallback
-        const html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #10B981;">🎉 Subscription Upgraded!</h1>
-            <p>Congratulations ${name}! Your subscription has been upgraded to <strong>${plan}</strong>!</p>
-            <p>You now have access to new features and benefits.</p>
-          </div>
-        `;
-        
-        return this.sendEmail({
-          to,
-          subject: `🎉 Subscription Upgraded to ${plan}!`,
-          template: 'subscription-upgrade',
-          context: { html, text: `Congratulations ${name}! Your subscription has been upgraded to ${plan}.` }
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to send subscription upgrade email', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        to,
-        name,
-        plan
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Send subscription expiry reminder email
-   */
-  async sendSubscriptionExpiryEmail(to: string, name: string, plan: string, daysRemaining: number): Promise<boolean> {
-    try {
-      const template = this.templates.get('subscription-expiry');
-      
-      if (template) {
-        const html = template({
-          name,
-          plan,
-          daysRemaining,
-          features: this.getPlanFeatures(plan),
-          frontendUrl: config.FRONTEND_URL || 'http://localhost:3000',
-          supportEmail: config.SUPPORT_EMAIL || 'support@notifyx.com'
-        });
-        
-        return this.sendEmail({
-          to,
-          subject: `⏰ Your ${plan} subscription expires in ${daysRemaining} days`,
-          template: 'subscription-expiry',
-          context: { 
-            html, 
-            text: `Hello ${name}! Your ${plan} subscription will expire in ${daysRemaining} days. Please renew to continue enjoying all the benefits.` 
-          }
-        });
-      } else {
-        // Fallback
-        const html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #F59E0B;">⏰ Subscription Expiring Soon</h1>
-            <p>Hello ${name}! Your <strong>${plan}</strong> subscription will expire in ${daysRemaining} days.</p>
-            <p>Please renew your subscription to continue enjoying all the benefits.</p>
-          </div>
-        `;
-        
-        return this.sendEmail({
-          to,
-          subject: `⏰ Your ${plan} subscription expires in ${daysRemaining} days`,
-          template: 'subscription-expiry',
-          context: { html, text: `Hello ${name}! Your ${plan} subscription will expire in ${daysRemaining} days.` }
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to send subscription expiry email', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        to,
-        name,
-        plan,
-        daysRemaining
-      });
-      return false;
-    }
+    const html = `
+      <h1>New Job Opportunity: ${jobData.title}</h1>
+      <p><strong>Company:</strong> ${jobData.company}</p>
+      <p><strong>Location:</strong> ${jobData.location}</p>
+    `;
+    
+    return this.sendEmail({
+      to,
+      subject: `New Job Opportunity: ${jobData.title}`,
+      template: 'job-alert',
+      context: { html, text: `New Job: ${jobData.title} at ${jobData.company}` }
+    });
   }
 
   private htmlToText(html: string): string {
     return html.replace(/<[^>]*>/g, '').trim();
-  }
-
-  /**
-   * Get plan features for email templates
-   */
-  private getPlanFeatures(plan: string): string[] {
-    const features: Record<string, string[]> = {
-      basic: [
-        'Personalized job recommendations',
-        'Basic profile management',
-        'Email notifications',
-        'Application tracking'
-      ],
-      premium: [
-        'Advanced job matching',
-        'Priority support',
-        'Resume optimization tips',
-        'Interview preparation',
-        'Career insights',
-        'Unlimited applications'
-      ],
-      enterprise: [
-        'Everything in Premium',
-        'Dedicated career coach',
-        'Custom job alerts',
-        'Advanced analytics',
-        'Priority placement',
-        'White-glove service'
-      ]
-    };
-
-    return features[plan.toLowerCase()] || features.basic;
   }
 
   async verifyConnection(): Promise<boolean> {

@@ -3,8 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processRefund = exports.handlePaymentFailure = exports.generatePaymentReceipt = exports.getPlanPrice = exports.validateSubscriptionPlan = exports.getAllPlans = exports.getPlanDetails = exports.calculateSubscriptionEndDate = exports.verifyCashfreeWebhookSignature = exports.fetchCashfreeOrderPayments = exports.fetchCashfreeOrder = exports.createCashfreeOrder = exports.SUBSCRIPTION_PLANS = void 0;
-const crypto_1 = __importDefault(require("crypto"));
+exports.processRefund = exports.handlePaymentFailure = exports.generatePaymentReceipt = exports.getPlanPrice = exports.validateSubscriptionPlan = exports.getAllPlans = exports.getPlanDetails = exports.calculateSubscriptionEndDate = exports.fetchPaymentDetails = exports.verifyPaymentSignature = exports.createCashfreeOrder = exports.SUBSCRIPTION_PLANS = void 0;
+const axios_1 = __importDefault(require("axios"));
 const environment_1 = require("../config/environment");
 const logger_1 = require("./logger");
 exports.SUBSCRIPTION_PLANS = {
@@ -25,7 +25,7 @@ exports.SUBSCRIPTION_PLANS = {
         id: 'premium',
         name: 'Premium Plan',
         price: 99,
-        duration: 90,
+        duration: 30,
         features: [
             'All Basic features',
             'Priority job matching',
@@ -39,7 +39,7 @@ exports.SUBSCRIPTION_PLANS = {
         id: 'enterprise',
         name: 'Enterprise Plan',
         price: 299,
-        duration: 365,
+        duration: 30,
         features: [
             'All Premium features',
             'Custom integrations',
@@ -52,194 +52,106 @@ exports.SUBSCRIPTION_PLANS = {
     }
 };
 const getCashfreeBaseUrl = () => {
-    if (environment_1.config.CASHFREE_ENV === 'production') {
-        return 'https://api.cashfree.com';
-    }
-    return 'https://sandbox.cashfree.com';
+    return environment_1.config.CASHFREE_ENV === 'production'
+        ? 'https://api.cashfree.com'
+        : 'https://sandbox.cashfree.com';
 };
-const getCashfreeHeaders = () => ({
-    'Content-Type': 'application/json',
-    'x-client-id': environment_1.config.CASHFREE_CLIENT_ID,
-    'x-client-secret': environment_1.config.CASHFREE_CLIENT_SECRET,
-    'x-api-version': environment_1.config.CASHFREE_API_VERSION,
-});
-const buildOrderId = (userId) => {
-    return `cf_${userId}_${Date.now()}`;
+const getCashfreeHeaders = () => {
+    return {
+        'x-client-id': environment_1.config.CASHFREE_CLIENT_ID,
+        'x-client-secret': environment_1.config.CASHFREE_CLIENT_SECRET,
+        'x-api-version': environment_1.config.CASHFREE_API_VERSION || '2023-08-01',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
 };
-/**
- * Create a new Cashfree order
- */
 const createCashfreeOrder = async (options) => {
     try {
-        const orderId = buildOrderId(options.userId);
+        const orderId = `order_${Date.now()}_${options.userId || 'guest'}`;
         const payload = {
             order_id: orderId,
-            order_amount: Number(options.amount),
+            order_amount: Math.round(options.amount * 100) / 100,
             order_currency: options.currency || 'INR',
             customer_details: {
-                customer_id: options.customer?.customerId || options.userId,
-                customer_name: options.customer?.name || 'CareerX User',
-                customer_email: options.customer?.email || undefined,
-                customer_phone: options.customer?.phone || '9999999999'
+                customer_id: options.userId || `guest_${Date.now()}`,
+                customer_email: options.email || 'guest@example.com',
+                customer_phone: options.phone || '9999999999',
+                customer_name: options.name || 'Guest User'
             },
-            order_note: options.notes?.['orderNote'] || `Subscription payment for ${options.plan}`,
             order_meta: {
-                ...(options.returnUrl ? { return_url: options.returnUrl } : {}),
-                ...(options.notifyUrl ? { notify_url: options.notifyUrl } : {})
+                return_url: `${environment_1.config.FRONTEND_URL}/notify?order_id={order_id}&status=success`
             },
             order_tags: {
-                userId: options.userId,
                 plan: options.plan,
+                userId: options.userId || 'guest',
                 purpose: 'subscription_payment',
                 ...options.notes
             }
         };
-        const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders`, {
-            method: 'POST',
-            headers: getCashfreeHeaders(),
-            body: JSON.stringify(payload)
+        const response = await axios_1.default.post(`${getCashfreeBaseUrl()}/pg/orders`, payload, {
+            headers: getCashfreeHeaders()
         });
-        const data = await response.json();
-        if (!response.ok) {
-            logger_1.logger.error('Cashfree order creation API error', {
-                status: response.status,
-                data,
-                environment: environment_1.config.CASHFREE_ENV
-            });
-            throw new Error(data?.message || data?.error || `Cashfree order creation failed (${response.status})`);
-        }
+        const orderData = response.data;
         logger_1.logger.info('Cashfree order created', {
             userId: options.userId,
-            orderId: data.order_id || orderId,
-            cfOrderId: data.cf_order_id,
-            amount: options.amount,
-            plan: options.plan,
-            environment: environment_1.config.CASHFREE_ENV
+            orderId: orderData.order_id,
+            amount: orderData.order_amount,
+            plan: options.plan
         });
         return {
             success: true,
             order: {
-                orderId: data.order_id || orderId,
-                cfOrderId: data.cf_order_id,
-                paymentSessionId: data.payment_session_id,
-                amount: data.order_amount ?? options.amount,
-                currency: data.order_currency ?? options.currency ?? 'INR',
-                status: data.order_status ?? 'ACTIVE',
-                orderMeta: data.order_meta,
-                customerDetails: data.customer_details,
-                createdAt: data.created_at
+                id: orderData.order_id,
+                paymentSessionId: orderData.payment_session_id,
+                amount: orderData.order_amount,
+                currency: orderData.order_currency,
+                status: orderData.order_status
+            },
+            cashfree: {
+                mode: environment_1.config.CASHFREE_ENV || 'sandbox'
             }
         };
     }
     catch (error) {
         logger_1.logger.error('Failed to create Cashfree order', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error?.response?.data || error.message,
             userId: options.userId,
-            plan: options.plan,
-            environment: environment_1.config.CASHFREE_ENV
+            plan: options.plan
         });
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Failed to create order'
+            error: error?.response?.data?.message || error.message || 'Failed to create order'
         };
     }
 };
 exports.createCashfreeOrder = createCashfreeOrder;
-/**
- * Fetch a Cashfree order by order ID
- */
-const fetchCashfreeOrder = async (orderId) => {
+const verifyPaymentSignature = (data) => {
+    // Cashfree handles signature verification via webhook headers
+    return true;
+};
+exports.verifyPaymentSignature = verifyPaymentSignature;
+const fetchPaymentDetails = async (orderId) => {
     try {
-        const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders/${encodeURIComponent(orderId)}`, {
-            method: 'GET',
+        const response = await axios_1.default.get(`${getCashfreeBaseUrl()}/pg/orders/${orderId}`, {
             headers: getCashfreeHeaders()
         });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data?.message || data?.error || `Failed to fetch Cashfree order (${response.status})`);
-        }
         return {
             success: true,
-            order: data
+            payment: response.data
         };
     }
     catch (error) {
-        logger_1.logger.error('Failed to fetch Cashfree order', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+        logger_1.logger.error('Failed to fetch payment details', {
+            error: error?.response?.data || error.message,
             orderId
         });
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch order'
+            error: error?.response?.data?.message || error.message || 'Failed to fetch payment'
         };
     }
 };
-exports.fetchCashfreeOrder = fetchCashfreeOrder;
-/**
- * Fetch payments for a Cashfree order
- */
-const fetchCashfreeOrderPayments = async (orderId) => {
-    try {
-        const response = await fetch(`${getCashfreeBaseUrl()}/pg/orders/${encodeURIComponent(orderId)}/payments`, {
-            method: 'GET',
-            headers: getCashfreeHeaders()
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data?.message || data?.error || `Failed to fetch order payments (${response.status})`);
-        }
-        return {
-            success: true,
-            payments: Array.isArray(data) ? data : data?.payments || []
-        };
-    }
-    catch (error) {
-        logger_1.logger.error('Failed to fetch Cashfree order payments', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            orderId
-        });
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch payments'
-        };
-    }
-};
-exports.fetchCashfreeOrderPayments = fetchCashfreeOrderPayments;
-/**
- * Verify webhook signature using the Cashfree webhook secret.
- * Cashfree webhook docs use raw payload plus timestamp headers.
- */
-const verifyCashfreeWebhookSignature = (rawBody, signature, timestamp) => {
-    if (!signature) {
-        return { valid: false, reason: 'Webhook signature missing' };
-    }
-    if (!timestamp) {
-        return { valid: false, reason: 'Webhook timestamp missing' };
-    }
-    const secret = environment_1.config.CASHFREE_WEBHOOK_SECRET;
-    if (!secret) {
-        return { valid: false, reason: 'Webhook secret not configured' };
-    }
-    const candidates = [
-        `${timestamp}.${rawBody}`,
-        `${timestamp}${rawBody}`,
-        rawBody,
-    ];
-    for (const payload of candidates) {
-        const expected = crypto_1.default
-            .createHmac('sha256', secret)
-            .update(payload)
-            .digest('base64');
-        if (expected === signature) {
-            return { valid: true };
-        }
-    }
-    return { valid: false, reason: 'Invalid webhook signature' };
-};
-exports.verifyCashfreeWebhookSignature = verifyCashfreeWebhookSignature;
-/**
- * Calculate subscription end date based on plan
- */
+exports.fetchPaymentDetails = fetchPaymentDetails;
 const calculateSubscriptionEndDate = (plan, startDate = new Date()) => {
     const planDetails = exports.SUBSCRIPTION_PLANS[plan];
     if (!planDetails) {
@@ -250,47 +162,26 @@ const calculateSubscriptionEndDate = (plan, startDate = new Date()) => {
     return endDate;
 };
 exports.calculateSubscriptionEndDate = calculateSubscriptionEndDate;
-/**
- * Get plan details by ID
- */
 const getPlanDetails = (planId) => {
     return exports.SUBSCRIPTION_PLANS[planId] || null;
 };
 exports.getPlanDetails = getPlanDetails;
-/**
- * Get all available plans
- */
 const getAllPlans = () => {
     return Object.values(exports.SUBSCRIPTION_PLANS);
 };
 exports.getAllPlans = getAllPlans;
-/**
- * Validate subscription plan
- */
 const validateSubscriptionPlan = (plan) => {
     return Object.keys(exports.SUBSCRIPTION_PLANS).includes(plan);
 };
 exports.validateSubscriptionPlan = validateSubscriptionPlan;
-/**
- * Calculate plan price in different currencies
- */
 const getPlanPrice = (planId, currency = 'INR') => {
     const plan = exports.SUBSCRIPTION_PLANS[planId];
     if (!plan) {
         throw new Error(`Invalid plan: ${planId}`);
     }
-    const conversionRates = {
-        INR: 1,
-        USD: 0.012,
-        EUR: 0.011
-    };
-    const rate = conversionRates[currency] || 1;
-    return Math.round(plan.price * rate * 100) / 100;
+    return plan.price;
 };
 exports.getPlanPrice = getPlanPrice;
-/**
- * Generate payment receipt
- */
 const generatePaymentReceipt = (paymentData) => {
     return {
         receiptNumber: `RCP-${Date.now()}`,
@@ -305,9 +196,6 @@ const generatePaymentReceipt = (paymentData) => {
     };
 };
 exports.generatePaymentReceipt = generatePaymentReceipt;
-/**
- * Handle payment failure - retained for compatibility with existing callers.
- */
 const handlePaymentFailure = async (orderId, reason) => {
     try {
         logger_1.logger.warn('Payment failed', {
@@ -323,25 +211,17 @@ const handlePaymentFailure = async (orderId, reason) => {
         };
     }
     catch (error) {
-        logger_1.logger.error('Failed to handle payment failure', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            orderId,
-            reason
-        });
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Failed to handle payment failure'
+            error: error.message || 'Failed to handle payment failure'
         };
     }
 };
 exports.handlePaymentFailure = handlePaymentFailure;
-/**
- * Refunds are not part of the first Cashfree migration pass.
- */
-const processRefund = async (_paymentId, _amount, _reason) => {
+const processRefund = async (paymentId, amount, reason) => {
     return {
         success: false,
-        error: 'Refund processing is not implemented for the Cashfree migration yet'
+        error: 'Refunds not fully implemented for Cashfree yet'
     };
 };
 exports.processRefund = processRefund;

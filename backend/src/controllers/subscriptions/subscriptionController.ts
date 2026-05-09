@@ -61,7 +61,13 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
     
     // Calculate days remaining
     const now = new Date();
-    const daysRemaining = Math.ceil((subscription.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    // Calculate days remaining using calendar days (midnight to midnight)
+    const end = new Date(subscription.endDate);
+    const today = new Date();
+    end.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = end.getTime() - today.getTime();
+    const daysRemaining = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
 
     res.status(200).json({
       success: true,
@@ -73,15 +79,9 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
           status: subscription.status,
           startDate: subscription.startDate,
           endDate: subscription.endDate,
-          expiresAt: subscription.endDate,
           amount: subscription.amount,
-          paymentId: subscription.paymentId,
-          orderId: subscription.orderId,
-          paymentSessionId: subscription.paymentSessionId,
-          paymentStatus: subscription.paymentStatus,
           daysRemaining: Math.max(0, daysRemaining),
-          isActive: daysRemaining > 0,
-          features: planDetails?.features || []
+          isActive: daysRemaining > 0
         }
       },
       timestamp: new Date().toISOString()
@@ -182,7 +182,12 @@ export const getSubscriptionHistory = async (req: Request, res: Response): Promi
     const enhancedSubscriptions = subscriptions.map(sub => {
       const planDetails = getPlanDetails(sub.plan);
       const now = new Date();
-      const daysRemaining = Math.ceil((sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const end = new Date(sub.endDate);
+      const today = new Date();
+      end.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      const diffTime = end.getTime() - today.getTime();
+      const daysRemaining = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
 
       return {
         id: sub._id,

@@ -8,6 +8,8 @@ export interface IUser extends BaseDocument {
     clerkUserId?: string;
     email: string;
     password?: string;
+    name: string;
+    mobile: string;
     role: 'user' | 'admin' | 'super_admin';
     subscriptionPlan: 'basic' | 'premium';
     subscriptionStatus: 'active' | 'inactive' | 'expired';
@@ -21,7 +23,7 @@ export interface IUserProfile extends BaseDocument {
     userId: ObjectId;
     firstName: string;
     lastName: string;
-    fullName: string;
+    email: string;
     contactNumber: string;
     dateOfBirth: Date;
     qualification: string;
@@ -31,10 +33,15 @@ export interface IUserProfile extends BaseDocument {
     yearOfPassout: number;
     cgpaOrPercentage: number;
     collegeName: string;
-    skills?: string[];
+    skills?: string;
+    resumeUrl?: string;
     linkedinUrl?: string;
     githubUrl?: string;
-    resumeUrl?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    completionPercentage?: number;
 }
 export interface IJob extends BaseDocument {
     _id: ObjectId;
@@ -56,7 +63,6 @@ export interface IJob extends BaseDocument {
     isActive: boolean;
     postedBy: ObjectId;
     applications?: ObjectId[];
-    companyLogo?: string;
 }
 export interface IJobNotification extends BaseDocument {
     _id: ObjectId;
@@ -87,26 +93,11 @@ export interface ISubscription extends BaseDocument {
     userId: ObjectId;
     plan: 'basic' | 'premium' | 'enterprise';
     amount: number;
-    provider?: 'cashfree';
-    paymentId?: string;
+    paymentId: string;
     orderId: string;
-    paymentSessionId?: string;
-    paymentStatus?: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'USER_DROPPED' | 'REFUNDED' | 'CANCELLED';
     status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
     startDate: Date;
     endDate: Date;
-    nextBillingDate?: Date;
-    autoRenew: boolean;
-    trialEndDate?: Date;
-    cancellationDate?: Date;
-    cancellationReason?: string;
-    metadata?: {
-        source?: string;
-        campaign?: string;
-        referrer?: string;
-        notes?: string;
-        [key: string]: any;
-    };
 }
 export interface IJobApplication extends BaseDocument {
     _id: ObjectId;
@@ -133,42 +124,5 @@ export interface ISystemSettings extends BaseDocument {
     value: any;
     description: string;
     category: 'general' | 'email' | 'payment' | 'security';
-}
-export interface ITestimonial extends BaseDocument {
-    _id: ObjectId;
-    userId?: ObjectId;
-    name: string;
-    role: string;
-    content: string;
-    rating: number;
-    avatar?: string;
-    isApproved: boolean;
-    isVerified: boolean;
-    linkedinUrl?: string;
-}
-export interface INotification extends BaseDocument {
-    _id: ObjectId;
-    userId: ObjectId;
-    type: 'job_alert' | 'subscription' | 'payment' | 'system' | 'profile' | 'application';
-    title: string;
-    message: string;
-    data?: Record<string, any>;
-    isRead: boolean;
-    readAt?: Date;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    category: 'info' | 'success' | 'warning' | 'error';
-    actionUrl?: string;
-    actionText?: string;
-    expiresAt?: Date;
-    metadata?: Record<string, any>;
-}
-export interface IResume extends BaseDocument {
-    _id: ObjectId;
-    userId: ObjectId;
-    data: any;
-    templateId: string;
-    previewUrl?: string;
-    pdfUrl?: string;
-    isPublic: boolean;
 }
 //# sourceMappingURL=interfaces.d.ts.map

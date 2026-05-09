@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userSchema = exports.User = void 0;
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const mongoose_1 = __importStar(require("mongoose"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const environment_1 = require("../config/environment");
 // User schema
 const userSchema = new mongoose_1.Schema({
@@ -64,8 +64,17 @@ const userSchema = new mongoose_1.Schema({
         },
         minlength: [8, 'Password must be at least 8 characters long']
     },
-    // Personal information is now stored in UserProfile model
-    // This keeps the User model focused on authentication and subscription data
+    name: {
+        type: String,
+        required: [true, 'Name is required'],
+        trim: true,
+        maxlength: [100, 'Name cannot exceed 100 characters']
+    },
+    mobile: {
+        type: String,
+        match: [/^[6-9]\d{9}$/, 'Please enter a valid Indian mobile number'],
+        default: ''
+    },
     role: {
         type: String,
         enum: {
@@ -85,8 +94,8 @@ const userSchema = new mongoose_1.Schema({
     subscriptionStatus: {
         type: String,
         enum: {
-            values: ['active', 'inactive', 'expired'],
-            message: 'Subscription status must be active, inactive, or expired'
+            values: ['active', 'inactive', 'expired', 'completed'],
+            message: 'Subscription status must be active, inactive, expired, or completed'
         },
         default: 'inactive'
     },
@@ -181,7 +190,8 @@ userSchema.methods.getSubscriptionDaysRemaining = function () {
     const now = new Date();
     const endDate = new Date(this.subscriptionEndDate);
     const diffTime = endDate.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
 };
 // Static method to find users by subscription status
 userSchema.statics.findBySubscriptionStatus = function (status) {

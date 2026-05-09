@@ -1,16 +1,5 @@
-import { Request, Response } from 'express';
-export interface ClerkAuthRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        role: 'user' | 'admin' | 'super_admin';
-        type: 'user' | 'admin';
-        clerkUserId: string;
-        metadata?: Record<string, any>;
-    };
-}
+import { Response } from 'express';
+import { ClerkAuthRequest } from '../../types/express';
 /**
  * Get current authenticated user profile
  */

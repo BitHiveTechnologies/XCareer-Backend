@@ -23,13 +23,3 @@ node_modules/
 
 # OS specific
 .DS_Store
-
-# Task files
-# tasks.json
-# tasks/ 
-# Local dev and secrets
-.cursor/
-.taskmaster/
-backend/.env*
-backend/.env.backup-cloud
-backend/dist/
