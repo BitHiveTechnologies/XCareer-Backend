@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSystemHealth = exports.getJobAnalytics = exports.getUserAnalytics = exports.getDashboardStats = void 0;
+exports.notifyUsersForJob = exports.getSystemHealth = exports.getJobAnalytics = exports.getUserAnalytics = exports.getDashboardStats = void 0;
 const User_1 = require("../../models/User");
 const Job_1 = require("../../models/Job");
 const Subscription_1 = require("../../models/Subscription");
 const JobApplication_1 = require("../../models/JobApplication");
+const jobAlertService_1 = require("../../services/jobAlertService");
 const logger_1 = require("../../utils/logger");
 /**
  * Get comprehensive dashboard statistics
@@ -34,42 +35,48 @@ const getDashboardStats = async (req, res) => {
             JobApplication_1.JobApplication.countDocuments(),
             JobApplication_1.JobApplication.countDocuments({ status: 'applied' })
         ]);
-        // Get recent activity (last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const [newUsersThisMonth, newJobsThisMonth, newSubscriptionsThisMonth] = await Promise.all([
+        // Revenue calculation
+        const revenueStats = await Subscription_1.Subscription.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _id: null, totalRevenue: { $sum: '$amount' } } }
+        ]);
+        const totalRevenue = revenueStats.length > 0 ? revenueStats[0].totalRevenue : 0;
+        // Growth calculation (This month vs Last month)
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
+        const [newUsersThisMonth, newUsersLastMonth, newSubscriptionsThisMonth, newSubscriptionsLastMonth, revenueThisMonth, revenueLastMonth] = await Promise.all([
             User_1.User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-            Job_1.Job.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+            User_1.User.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
+            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo }, status: 'completed' }),
+            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' }),
+            Subscription_1.Subscription.aggregate([
+                { $match: { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' } },
+                { $group: { _id: null, sum: { $sum: '$amount' } } }
+            ]),
+            Subscription_1.Subscription.aggregate([
+                { $match: { createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' } },
+                { $group: { _id: null, sum: { $sum: '$amount' } } }
+            ])
         ]);
-        // Get subscription plan distribution
-        const subscriptionPlans = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: '$subscriptionPlan',
-                    count: { $sum: 1 }
-                }
-            }
+        const revThis = revenueThisMonth.length > 0 ? revenueThisMonth[0].sum : 0;
+        const revLast = revenueLastMonth.length > 0 ? revenueLastMonth[0].sum : 0;
+        // Calculate percentages
+        const calculatePercentage = (current, previous) => {
+            if (previous === 0)
+                return current > 0 ? 100 : 0;
+            return Math.round(((current - previous) / previous) * 100);
+        };
+        const userGrowth = calculatePercentage(newUsersThisMonth, newUsersLastMonth);
+        const subscriptionGrowth = calculatePercentage(newSubscriptionsThisMonth, newSubscriptionsLastMonth);
+        const revenueGrowth = calculatePercentage(revThis, revLast);
+        // Get distributions
+        const [subscriptionPlans, userRoles, jobTypes] = await Promise.all([
+            User_1.User.aggregate([{ $group: { _id: '$subscriptionPlan', count: { $sum: 1 } } }]),
+            User_1.User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+            Job_1.Job.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
         ]);
-        // Get user role distribution
-        const userRoles = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: '$role',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        // Get job type distribution
-        const jobTypes = await Job_1.Job.aggregate([
-            {
-                $group: {
-                    _id: '$type',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        logger_1.logger.info('Admin dashboard stats retrieved', {
+        logger_1.logger.info('Admin dashboard stats retrieved with growth metrics', {
             adminId,
             adminRole,
             ip: req.ip
@@ -85,12 +92,13 @@ const getDashboardStats = async (req, res) => {
                     totalSubscriptions,
                     activeSubscriptions,
                     totalApplications,
-                    pendingApplications
+                    pendingApplications,
+                    totalRevenue
                 },
-                monthlyGrowth: {
-                    newUsers: newUsersThisMonth,
-                    newJobs: newJobsThisMonth,
-                    newSubscriptions: newSubscriptionsThisMonth
+                growth: {
+                    users: { count: newUsersThisMonth, percentage: userGrowth },
+                    subscriptions: { count: newSubscriptionsThisMonth, percentage: subscriptionGrowth },
+                    revenue: { amount: revThis, percentage: revenueGrowth }
                 },
                 distributions: {
                     subscriptionPlans,
@@ -471,4 +479,45 @@ const getSystemHealth = async (req, res) => {
     }
 };
 exports.getSystemHealth = getSystemHealth;
+/**
+ * Trigger job matching and notifications for a specific job
+ */
+const notifyUsersForJob = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const { minMatchScore = 40, dryRun = false } = req.body;
+        if (!jobId) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Job ID is required' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        const stats = await (0, jobAlertService_1.sendJobAlertsForJob)({
+            jobId,
+            minMatchScore,
+            dryRun
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Job notification process completed',
+            data: stats,
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Manual job notification failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            jobId: req.params.jobId,
+            adminId: req.user?.id
+        });
+        res.status(500).json({
+            success: false,
+            error: { message: error instanceof Error ? error.message : 'Failed to trigger notifications' },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.notifyUsersForJob = notifyUsersForJob;
 //# sourceMappingURL=adminController.js.map

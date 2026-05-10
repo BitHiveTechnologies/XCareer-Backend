@@ -24,5 +24,6 @@ export declare const commonSchemas: {
     uri: () => Joi.StringSchema<string>;
     number: () => Joi.NumberSchema<number>;
     array: () => Joi.ArraySchema<any[]>;
+    boolean: () => Joi.BooleanSchema<boolean>;
 };
 //# sourceMappingURL=validation.d.ts.map

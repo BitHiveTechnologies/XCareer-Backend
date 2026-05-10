@@ -87,6 +87,14 @@ const subscriptionSchema = new mongoose_1.Schema({
             },
             message: 'End date must be after start date'
         }
+    },
+    autoRenew: {
+        type: Boolean,
+        default: true
+    },
+    metadata: {
+        type: mongoose_1.Schema.Types.Mixed,
+        default: {}
     }
 }, {
     timestamps: true,

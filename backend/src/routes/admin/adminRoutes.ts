@@ -3,7 +3,8 @@ import {
   getDashboardStats, 
   getUserAnalytics, 
   getJobAnalytics, 
-  getSystemHealth 
+  getSystemHealth,
+  notifyUsersForJob 
 } from '../../controllers/admin/adminController';
 import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 
@@ -40,5 +41,12 @@ router.get('/analytics/jobs', getJobAnalytics);
  * @access  Admin only
  */
 router.get('/health', getSystemHealth);
+
+/**
+ * @route   POST /api/v1/admin/jobs/:jobId/notify
+ * @desc    Trigger job matching and notifications for a specific job
+ * @access  Admin only
+ */
+router.post('/jobs/:jobId/notify', notifyUsersForJob);
 
 export default router;

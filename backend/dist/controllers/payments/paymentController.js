@@ -55,6 +55,17 @@ const createOrder = async (req, res) => {
             });
             return;
         }
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                res.status(400).json({
+                    success: false,
+                    error: { message: 'Invalid email address format' },
+                    timestamp: new Date().toISOString()
+                });
+                return;
+            }
+        }
         const validPlans = ['basic', 'premium', 'enterprise'];
         if (!validPlans.includes(plan)) {
             res.status(400).json({
@@ -129,6 +140,16 @@ const verifyPayment = async (req, res) => {
             });
             return;
         }
+        // Check for replay attack - is this order already processed?
+        const existingSubscription = await Subscription_1.Subscription.findOne({ orderId, status: 'completed' });
+        if (existingSubscription) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'This order has already been processed' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
         const paymentResult = await (0, paymentService_1.fetchPaymentDetails)(orderId);
         if (!paymentResult.success || !paymentResult.payment) {
             res.status(400).json({
@@ -164,6 +185,8 @@ const verifyPayment = async (req, res) => {
         if (!user && email) {
             // Create guest user
             tempPassword = Math.random().toString(36).slice(-8) + 'X!';
+            logger_1.logger.info('TEST_CREDENTIALS', { email, password: tempPassword });
+            require('fs').writeFileSync('/Users/apple/Desktop/Careerx/test_creds.txt', `Email: ${email}\nPassword: ${tempPassword}`);
             user = new User_1.User({
                 email,
                 name: payment.customer_details?.customer_name || 'User',

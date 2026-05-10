@@ -98,6 +98,8 @@ export interface ISubscription extends BaseDocument {
     status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
     startDate: Date;
     endDate: Date;
+    autoRenew: boolean;
+    metadata?: Record<string, any>;
 }
 export interface IJobApplication extends BaseDocument {
     _id: ObjectId;
@@ -124,5 +126,26 @@ export interface ISystemSettings extends BaseDocument {
     value: any;
     description: string;
     category: 'general' | 'email' | 'payment' | 'security';
+}
+export interface IResume extends BaseDocument {
+    _id: ObjectId;
+    userId: ObjectId;
+    data: any;
+    templateId: string;
+    previewUrl?: string;
+    pdfUrl?: string;
+    isPublic: boolean;
+}
+export interface ITestimonial extends BaseDocument {
+    _id: ObjectId;
+    userId?: ObjectId;
+    name: string;
+    role: string;
+    content: string;
+    rating: number;
+    avatar?: string;
+    isApproved: boolean;
+    isVerified: boolean;
+    linkedinUrl?: string;
 }
 //# sourceMappingURL=interfaces.d.ts.map

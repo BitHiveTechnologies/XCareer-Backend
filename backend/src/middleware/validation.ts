@@ -105,5 +105,7 @@ export const commonSchemas = {
   // Add number validation
   number: () => Joi.number(),
   // Add array validation
-  array: () => Joi.array()
+  array: () => Joi.array(),
+  // Add boolean validation
+  boolean: () => Joi.boolean()
 };

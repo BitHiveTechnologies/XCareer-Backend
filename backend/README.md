@@ -77,29 +77,27 @@ npm start
 
 ```
 src/
-├── config/          # Configuration files
-│   ├── database.ts  # MongoDB connection
-│   └── environment.ts # Environment variables
-├── controllers/     # Route controllers
-├── middleware/      # Custom middleware
-│   ├── errorHandler.ts
-│   ├── notFound.ts
-│   ├── rateLimiter.ts
-│   └── validation.ts
-├── models/          # Database models
-├── routes/          # API routes
-├── utils/           # Utility functions
-│   └── logger.ts    # Logging utility
-└── index.ts         # Main application entry point
+├── __tests__/       # Automated unit and integration tests
+│   ├── unit/        # Unit tests for controllers, services, models
+│   └── integration/ # End-to-end API testing
+├── config/          # Configuration and environment setup
+├── controllers/     # Business logic for API endpoints
+├── middleware/      # Authentication, validation, and security middleware
+├── models/          # Mongoose database schemas
+├── routes/          # Express route definitions
+├── services/        # Third-party integrations (Email, Payment)
+├── utils/           # Shared utility functions (Logger, Error types)
+└── index.ts         # Application entry point
 ```
 
 ## 🔧 Available Scripts
 
 - `npm run dev` - Start development server with hot reload
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run dev:build` - Build and start in development mode
-- `npm run clean` - Remove build artifacts
+- `npm run build` - Compile TypeScript to production-ready JavaScript
+- `npm start` - Run the compiled production server
+- `npm test` - Run the automated test suite using Jest
+- `npm run clean` - Clear build artifacts and caches
+- `npm run seed:test-data` - Seed the database with mock users and jobs
 
 ## 🌐 API Endpoints
 
@@ -141,12 +139,17 @@ Testing framework setup coming soon:
 - Database transaction testing
 - Minimum 80% code coverage target
 
-## 🚀 Deployment
+## 🚀 Deployment (Railway)
 
-- **Docker**: Containerization support
-- **Environment Configs**: Development, staging, production
-- **CI/CD**: Automated testing and deployment pipeline
-- **Monitoring**: Production environment monitoring
+1. **Setup Railway**: Connect your GitHub repository to Railway.app.
+2. **Environment Variables**: Add the variables from `.env.example` to the Railway project settings.
+3. **Automatic Build**: Railway will detect the `package.json` and run `npm run build` followed by `npm start`.
+4. **Database**: Use the Railway MongoDB plugin or provide an external `MONGODB_URI`.
+
+### Build Checklist
+- [ ] Run `npm run build` locally to check for TS errors.
+- [ ] Run `npm test` to ensure security logic is intact.
+- [ ] Verify `FRONTEND_URL` in Railway matches your deployed website.
 
 ## 📝 Environment Variables
 

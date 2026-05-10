@@ -31,5 +31,11 @@ router.get('/analytics/jobs', adminController_1.getJobAnalytics);
  * @access  Admin only
  */
 router.get('/health', adminController_1.getSystemHealth);
+/**
+ * @route   POST /api/v1/admin/jobs/:jobId/notify
+ * @desc    Trigger job matching and notifications for a specific job
+ * @access  Admin only
+ */
+router.post('/jobs/:jobId/notify', adminController_1.notifyUsersForJob);
 exports.default = router;
 //# sourceMappingURL=adminRoutes.js.map

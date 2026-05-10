@@ -291,12 +291,25 @@ export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: R
       },
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Update current user profile failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
       userId: req.user?.id,
       ip: req.ip
     });
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((err: any) => err.message);
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Validation failed',
+          details: messages
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
 
     res.status(500).json({
       success: false,

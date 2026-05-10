@@ -32,7 +32,8 @@ export declare class EmailService {
     private loadTemplates;
     private initializeTransporter;
     sendEmail(emailData: EmailData): Promise<boolean>;
-    sendWelcomeEmail(to: string, name: string): Promise<boolean>;
+    sendWelcomeEmail(to: string, name: string, plan?: string, source?: string): Promise<boolean>;
+    sendSubscriptionWelcomeCredentialsEmail(to: string, name: string, password?: string, plan?: string): Promise<boolean>;
     sendJobAlertEmail(to: string, jobData: any): Promise<boolean>;
     private htmlToText;
     verifyConnection(): Promise<boolean>;

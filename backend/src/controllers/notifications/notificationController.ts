@@ -4,23 +4,10 @@ import { User } from '../../models/User';
 import { logger } from '../../utils/logger';
 
 // Extend Request to include user from JWT middleware
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    role: 'user' | 'admin' | 'super_admin';
-    type: 'user' | 'admin';
-    clerkUserId?: string;
-    metadata?: Record<string, any>;
-  };
-}
-
 /**
  * Get user notifications with filtering and pagination
  */
-export const getUserNotifications = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getUserNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -129,7 +116,7 @@ export const getUserNotifications = async (req: AuthenticatedRequest, res: Respo
 /**
  * Mark notification as read
  */
-export const markNotificationAsRead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { notificationId } = req.params;
@@ -197,7 +184,7 @@ export const markNotificationAsRead = async (req: AuthenticatedRequest, res: Res
 /**
  * Mark all notifications as read for user
  */
-export const markAllNotificationsAsRead = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
@@ -251,7 +238,7 @@ export const markAllNotificationsAsRead = async (req: AuthenticatedRequest, res:
 /**
  * Delete notification
  */
-export const deleteNotification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const deleteNotification = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { notificationId } = req.params;
@@ -317,7 +304,7 @@ export const deleteNotification = async (req: AuthenticatedRequest, res: Respons
 /**
  * Get notification statistics for user
  */
-export const getNotificationStats = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getNotificationStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
@@ -453,7 +440,7 @@ export const getNotificationStats = async (req: AuthenticatedRequest, res: Respo
 /**
  * Create notification (admin only)
  */
-export const createNotification = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const createNotification = async (req: Request, res: Response): Promise<void> => {
   try {
     const adminId = req.user?.id;
     const adminRole = req.user?.role;
@@ -561,7 +548,7 @@ export const createNotification = async (req: AuthenticatedRequest, res: Respons
 /**
  * Bulk create notifications (admin only)
  */
-export const bulkCreateNotifications = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const bulkCreateNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
     const adminId = req.user?.id;
     const adminRole = req.user?.role;

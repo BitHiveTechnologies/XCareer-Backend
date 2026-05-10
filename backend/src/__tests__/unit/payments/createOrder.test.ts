@@ -140,4 +140,25 @@ describe('POST /payments/create-order', () => {
       expect(res.status).toBe(201);
     }
   });
+
+  it('should return 400 for an invalid email format', async () => {
+    const res = await request(app)
+      .post(`${BASE}/create-order`)
+      .send({ plan: 'basic', amount: 49, email: 'not-an-email' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/invalid email/i);
+  });
+
+  it('should return 400 when plan is missing', async () => {
+    const { token } = await createAuthenticatedUser();
+    const res = await request(app)
+      .post(`${BASE}/create-order`)
+      .set(authHeader(token))
+      .send({ amount: 99 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
 });

@@ -53,6 +53,14 @@ const subscriptionSchema = new Schema<ISubscription>({
       },
       message: 'End date must be after start date'
     }
+  },
+  autoRenew: {
+    type: Boolean,
+    default: true
+  },
+  metadata: {
+    type: Schema.Types.Mixed,
+    default: {}
   }
 }, {
   timestamps: true,

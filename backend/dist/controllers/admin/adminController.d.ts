@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AdminRequest } from '../../types/express';
 /**
  * Get comprehensive dashboard statistics
@@ -16,4 +16,8 @@ export declare const getJobAnalytics: (req: AdminRequest, res: Response) => Prom
  * Get system health and performance metrics
  */
 export declare const getSystemHealth: (req: AdminRequest, res: Response) => Promise<void>;
+/**
+ * Trigger job matching and notifications for a specific job
+ */
+export declare const notifyUsersForJob: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=adminController.d.ts.map

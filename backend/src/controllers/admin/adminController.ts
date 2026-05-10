@@ -4,6 +4,7 @@ import { UserProfile } from '../../models/UserProfile';
 import { Job } from '../../models/Job';
 import { Subscription } from '../../models/Subscription';
 import { JobApplication } from '../../models/JobApplication';
+import { sendJobAlertsForJob } from '../../services/jobAlertService';
 import { logger } from '../../utils/logger';
 
 import { AdminRequest } from '../../types/express';
@@ -49,51 +50,61 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
       JobApplication.countDocuments({ status: 'applied' })
     ]);
 
-    // Get recent activity (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Revenue calculation
+    const revenueStats = await Subscription.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, totalRevenue: { $sum: '$amount' } } }
+    ]);
+    const totalRevenue = revenueStats.length > 0 ? revenueStats[0].totalRevenue : 0;
+
+    // Growth calculation (This month vs Last month)
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
     const [
       newUsersThisMonth,
-      newJobsThisMonth,
-      newSubscriptionsThisMonth
+      newUsersLastMonth,
+      newSubscriptionsThisMonth,
+      newSubscriptionsLastMonth,
+      revenueThisMonth,
+      revenueLastMonth
     ] = await Promise.all([
       User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-      Job.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-      Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+      User.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
+      Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo }, status: 'completed' }),
+      Subscription.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' }),
+      Subscription.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' } },
+        { $group: { _id: null, sum: { $sum: '$amount' } } }
+      ]),
+      Subscription.aggregate([
+        { $match: { createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' } },
+        { $group: { _id: null, sum: { $sum: '$amount' } } }
+      ])
     ]);
 
-    // Get subscription plan distribution
-    const subscriptionPlans = await User.aggregate([
-      {
-        $group: {
-          _id: '$subscriptionPlan',
-          count: { $sum: 1 }
-        }
-      }
+    const revThis = revenueThisMonth.length > 0 ? revenueThisMonth[0].sum : 0;
+    const revLast = revenueLastMonth.length > 0 ? revenueLastMonth[0].sum : 0;
+
+    // Calculate percentages
+    const calculatePercentage = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const userGrowth = calculatePercentage(newUsersThisMonth, newUsersLastMonth);
+    const subscriptionGrowth = calculatePercentage(newSubscriptionsThisMonth, newSubscriptionsLastMonth);
+    const revenueGrowth = calculatePercentage(revThis, revLast);
+
+    // Get distributions
+    const [subscriptionPlans, userRoles, jobTypes] = await Promise.all([
+      User.aggregate([{ $group: { _id: '$subscriptionPlan', count: { $sum: 1 } } }]),
+      User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+      Job.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
     ]);
 
-    // Get user role distribution
-    const userRoles = await User.aggregate([
-      {
-        $group: {
-          _id: '$role',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Get job type distribution
-    const jobTypes = await Job.aggregate([
-      {
-        $group: {
-          _id: '$type',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    logger.info('Admin dashboard stats retrieved', {
+    logger.info('Admin dashboard stats retrieved with growth metrics', {
       adminId,
       adminRole,
       ip: req.ip
@@ -110,12 +121,13 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
           totalSubscriptions,
           activeSubscriptions,
           totalApplications,
-          pendingApplications
+          pendingApplications,
+          totalRevenue
         },
-        monthlyGrowth: {
-          newUsers: newUsersThisMonth,
-          newJobs: newJobsThisMonth,
-          newSubscriptions: newSubscriptionsThisMonth
+        growth: {
+          users: { count: newUsersThisMonth, percentage: userGrowth },
+          subscriptions: { count: newSubscriptionsThisMonth, percentage: subscriptionGrowth },
+          revenue: { amount: revThis, percentage: revenueGrowth }
         },
         distributions: {
           subscriptionPlans,
@@ -521,6 +533,50 @@ export const getSystemHealth = async (req: AdminRequest, res: Response): Promise
       error: {
         message: 'Failed to get system health metrics'
       },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Trigger job matching and notifications for a specific job
+ */
+export const notifyUsersForJob = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    const { minMatchScore = 40, dryRun = false } = req.body;
+
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        error: { message: 'Job ID is required' },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const stats = await sendJobAlertsForJob({
+      jobId,
+      minMatchScore,
+      dryRun
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Job notification process completed',
+      data: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Manual job notification failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      jobId: req.params.jobId,
+      adminId: req.user?.id
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { message: error instanceof Error ? error.message : 'Failed to trigger notifications' },
       timestamp: new Date().toISOString()
     });
   }

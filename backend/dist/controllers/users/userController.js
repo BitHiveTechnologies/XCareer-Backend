@@ -297,6 +297,18 @@ const updateCurrentUserProfile = async (req, res) => {
             userId: req.user?.id,
             ip: req.ip
         });
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map((err) => err.message);
+            res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Validation failed',
+                    details: messages
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
         res.status(500).json({
             success: false,
             error: {

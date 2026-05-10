@@ -84,4 +84,23 @@ describe('POST /auth/register', () => {
     // profile fields will be absent since optional fields missing
     expect(res.body.data.user.email).toBe('noprofile@example.com');
   });
+
+  it('should return 400 for an invalid email format', async () => {
+    const res = await request(app)
+      .post(`${BASE}/register`)
+      .send({ email: 'invalid-email', password: 'Password123!', name: 'Invalid' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('should return 400 for a weak password', async () => {
+    // Assuming password must be at least 8 chars with a number/special char
+    const res = await request(app)
+      .post(`${BASE}/register`)
+      .send({ email: 'weak@example.com', password: '123', name: 'Weak' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
 });
