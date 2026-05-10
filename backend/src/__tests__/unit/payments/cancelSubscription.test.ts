@@ -24,8 +24,7 @@ async function createActiveSubscription(userId: string, plan = 'premium') {
     plan,
     amount: plan === 'premium' ? 99 : 49,
     orderId: `order_cancel_${Date.now()}`,
-    paymentSessionId: 'session_cancel',
-    paymentStatus: 'SUCCESS',
+    paymentId: 'test_pay_id',
     status: 'completed',
     startDate: now,
     endDate: end

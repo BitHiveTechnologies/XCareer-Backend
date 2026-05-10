@@ -17,8 +17,10 @@ export interface EmailTemplate {
 export interface EmailData {
   to: string;
   subject: string;
-  template: string;
-  context: Record<string, any>;
+  template?: string;
+  context?: Record<string, any>;
+  html?: string;
+  text?: string;
   attachments?: Array<{
     filename: string;
     content: string | Buffer;
@@ -124,16 +126,43 @@ export class EmailService {
 
   async sendEmail(emailData: EmailData): Promise<boolean> {
     try {
-      // MOCK BYPASS FOR TESTING
-      logger.info('MOCK EMAIL SUCCESS: Skipping real email send', { to: emailData.to, subject: emailData.subject });
-      return true;
-
-      /*
       if (!this.isInitialized) {
         throw new Error('Email service not initialized');
       }
-      ...
-      */
+
+      let html = emailData.html;
+      let text = emailData.text;
+
+      // If template is provided, render it
+      if (emailData.template) {
+        const templateDelegate = this.templates.get(emailData.template);
+        if (templateDelegate) {
+          html = templateDelegate(emailData.context || {});
+        } else {
+          logger.warn(`Template ${emailData.template} not found, falling back to direct html/text`);
+        }
+      }
+
+      if (!html) {
+        throw new Error('Email HTML content is missing');
+      }
+
+      const mailOptions = {
+        from: config.EMAIL_USER,
+        to: emailData.to,
+        subject: emailData.subject,
+        html: html,
+        text: text || this.htmlToText(html),
+        attachments: emailData.attachments
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info('Email sent successfully', {
+        messageId: info.messageId,
+        to: emailData.to,
+        subject: emailData.subject
+      });
+      return true;
     } catch (error: any) {
       logger.error('Failed to send email', {
         error: error instanceof Error ? error.message : 'Unknown error',

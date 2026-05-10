@@ -121,7 +121,7 @@ describe('POST /payments/create-order', () => {
     const sub = await Subscription.findOne({});
     expect(sub).not.toBeNull();
     expect(sub?.plan).toBe('enterprise');
-    expect(sub?.paymentStatus).toBe('CREATED');
+    expect(sub?.status).toBe('pending');
   });
 
   it('should create order for all three valid plans', async () => {
