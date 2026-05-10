@@ -19,7 +19,13 @@ const checkSubscriptionStatus = async (userId) => {
             return null;
         }
         const now = new Date();
-        const daysRemaining = Math.ceil((subscription.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        // Calculate days remaining using calendar days (midnight to midnight)
+        const end = new Date(subscription.endDate);
+        const today = new Date();
+        end.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        const diffTime = end.getTime() - today.getTime();
+        const daysRemaining = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
         return {
             isActive: daysRemaining > 0,
             daysRemaining: Math.max(0, daysRemaining),

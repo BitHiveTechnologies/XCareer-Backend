@@ -58,6 +58,7 @@ const authenticate = async (req, res, next) => {
         // Populate req.user with Clerk user data
         req.user = {
             id: clerkUser.id,
+            userId: clerkUser.id,
             email: clerkUser.emailAddresses[0]?.emailAddress || '',
             firstName: clerkUser.firstName || '',
             lastName: clerkUser.lastName || '',
@@ -169,6 +170,7 @@ const optionalAuth = async (req, res, next) => {
                     const userType = userRole === 'admin' || userRole === 'super_admin' ? 'admin' : 'user';
                     req.user = {
                         id: clerkUser.id,
+                        userId: clerkUser.id,
                         email: clerkUser.emailAddresses[0]?.emailAddress || '',
                         firstName: clerkUser.firstName || '',
                         lastName: clerkUser.lastName || '',

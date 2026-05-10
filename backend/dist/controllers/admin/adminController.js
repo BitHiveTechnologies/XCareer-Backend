@@ -1,14 +1,11 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserSubscription = exports.getContentManagement = exports.getUserManagement = exports.getPaymentTracking = exports.getSubscriptionManagement = exports.getSystemHealth = exports.getJobAnalytics = exports.getUserAnalytics = exports.getDashboardStats = void 0;
-const Job_1 = require("../../models/Job");
-const JobApplication_1 = require("../../models/JobApplication");
-const ResumeTemplate_1 = __importDefault(require("../../models/ResumeTemplate"));
-const Subscription_1 = require("../../models/Subscription");
+exports.notifyUsersForJob = exports.getSystemHealth = exports.getJobAnalytics = exports.getUserAnalytics = exports.getDashboardStats = void 0;
 const User_1 = require("../../models/User");
+const Job_1 = require("../../models/Job");
+const Subscription_1 = require("../../models/Subscription");
+const JobApplication_1 = require("../../models/JobApplication");
+const jobAlertService_1 = require("../../services/jobAlertService");
 const logger_1 = require("../../utils/logger");
 /**
  * Get comprehensive dashboard statistics
@@ -38,42 +35,48 @@ const getDashboardStats = async (req, res) => {
             JobApplication_1.JobApplication.countDocuments(),
             JobApplication_1.JobApplication.countDocuments({ status: 'applied' })
         ]);
-        // Get recent activity (last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const [newUsersThisMonth, newJobsThisMonth, newSubscriptionsThisMonth] = await Promise.all([
+        // Revenue calculation
+        const revenueStats = await Subscription_1.Subscription.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _id: null, totalRevenue: { $sum: '$amount' } } }
+        ]);
+        const totalRevenue = revenueStats.length > 0 ? revenueStats[0].totalRevenue : 0;
+        // Growth calculation (This month vs Last month)
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
+        const [newUsersThisMonth, newUsersLastMonth, newSubscriptionsThisMonth, newSubscriptionsLastMonth, revenueThisMonth, revenueLastMonth] = await Promise.all([
             User_1.User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-            Job_1.Job.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+            User_1.User.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
+            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: thirtyDaysAgo }, status: 'completed' }),
+            Subscription_1.Subscription.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' }),
+            Subscription_1.Subscription.aggregate([
+                { $match: { createdAt: { $gte: thirtyDaysAgo }, status: 'completed' } },
+                { $group: { _id: null, sum: { $sum: '$amount' } } }
+            ]),
+            Subscription_1.Subscription.aggregate([
+                { $match: { createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: 'completed' } },
+                { $group: { _id: null, sum: { $sum: '$amount' } } }
+            ])
         ]);
-        // Get subscription plan distribution
-        const subscriptionPlans = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: '$subscriptionPlan',
-                    count: { $sum: 1 }
-                }
-            }
+        const revThis = revenueThisMonth.length > 0 ? revenueThisMonth[0].sum : 0;
+        const revLast = revenueLastMonth.length > 0 ? revenueLastMonth[0].sum : 0;
+        // Calculate percentages
+        const calculatePercentage = (current, previous) => {
+            if (previous === 0)
+                return current > 0 ? 100 : 0;
+            return Math.round(((current - previous) / previous) * 100);
+        };
+        const userGrowth = calculatePercentage(newUsersThisMonth, newUsersLastMonth);
+        const subscriptionGrowth = calculatePercentage(newSubscriptionsThisMonth, newSubscriptionsLastMonth);
+        const revenueGrowth = calculatePercentage(revThis, revLast);
+        // Get distributions
+        const [subscriptionPlans, userRoles, jobTypes] = await Promise.all([
+            User_1.User.aggregate([{ $group: { _id: '$subscriptionPlan', count: { $sum: 1 } } }]),
+            User_1.User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+            Job_1.Job.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }])
         ]);
-        // Get user role distribution
-        const userRoles = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: '$role',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        // Get job type distribution
-        const jobTypes = await Job_1.Job.aggregate([
-            {
-                $group: {
-                    _id: '$type',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        logger_1.logger.info('Admin dashboard stats retrieved', {
+        logger_1.logger.info('Admin dashboard stats retrieved with growth metrics', {
             adminId,
             adminRole,
             ip: req.ip
@@ -89,12 +92,13 @@ const getDashboardStats = async (req, res) => {
                     totalSubscriptions,
                     activeSubscriptions,
                     totalApplications,
-                    pendingApplications
+                    pendingApplications,
+                    totalRevenue
                 },
-                monthlyGrowth: {
-                    newUsers: newUsersThisMonth,
-                    newJobs: newJobsThisMonth,
-                    newSubscriptions: newSubscriptionsThisMonth
+                growth: {
+                    users: { count: newUsersThisMonth, percentage: userGrowth },
+                    subscriptions: { count: newSubscriptionsThisMonth, percentage: subscriptionGrowth },
+                    revenue: { amount: revThis, percentage: revenueGrowth }
                 },
                 distributions: {
                     subscriptionPlans,
@@ -412,16 +416,16 @@ const getSystemHealth = async (req, res) => {
         // Get database statistics
         const dbStats = {
             users: await User_1.User.countDocuments(),
-            jobs: await Job_1.Job.countDocuments().catch(() => 0), // Handle if Job model doesn't exist
+            jobs: await Job_1.Job.countDocuments(),
             subscriptions: await Subscription_1.Subscription.countDocuments(),
             applications: await JobApplication_1.JobApplication.countDocuments()
         };
         // Get recent system activity
         const recentActivity = {
-            lastUserRegistration: await User_1.User.findOne().sort({ createdAt: -1 }).select('createdAt').catch(() => null),
-            lastJobPosting: await Job_1.Job.findOne().sort({ createdAt: -1 }).select('createdAt').catch(() => null),
-            lastSubscription: await Subscription_1.Subscription.findOne().sort({ createdAt: -1 }).select('createdAt').catch(() => null),
-            lastApplication: await JobApplication_1.JobApplication.findOne().sort({ createdAt: -1 }).select('createdAt').catch(() => null)
+            lastUserRegistration: await User_1.User.findOne().sort({ createdAt: -1 }).select('createdAt'),
+            lastJobPosting: await Job_1.Job.findOne().sort({ createdAt: -1 }).select('createdAt'),
+            lastSubscription: await Subscription_1.Subscription.findOne().sort({ createdAt: -1 }).select('createdAt'),
+            lastApplication: await JobApplication_1.JobApplication.findOne().sort({ createdAt: -1 }).select('createdAt')
         };
         // Calculate system uptime (simplified)
         const systemUptime = process.uptime();
@@ -476,612 +480,44 @@ const getSystemHealth = async (req, res) => {
 };
 exports.getSystemHealth = getSystemHealth;
 /**
- * Get comprehensive subscription management data
+ * Trigger job matching and notifications for a specific job
  */
-const getSubscriptionManagement = async (req, res) => {
+const notifyUsersForJob = async (req, res) => {
     try {
-        const adminId = req.user?.id;
-        const adminRole = req.user?.role;
-        if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    message: 'Admin access required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        // Get subscription statistics
-        const [totalSubscriptions, activeSubscriptions, cancelledSubscriptions, expiredSubscriptions, failedSubscriptions] = await Promise.all([
-            Subscription_1.Subscription.countDocuments(),
-            Subscription_1.Subscription.countDocuments({ status: 'completed' }),
-            Subscription_1.Subscription.countDocuments({ status: 'cancelled' }),
-            Subscription_1.Subscription.countDocuments({ status: 'expired' }),
-            Subscription_1.Subscription.countDocuments({ status: 'failed' })
-        ]);
-        // Get subscription plan distribution
-        const planDistribution = await Subscription_1.Subscription.aggregate([
-            {
-                $group: {
-                    _id: '$plan',
-                    count: { $sum: 1 },
-                    totalRevenue: { $sum: '$amount' }
-                }
-            }
-        ]);
-        // Get recent subscription activity (last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const recentSubscriptions = await Subscription_1.Subscription.find({
-            createdAt: { $gte: thirtyDaysAgo }
-        })
-            .populate('userId', 'email firstName lastName')
-            .sort({ createdAt: -1 })
-            .limit(20)
-            .select('userId plan status amount startDate endDate createdAt');
-        // Get revenue analytics
-        const revenueAnalytics = await Subscription_1.Subscription.aggregate([
-            {
-                $match: {
-                    status: 'completed',
-                    createdAt: { $gte: thirtyDaysAgo }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    dailyRevenue: { $sum: '$amount' },
-                    subscriptionCount: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-            }
-        ]);
-        // Get expiring subscriptions (next 7 days)
-        const sevenDaysFromNow = new Date();
-        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-        const expiringSubscriptions = await Subscription_1.Subscription.find({
-            status: 'completed',
-            endDate: { $lte: sevenDaysFromNow, $gte: new Date() }
-        })
-            .populate('userId', 'email firstName lastName')
-            .select('userId plan endDate amount');
-        // Get failed payment subscriptions
-        const failedPayments = await Subscription_1.Subscription.find({
-            status: 'failed'
-        })
-            .populate('userId', 'email firstName lastName')
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .select('userId plan amount createdAt');
-        logger_1.logger.info('Subscription management data retrieved', {
-            adminId,
-            adminRole,
-            ip: req.ip
-        });
-        res.status(200).json({
-            success: true,
-            data: {
-                overview: {
-                    totalSubscriptions,
-                    activeSubscriptions,
-                    cancelledSubscriptions,
-                    expiredSubscriptions,
-                    failedSubscriptions
-                },
-                planDistribution,
-                recentSubscriptions,
-                revenueAnalytics,
-                expiringSubscriptions,
-                failedPayments,
-                lastUpdated: new Date().toISOString()
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-    catch (error) {
-        logger_1.logger.error('Get subscription management failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to get subscription management data'
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-};
-exports.getSubscriptionManagement = getSubscriptionManagement;
-/**
- * Get payment tracking and analytics
- */
-const getPaymentTracking = async (req, res) => {
-    try {
-        const adminId = req.user?.id;
-        const adminRole = req.user?.role;
-        if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    message: 'Admin access required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        const { period = '30d' } = req.query;
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        switch (period) {
-            case '7d':
-                startDate.setDate(endDate.getDate() - 7);
-                break;
-            case '30d':
-                startDate.setDate(endDate.getDate() - 30);
-                break;
-            case '90d':
-                startDate.setDate(endDate.getDate() - 90);
-                break;
-            case '1y':
-                startDate.setFullYear(endDate.getFullYear() - 1);
-                break;
-            default:
-                startDate.setDate(endDate.getDate() - 30);
-        }
-        // Get payment statistics
-        const [totalRevenue, successfulPayments, failedPayments, pendingPayments] = await Promise.all([
-            Subscription_1.Subscription.aggregate([
-                {
-                    $match: {
-                        status: 'completed',
-                        createdAt: { $gte: startDate, $lte: endDate }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalRevenue: { $sum: '$amount' }
-                    }
-                }
-            ]),
-            Subscription_1.Subscription.countDocuments({
-                status: 'completed',
-                createdAt: { $gte: startDate, $lte: endDate }
-            }),
-            Subscription_1.Subscription.countDocuments({
-                status: 'failed',
-                createdAt: { $gte: startDate, $lte: endDate }
-            }),
-            Subscription_1.Subscription.countDocuments({
-                status: 'pending',
-                createdAt: { $gte: startDate, $lte: endDate }
-            })
-        ]);
-        // Get revenue by plan
-        const revenueByPlan = await Subscription_1.Subscription.aggregate([
-            {
-                $match: {
-                    status: 'completed',
-                    createdAt: { $gte: startDate, $lte: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: '$plan',
-                    revenue: { $sum: '$amount' },
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        // Get payment trends
-        const paymentTrends = await Subscription_1.Subscription.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate, $lte: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    successfulPayments: {
-                        $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
-                    },
-                    failedPayments: {
-                        $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] }
-                    },
-                    dailyRevenue: {
-                        $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$amount', 0] }
-                    }
-                }
-            },
-            {
-                $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-            }
-        ]);
-        // Get top paying customers
-        const topCustomers = await Subscription_1.Subscription.aggregate([
-            {
-                $match: {
-                    status: 'completed',
-                    createdAt: { $gte: startDate, $lte: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: '$userId',
-                    totalSpent: { $sum: '$amount' },
-                    subscriptionCount: { $sum: 1 }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'user'
-                }
-            },
-            {
-                $unwind: '$user'
-            },
-            {
-                $sort: { totalSpent: -1 }
-            },
-            {
-                $limit: 10
-            },
-            {
-                $project: {
-                    userId: '$_id',
-                    email: '$user.email',
-                    firstName: '$user.firstName',
-                    lastName: '$user.lastName',
-                    totalSpent: 1,
-                    subscriptionCount: 1
-                }
-            }
-        ]);
-        logger_1.logger.info('Payment tracking data retrieved', {
-            adminId,
-            adminRole,
-            period,
-            ip: req.ip
-        });
-        res.status(200).json({
-            success: true,
-            data: {
-                period,
-                dateRange: {
-                    start: startDate.toISOString(),
-                    end: endDate.toISOString()
-                },
-                overview: {
-                    totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-                    successfulPayments,
-                    failedPayments,
-                    pendingPayments
-                },
-                revenueByPlan,
-                paymentTrends,
-                topCustomers,
-                lastUpdated: new Date().toISOString()
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-    catch (error) {
-        logger_1.logger.error('Get payment tracking failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to get payment tracking data'
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-};
-exports.getPaymentTracking = getPaymentTracking;
-/**
- * Get user management data
- */
-const getUserManagement = async (req, res) => {
-    try {
-        const adminId = req.user?.id;
-        const adminRole = req.user?.role;
-        if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    message: 'Admin access required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        const { page = 1, limit = 20, search, subscriptionStatus, role } = req.query;
-        const skip = (Number(page) - 1) * Number(limit);
-        // Build filter object
-        const filter = {};
-        if (search) {
-            filter.$or = [
-                { email: { $regex: search, $options: 'i' } },
-                { firstName: { $regex: search, $options: 'i' } },
-                { lastName: { $regex: search, $options: 'i' } }
-            ];
-        }
-        if (subscriptionStatus) {
-            filter.subscriptionStatus = subscriptionStatus;
-        }
-        if (role) {
-            filter.role = role;
-        }
-        // Get users with pagination
-        const users = await User_1.User.find(filter)
-            .select('-password')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(Number(limit));
-        const totalUsers = await User_1.User.countDocuments(filter);
-        // Get user statistics
-        const userStats = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: null,
-                    totalUsers: { $sum: 1 },
-                    activeUsers: {
-                        $sum: { $cond: [{ $eq: ['$subscriptionStatus', 'active'] }, 1, 0] }
-                    },
-                    completedProfiles: {
-                        $sum: { $cond: ['$isProfileComplete', 1, 0] }
-                    }
-                }
-            }
-        ]);
-        // Get user registration trends
-        const registrationTrends = await User_1.User.aggregate([
-            {
-                $group: {
-                    _id: {
-                        year: { $year: '$createdAt' },
-                        month: { $month: '$createdAt' },
-                        day: { $dayOfMonth: '$createdAt' }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-            }
-        ]);
-        logger_1.logger.info('User management data retrieved', {
-            adminId,
-            adminRole,
-            ip: req.ip
-        });
-        res.status(200).json({
-            success: true,
-            data: {
-                users,
-                pagination: {
-                    currentPage: Number(page),
-                    totalPages: Math.ceil(totalUsers / Number(limit)),
-                    totalUsers,
-                    limit: Number(limit)
-                },
-                statistics: userStats[0] || { totalUsers: 0, activeUsers: 0, completedProfiles: 0 },
-                registrationTrends,
-                lastUpdated: new Date().toISOString()
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-    catch (error) {
-        logger_1.logger.error('Get user management failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to get user management data'
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-};
-exports.getUserManagement = getUserManagement;
-/**
- * Get content management data (resume templates)
- */
-const getContentManagement = async (req, res) => {
-    try {
-        const adminId = req.user?.id;
-        const adminRole = req.user?.role;
-        if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    message: 'Admin access required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        // Get template statistics
-        const [totalTemplates, basicTemplates, premiumTemplates, enterpriseTemplates] = await Promise.all([
-            ResumeTemplate_1.default.countDocuments(),
-            ResumeTemplate_1.default.countDocuments({ subscriptionTier: 'basic' }),
-            ResumeTemplate_1.default.countDocuments({ subscriptionTier: 'premium' }),
-            ResumeTemplate_1.default.countDocuments({ subscriptionTier: 'enterprise' })
-        ]);
-        // Get template analytics
-        const templateAnalytics = await ResumeTemplate_1.default.aggregate([
-            {
-                $group: {
-                    _id: '$subscriptionTier',
-                    count: { $sum: 1 },
-                    totalDownloads: { $sum: '$downloadCount' },
-                    averageRating: { $avg: '$rating' }
-                }
-            }
-        ]);
-        // Get popular templates
-        const popularTemplates = await ResumeTemplate_1.default.find()
-            .sort({ downloadCount: -1 })
-            .limit(10)
-            .select('name subscriptionTier downloadCount rating category');
-        // Get template categories
-        const templateCategories = await ResumeTemplate_1.default.aggregate([
-            {
-                $group: {
-                    _id: '$category',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-        // Get recent template activity
-        const recentTemplates = await ResumeTemplate_1.default.find()
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .select('name subscriptionTier category createdAt downloadCount rating');
-        logger_1.logger.info('Content management data retrieved', {
-            adminId,
-            adminRole,
-            ip: req.ip
-        });
-        res.status(200).json({
-            success: true,
-            data: {
-                overview: {
-                    totalTemplates,
-                    basicTemplates,
-                    premiumTemplates,
-                    enterpriseTemplates
-                },
-                analytics: templateAnalytics,
-                popularTemplates,
-                templateCategories,
-                recentTemplates,
-                lastUpdated: new Date().toISOString()
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-    catch (error) {
-        logger_1.logger.error('Get content management failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to get content management data'
-            },
-            timestamp: new Date().toISOString()
-        });
-    }
-};
-exports.getContentManagement = getContentManagement;
-/**
- * Update user subscription status (admin action)
- */
-const updateUserSubscription = async (req, res) => {
-    try {
-        const adminId = req.user?.id;
-        const adminRole = req.user?.role;
-        if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-            res.status(403).json({
-                success: false,
-                error: {
-                    message: 'Admin access required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        const { userId } = req.params;
-        const { subscriptionStatus, subscriptionPlan, reason } = req.body;
-        if (!userId || !subscriptionStatus) {
+        const { jobId } = req.params;
+        const { minMatchScore = 40, dryRun = false } = req.body;
+        if (!jobId) {
             res.status(400).json({
                 success: false,
-                error: {
-                    message: 'User ID and subscription status are required'
-                },
+                error: { message: 'Job ID is required' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
-        // Find the user
-        const user = await User_1.User.findById(userId);
-        if (!user) {
-            res.status(404).json({
-                success: false,
-                error: {
-                    message: 'User not found'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-        // Update user subscription
-        const updateData = { subscriptionStatus };
-        if (subscriptionPlan) {
-            updateData.subscriptionPlan = subscriptionPlan;
-        }
-        const updatedUser = await User_1.User.findByIdAndUpdate(userId, updateData, { new: true, runValidators: true }).select('-password');
-        // Log the admin action
-        logger_1.logger.info('User subscription updated by admin', {
-            adminId,
-            adminRole,
-            targetUserId: userId,
-            oldStatus: user.subscriptionStatus,
-            newStatus: subscriptionStatus,
-            reason,
-            ip: req.ip
+        const stats = await (0, jobAlertService_1.sendJobAlertsForJob)({
+            jobId,
+            minMatchScore,
+            dryRun
         });
         res.status(200).json({
             success: true,
-            data: {
-                user: updatedUser,
-                message: 'User subscription updated successfully'
-            },
+            message: 'Job notification process completed',
+            data: stats,
             timestamp: new Date().toISOString()
         });
     }
     catch (error) {
-        logger_1.logger.error('Update user subscription failed', {
+        logger_1.logger.error('Manual job notification failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
+            jobId: req.params.jobId,
+            adminId: req.user?.id
         });
         res.status(500).json({
             success: false,
-            error: {
-                message: 'Failed to update user subscription'
-            },
+            error: { message: error instanceof Error ? error.message : 'Failed to trigger notifications' },
             timestamp: new Date().toISOString()
         });
     }
 };
-exports.updateUserSubscription = updateUserSubscription;
+exports.notifyUsersForJob = notifyUsersForJob;
 //# sourceMappingURL=adminController.js.map

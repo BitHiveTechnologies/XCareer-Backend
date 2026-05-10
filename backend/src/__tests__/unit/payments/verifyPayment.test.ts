@@ -161,4 +161,46 @@ describe('POST /payments/verify', () => {
     expect(user?.subscriptionPlan).toBe('premium');
     expect(user?.subscriptionStatus).toBe('active');
   });
+
+  it('should return 400 for a replay attack (order already processed)', async () => {
+    const { fetchCashfreeOrderPayments } = await import('../../../utils/paymentService') as any;
+    fetchCashfreeOrderPayments.mockResolvedValue({
+      success: true,
+      payments: [{
+        cf_payment_id: 'pay_replay_001',
+        payment_status: 'SUCCESS',
+        payment_amount: 99
+      }]
+    });
+
+    const { token, orderId } = await createOrderAndGetDetails();
+    
+    // First verification (Successful)
+    await request(app)
+      .post(`${BASE}/verify`)
+      .set(authHeader(token))
+      .send({ orderId });
+
+    // Second verification (Replay)
+    const res = await request(app)
+      .post(`${BASE}/verify`)
+      .set(authHeader(token))
+      .send({ orderId });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/already been processed/i);
+  });
+
+  it('should return 400 when orderId does not exist in DB', async () => {
+    const { token } = await createAuthenticatedUser();
+    const res = await request(app)
+      .post(`${BASE}/verify`)
+      .set(authHeader(token))
+      .send({ orderId: 'non_existent_order_id' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/not found/i);
+  });
 });

@@ -21,11 +21,12 @@ const userProfileSchema = new Schema<IUserProfile>({
     trim: true,
     maxlength: [50, 'Last name cannot exceed 50 characters']
   },
-  fullName: {
+  email: {
     type: String,
-    required: [true, 'Full name is required'],
+    required: [true, 'Email is required'],
+    lowercase: true,
     trim: true,
-    maxlength: [100, 'Full name cannot exceed 100 characters']
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   contactNumber: {
     type: String,
@@ -52,7 +53,6 @@ const userProfileSchema = new Schema<IUserProfile>({
   qualification: {
     type: String,
     required: [true, 'Qualification is required'],
-    default: 'Not specified',
     enum: {
       values: [
         '10th',
@@ -71,8 +71,7 @@ const userProfileSchema = new Schema<IUserProfile>({
         'MBA',
         'MCA',
         'PhD',
-        'Others',
-        'Not specified'
+        'Others'
       ],
       message: 'Please select a valid qualification'
     }
@@ -154,30 +153,76 @@ const userProfileSchema = new Schema<IUserProfile>({
   },
   collegeName: {
     type: String,
-    required: false,
+    required: [true, 'College name is required'],
     trim: true,
-    maxlength: [200, 'College name cannot exceed 200 characters'],
-    default: 'Not specified'
+    maxlength: [200, 'College name cannot exceed 200 characters']
   },
-  skills: [{
+  skills: {
     type: String,
+    default: '',
     trim: true,
-    maxlength: [50, 'Each skill cannot exceed 50 characters']
-  }],
-  linkedinUrl: {
-    type: String,
-    trim: true,
-    match: [/^https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9-]+\/?$/, 'Please enter a valid LinkedIn profile URL']
-  },
-  githubUrl: {
-    type: String,
-    trim: true,
-    match: [/^https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9-]+\/?$/, 'Please enter a valid GitHub profile URL']
+    maxlength: [500, 'Skills cannot exceed 500 characters']
   },
   resumeUrl: {
     type: String,
+    default: '',
     trim: true,
-    match: [/^https?:\/\/.+\.(pdf|doc|docx)$/i, 'Please enter a valid resume URL (PDF, DOC, or DOCX)']
+    validate: {
+      validator: function(v: string) {
+        return v === '' || /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+      },
+      message: 'Please enter a valid URL for resume'
+    }
+  },
+  linkedinUrl: {
+    type: String,
+    default: '',
+    trim: true,
+    validate: {
+      validator: function(v: string) {
+        return v === '' || /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+      },
+      message: 'Please enter a valid LinkedIn URL'
+    }
+  },
+  githubUrl: {
+    type: String,
+    default: '',
+    trim: true,
+    validate: {
+      validator: function(v: string) {
+        return v === '' || /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
+      },
+      message: 'Please enter a valid GitHub URL'
+    }
+  },
+  address: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: [500, 'Address cannot exceed 500 characters']
+  },
+  city: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: [100, 'City cannot exceed 100 characters']
+  },
+  state: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: [100, 'State cannot exceed 100 characters']
+  },
+  pincode: {
+    type: String,
+    default: '',
+    trim: true,
+    match: [/^(|[1-9][0-9]{5})$/, 'Please enter a valid 6-digit pincode']
+  },
+  completionPercentage: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true,
@@ -189,37 +234,9 @@ const userProfileSchema = new Schema<IUserProfile>({
   }
 });
 
-// Pre-save middleware to compute fullName
-userProfileSchema.pre('save', function(next) {
-  if (this.firstName && this.lastName) {
-    this.fullName = `${this.firstName} ${this.lastName}`.trim();
-  }
-  next();
-});
-
-// Pre-update middleware to compute fullName on updates
-userProfileSchema.pre('findOneAndUpdate', function(next) {
-  const update = this.getUpdate() as any;
-  if (update.firstName || update.lastName) {
-    // We need to fetch the current document to get both names
-    this.findOne().then((doc: any) => {
-      if (doc) {
-        const firstName = update.firstName || doc.firstName;
-        const lastName = update.lastName || doc.lastName;
-        if (firstName && lastName) {
-          update.fullName = `${firstName} ${lastName}`.trim();
-        }
-      }
-      next();
-    }).catch(next);
-  } else {
-    next();
-  }
-});
-
 // Indexes for performance
 userProfileSchema.index({ userId: 1 });
-userProfileSchema.index({ fullName: 1 });
+userProfileSchema.index({ email: 1 });
 userProfileSchema.index({ qualification: 1 });
 userProfileSchema.index({ stream: 1 });
 userProfileSchema.index({ yearOfPassout: 1 });
@@ -230,6 +247,27 @@ userProfileSchema.index({ createdAt: -1 });
 // Compound indexes for common queries
 userProfileSchema.index({ qualification: 1, stream: 1, yearOfPassout: 1 });
 userProfileSchema.index({ qualification: 1, stream: 1, cgpaOrPercentage: 1 });
+
+// Middleware to update completion percentage before save
+userProfileSchema.pre('save', function(next) {
+  const requiredFields = [
+    'firstName', 'lastName', 'email', 'contactNumber', 'dateOfBirth',
+    'qualification', 'stream', 'collegeName', 'yearOfPassout', 'cgpaOrPercentage'
+  ];
+  
+  let completedCount = 0;
+  for (const field of requiredFields) {
+    const value = (this as any)[field];
+    if (value !== undefined && value !== null) {
+      if (typeof value === 'string' && value.trim() !== '') completedCount++;
+      else if (typeof value === 'number' && value !== 0) completedCount++;
+      else if (value instanceof Date) completedCount++;
+    }
+  }
+  
+  this.completionPercentage = Math.round((completedCount / requiredFields.length) * 100);
+  next();
+});
 
 // Pre-save middleware to validate custom fields
 userProfileSchema.pre('save', function(next) {
@@ -306,7 +344,10 @@ userProfileSchema.statics.findByCGPARange = function(minValue: number, maxValue:
   });
 };
 
-// Note: fullName is now a real field, not a virtual
+// Virtual for full name
+userProfileSchema.virtual('fullName').get(function() {
+  return (this as any).getFullName();
+});
 
 // Virtual for age
 userProfileSchema.virtual('age').get(function() {

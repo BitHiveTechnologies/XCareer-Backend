@@ -2,19 +2,10 @@ import { Request, Response } from 'express';
 import { UserProvisioningData, UserProvisioningService } from '../services/userProvisioningService';
 import { logger } from '../utils/logger';
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: 'user' | 'admin' | 'super_admin';
-    type: 'user' | 'admin';
-  };
-}
-
 /**
  * Provision a new user (Admin only)
  */
-export const provisionUser = async (req: AuthRequest, res: Response): Promise<void> => {
+export const provisionUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userData: UserProvisioningData = req.body;
 
@@ -80,7 +71,7 @@ export const provisionUser = async (req: AuthRequest, res: Response): Promise<vo
 /**
  * Bulk provision users (Admin only)
  */
-export const bulkProvisionUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+export const bulkProvisionUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { users } = req.body;
 
@@ -148,7 +139,7 @@ export const bulkProvisionUsers = async (req: AuthRequest, res: Response): Promi
 /**
  * Get provisioning statistics (Admin only)
  */
-export const getProvisioningStats = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getProvisioningStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await UserProvisioningService.getProvisioningStats();
 
@@ -177,7 +168,7 @@ export const getProvisioningStats = async (req: AuthRequest, res: Response): Pro
 /**
  * Provision user from external system (Admin only)
  */
-export const provisionFromExternal = async (req: AuthRequest, res: Response): Promise<void> => {
+export const provisionFromExternal = async (req: Request, res: Response): Promise<void> => {
   try {
     const { source, data } = req.body;
 
@@ -315,7 +306,7 @@ export const provisionFromExternal = async (req: AuthRequest, res: Response): Pr
 /**
  * Test user provisioning (Admin only)
  */
-export const testProvisioning = async (req: AuthRequest, res: Response): Promise<void> => {
+export const testProvisioning = async (req: Request, res: Response): Promise<void> => {
   try {
     const testData: UserProvisioningData = {
       email: `test_${Date.now()}@example.com`,

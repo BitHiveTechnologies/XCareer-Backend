@@ -5,19 +5,8 @@ import { emailQueueService } from '../../utils/emailQueue';
 import { User } from '../../models/User';
 import { Job } from '../../models/Job';
 
-// Extend Request to include user from Clerk middleware
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    role: 'user' | 'admin' | 'super_admin';
-    type: 'user' | 'admin';
-    clerkUserId: string;
-    metadata?: Record<string, any>;
-  };
-}
+import { AuthenticatedRequest } from '../../types/express';
+
 
 /**
  * Send welcome email to new user

@@ -1,14 +1,14 @@
 import express from 'express';
 import Joi from 'joi';
 import {
-    changePassword,
-    getCurrentUser,
-    login,
-    logout,
-    refreshToken,
-    register
+  register,
+  login,
+  refreshToken,
+  logout,
+  getCurrentUser,
+  changePassword
 } from '../../controllers/auth/authController';
-import { authenticate } from '../../middleware/jwtAuth';
+import { authenticate } from '../../middleware/auth';
 import { validate } from '../../middleware/validation';
 
 const router = express.Router();
@@ -35,21 +35,28 @@ router.post('/register',
         'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
         'any.required': 'Password is required'
       }),
-      mobile: Joi.string().pattern(/^[6-9]\d{9}$/).optional().messages({
-        'string.pattern.base': 'Please provide a valid Indian mobile number'
+      mobile: Joi.string().pattern(/^[6-9]\d{9}$/).required().messages({
+        'string.pattern.base': 'Please provide a valid Indian mobile number',
+        'any.required': 'Mobile number is required'
       }),
-      qualification: Joi.string().optional(),
-      stream: Joi.string().optional(),
-      yearOfPassout: Joi.number().integer().min(2000).max(new Date().getFullYear() + 5).optional().messages({
+      qualification: Joi.string().required().messages({
+        'any.required': 'Qualification is required'
+      }),
+      stream: Joi.string().required().messages({
+        'any.required': 'Stream is required'
+      }),
+      yearOfPassout: Joi.number().integer().min(2000).max(new Date().getFullYear() + 5).required().messages({
         'number.base': 'Year of passout must be a number',
         'number.integer': 'Year of passout must be an integer',
         'number.min': 'Year of passout must be 2000 or later',
-        'number.max': 'Year of passout cannot be more than 5 years in the future'
+        'number.max': 'Year of passout cannot be more than 5 years in the future',
+        'any.required': 'Year of passout is required'
       }),
-      cgpaOrPercentage: Joi.number().min(0).max(100).optional().messages({
+      cgpaOrPercentage: Joi.number().min(0).max(100).required().messages({
         'number.base': 'CGPA/Percentage must be a number',
         'number.min': 'CGPA/Percentage cannot be negative',
-        'number.max': 'CGPA/Percentage cannot exceed 100'
+        'number.max': 'CGPA/Percentage cannot exceed 100',
+        'any.required': 'CGPA/Percentage is required'
       })
     })
   }),

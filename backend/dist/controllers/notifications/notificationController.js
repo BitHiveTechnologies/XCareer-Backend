@@ -7,6 +7,7 @@ exports.bulkCreateNotifications = exports.createNotification = exports.getNotifi
 const Notification_1 = __importDefault(require("../../models/Notification"));
 const User_1 = require("../../models/User");
 const logger_1 = require("../../utils/logger");
+// Extend Request to include user from JWT middleware
 /**
  * Get user notifications with filtering and pagination
  */

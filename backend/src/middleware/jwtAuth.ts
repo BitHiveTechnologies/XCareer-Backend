@@ -1,5 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
-import { verifyToken as verifyJWT } from '../utils/jwt';
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '../utils/jwt';
+import { config } from '../config/environment';
 import { logger } from '../utils/logger';
 
 // Extend Express Request interface to include user
@@ -8,6 +9,7 @@ declare global {
     interface Request {
       user?: {
         id: string;
+        userId: string;
         email: string;
         firstName?: string;
         lastName?: string;
@@ -20,7 +22,9 @@ declare global {
   }
 }
 
-// JWT utility functions are imported from '../utils/jwt'
+const JWT_SECRET = config.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
+const JWT_EXPIRES_IN = config.JWT_EXPIRES_IN || '24h'; // 24 hours by default
 
 /**
  * Core JWT authentication middleware
@@ -43,32 +47,20 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     try {
-      // Verify the token using JWT utility
-      const decoded = verifyJWT(token);
-      
-      logger.info('JWT middleware - Token decoded', {
-        decoded,
-        userIdFromDecoded: decoded.userId,
-        idFromDecoded: decoded.userId // using userId as it's the correct field
-      });
+      // Verify the token
+      const decoded = verifyToken(token);
       
       // Populate req.user with decoded token data
       req.user = {
-        id: decoded.userId, // JWT utility uses userId field
+        id: decoded.id || decoded.userId,
+        userId: decoded.userId || decoded.id,
         email: decoded.email,
-        firstName: '', // JWT utility doesn't include firstName/lastName
-        lastName: '', // JWT utility doesn't include firstName/lastName
+        firstName: decoded.firstName,
+        lastName: decoded.lastName,
         role: decoded.role,
-        type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
-        metadata: {}
+        type: decoded.type,
+        metadata: decoded.metadata
       };
-
-      logger.info('JWT middleware - User populated', {
-        reqUser: req.user,
-        userId: req.user.id,
-        email: req.user.email,
-        role: req.user.role
-      });
 
       logger.info('User authenticated successfully', {
         userId: req.user.id,
@@ -183,17 +175,18 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.substring(7);
     
     try {
-      // Try to verify the token using JWT utility, but don't fail if invalid
-      const decoded = verifyJWT(token);
+      // Try to verify the token, but don't fail if invalid
+      const decoded = verifyToken(token);
       
       req.user = {
-        id: decoded.userId,
+        id: decoded.id || decoded.userId,
+        userId: decoded.userId || decoded.id,
         email: decoded.email,
-        firstName: '',
-        lastName: '',
+        firstName: decoded.firstName,
+        lastName: decoded.lastName,
         role: decoded.role,
-        type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
-        metadata: {}
+        type: decoded.type,
+        metadata: decoded.metadata
       };
     } catch (error) {
       // Token verification failed, continue without user

@@ -1,16 +1,5 @@
 import { Request, Response } from 'express';
-interface AdminRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        role: 'user' | 'admin' | 'super_admin';
-        type: 'user' | 'admin';
-        clerkUserId: string;
-        metadata?: Record<string, any>;
-    };
-}
+import { AdminRequest } from '../../types/express';
 /**
  * Get comprehensive dashboard statistics
  */
@@ -28,24 +17,7 @@ export declare const getJobAnalytics: (req: AdminRequest, res: Response) => Prom
  */
 export declare const getSystemHealth: (req: AdminRequest, res: Response) => Promise<void>;
 /**
- * Get comprehensive subscription management data
+ * Trigger job matching and notifications for a specific job
  */
-export declare const getSubscriptionManagement: (req: AdminRequest, res: Response) => Promise<void>;
-/**
- * Get payment tracking and analytics
- */
-export declare const getPaymentTracking: (req: AdminRequest, res: Response) => Promise<void>;
-/**
- * Get user management data
- */
-export declare const getUserManagement: (req: AdminRequest, res: Response) => Promise<void>;
-/**
- * Get content management data (resume templates)
- */
-export declare const getContentManagement: (req: AdminRequest, res: Response) => Promise<void>;
-/**
- * Update user subscription status (admin action)
- */
-export declare const updateUserSubscription: (req: AdminRequest, res: Response) => Promise<void>;
-export {};
+export declare const notifyUsersForJob: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=adminController.d.ts.map

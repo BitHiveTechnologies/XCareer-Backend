@@ -36,47 +36,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const dotenv_1 = __importDefault(require("dotenv"));
-// Load environment variables immediately
-dotenv_1.default.config();
-const compression_1 = __importDefault(require("compression"));
-const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("./config/database");
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFound_1 = require("./middleware/notFound");
-const rateLimiter_1 = require("./middleware/rateLimiter");
-const requestLimiter_1 = require("./middleware/requestLimiter");
-const security_1 = require("./middleware/security");
-const indexingService_1 = require("./services/indexingService");
 // Import all models to ensure they are registered with mongoose
 require("./models");
+// Load environment variables
+dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env['PORT'] || 5000;
-// Enable gzip compression
-app.use((0, compression_1.default)());
-// Enhanced Security Middleware
-app.use((0, helmet_1.default)({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-        },
-    },
-    crossOriginEmbedderPolicy: false
-})); // Enhanced security headers
-// Request size and timeout limits
-app.use((0, requestLimiter_1.requestSizeLimiter)(2 * 1024 * 1024)); // 2MB limit
-app.use((0, requestLimiter_1.requestTimeout)(30000)); // 30 second timeout
-// Security middleware
-app.use(security_1.securityMiddleware);
-app.use(security_1.suspiciousActivityMiddleware);
-// Rate limiting
-app.use(rateLimiter_1.apiLimiter);
+// Middleware
+app.use((0, helmet_1.default)()); // Security headers
 // Enhanced CORS configuration
 const allowedOrigins = [
     'http://localhost:3000',
@@ -120,22 +95,17 @@ app.use((0, cors_1.default)({
         'Accept',
         'Authorization',
         'Cache-Control',
-        'Pragma',
-        'x-webhook-signature',
-        'x-webhook-timestamp',
-        'x-api-version',
-        'x-client-id',
-        'x-client-secret'
+        'Pragma'
     ],
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use((0, morgan_1.default)('combined')); // Logging
 app.use(express_1.default.json({
     limit: '10mb',
-    verify: (req, _res, buf) => {
-        req.rawBody = buf.toString('utf8');
+    verify: (req, res, buf) => {
+        req.rawBody = buf.toString();
     }
-})); // Body parser with raw payload capture for webhooks
+})); // Body parser
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -232,8 +202,6 @@ const startServer = async () => {
     try {
         // Connect to MongoDB
         await (0, database_1.connectDB)();
-        // Initialize database indexes
-        await (0, indexingService_1.createIndexes)();
         app.listen(PORT, () => {
             console.log(`🚀 NotifyX Backend server running on port ${PORT}`);
             console.log(`📊 Health check: http://localhost:${PORT}/health`);

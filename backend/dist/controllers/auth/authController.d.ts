@@ -1,16 +1,5 @@
 import { Request, Response } from 'express';
-export interface AuthRequest extends Request {
-    user?: {
-        id: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        role: 'user' | 'admin' | 'super_admin';
-        type: 'user' | 'admin';
-        clerkUserId?: string;
-        metadata?: any;
-    };
-}
+import { AuthenticatedRequest as AuthRequest } from '../../types/express';
 /**
  * User registration
  */

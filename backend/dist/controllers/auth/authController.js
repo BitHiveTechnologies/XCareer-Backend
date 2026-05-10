@@ -5,10 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.changePassword = exports.getCurrentUser = exports.logout = exports.refreshToken = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const logger_1 = require("../../utils/logger");
+const jwt_1 = require("../../utils/jwt");
 const User_1 = require("../../models/User");
 const UserProfile_1 = require("../../models/UserProfile");
-const jwt_1 = require("../../utils/jwt");
-const logger_1 = require("../../utils/logger");
 /**
  * User registration
  */
@@ -29,43 +29,40 @@ const register = async (req, res) => {
         }
         // Create user (password will be hashed by User model pre-save middleware)
         const user = new User_1.User({
+            name,
             email,
             password,
+            mobile,
             subscriptionPlan: 'basic',
             subscriptionStatus: 'inactive'
         });
         await user.save();
-        // Create user profile only if minimum mandatory profile fields are provided
-        let userProfile = null;
-        const hasRequiredProfileFields = (typeof mobile === 'string' && mobile.trim() !== '' &&
-            typeof qualification === 'string' && qualification.trim() !== '' &&
-            typeof stream === 'string' && stream.trim() !== '' &&
-            typeof yearOfPassout !== 'undefined' &&
-            typeof cgpaOrPercentage !== 'undefined');
-        if (hasRequiredProfileFields) {
-            userProfile = new UserProfile_1.UserProfile({
-                userId: user._id,
-                firstName: name.split(' ')[0] || name,
-                lastName: name.split(' ').slice(1).join(' ') || '',
-                fullName: name, // pre-save will compute too
-                contactNumber: mobile,
-                dateOfBirth: new Date('1995-01-01'), // default valid DOB
-                qualification,
-                stream,
-                yearOfPassout,
-                cgpaOrPercentage,
-                collegeName: 'Not specified'
-            });
-            await userProfile.save();
-        }
+        // Create user profile
+        const userProfile = new UserProfile_1.UserProfile({
+            userId: user._id,
+            firstName: name.split(' ')[0] || name,
+            lastName: name.split(' ').slice(1).join(' ') || '',
+            email,
+            contactNumber: mobile,
+            dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
+            qualification,
+            stream,
+            yearOfPassout,
+            cgpaOrPercentage,
+            collegeName: 'Not specified' // Default value, can be updated later
+        });
+        await userProfile.save();
         // Generate tokens
         const tokenPayload = {
+            id: user._id.toString(),
             userId: user._id.toString(),
             email: user.email,
-            role: 'user'
+            role: 'user',
+            type: 'user'
         };
         const accessToken = (0, jwt_1.generateToken)(tokenPayload);
         const refreshToken = (0, jwt_1.generateRefreshToken)({
+            id: user._id.toString(),
             userId: user._id.toString(),
             tokenVersion: 0
         });
@@ -79,12 +76,12 @@ const register = async (req, res) => {
             data: {
                 user: {
                     id: user._id,
+                    name: user.name,
                     email: user.email,
-                    role: 'user',
-                    firstName: userProfile?.firstName,
-                    lastName: userProfile?.lastName,
-                    fullName: userProfile?.fullName,
-                    contactNumber: userProfile?.contactNumber
+                    role: user.role,
+                    subscriptionStatus: user.subscriptionStatus,
+                    subscriptionPlan: user.subscriptionPlan,
+                    mustChangePassword: user.mustChangePassword
                 },
                 accessToken,
                 refreshToken,
@@ -115,8 +112,10 @@ exports.register = register;
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(`[LOGIN DEBUG] Attempting login for email: ${email}`);
         // Find user
         const user = await User_1.User.findOne({ email }).select('+password');
+        console.log(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
         if (!user) {
             res.status(401).json({
                 success: false,
@@ -128,7 +127,9 @@ const login = async (req, res) => {
             return;
         }
         // Check password
+        console.log(`[LOGIN DEBUG] Comparing passwords...`);
         const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
+        console.log(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
         if (!isPasswordValid) {
             res.status(401).json({
                 success: false,
@@ -152,38 +153,38 @@ const login = async (req, res) => {
         }
         // Generate tokens
         const tokenPayload = {
+            id: user._id.toString(),
             userId: user._id.toString(),
             email: user.email,
-            role: user.role
+            role: user.role,
+            type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user'
         };
         const accessToken = (0, jwt_1.generateToken)(tokenPayload);
         const refreshToken = (0, jwt_1.generateRefreshToken)({
+            id: user._id.toString(),
             userId: user._id.toString(),
             tokenVersion: 0
         });
         // Update subscription status if needed
         if (user.subscriptionStatus === 'inactive') {
-            user.subscriptionStatus = 'active';
-            await user.save();
+            await User_1.User.findByIdAndUpdate(user._id, { subscriptionStatus: 'active' });
         }
         logger_1.logger.info('User logged in successfully', {
             userId: user._id,
             email: user.email,
             ip: req.ip
         });
-        // Get user profile for additional info
-        const userProfile = await UserProfile_1.UserProfile.findOne({ userId: user._id });
         res.status(200).json({
             success: true,
             data: {
                 user: {
                     id: user._id,
+                    name: user.name,
                     email: user.email,
                     role: user.role,
-                    firstName: userProfile?.firstName,
-                    lastName: userProfile?.lastName,
-                    fullName: userProfile?.fullName,
-                    contactNumber: userProfile?.contactNumber
+                    subscriptionStatus: user.subscriptionStatus,
+                    subscriptionPlan: user.subscriptionPlan,
+                    mustChangePassword: user.mustChangePassword
                 },
                 accessToken,
                 refreshToken,
@@ -240,9 +241,11 @@ const refreshToken = async (req, res) => {
         }
         // Generate new access token
         const tokenPayload = {
+            id: user._id.toString(),
             userId: user._id.toString(),
             email: user.email,
-            role: user.role
+            role: user.role,
+            type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user'
         };
         const newAccessToken = (0, jwt_1.generateToken)(tokenPayload);
         logger_1.logger.info('Access token refreshed successfully', {
@@ -349,12 +352,10 @@ const getCurrentUser = async (req, res) => {
             data: {
                 user: {
                     id: user._id,
+                    name: user.name,
                     email: user.email,
                     role: 'user',
-                    firstName: userProfile?.firstName,
-                    lastName: userProfile?.lastName,
-                    fullName: userProfile?.fullName,
-                    contactNumber: userProfile?.contactNumber,
+                    mobile: user.mobile,
                     subscriptionStatus: user.subscriptionStatus,
                     subscriptionPlan: user.subscriptionPlan
                 },
@@ -391,11 +392,6 @@ const changePassword = async (req, res) => {
     try {
         const userId = req.user?.id;
         const { currentPassword, newPassword } = req.body;
-        logger_1.logger.info('Change password attempt', {
-            userId,
-            hasCurrentPassword: !!currentPassword,
-            hasNewPassword: !!newPassword
-        });
         if (!userId) {
             res.status(401).json({
                 success: false,
@@ -408,11 +404,6 @@ const changePassword = async (req, res) => {
         }
         // Find user with password
         const user = await User_1.User.findById(userId).select('+password');
-        logger_1.logger.info('User lookup result', {
-            userId,
-            userFound: !!user,
-            userEmail: user?.email
-        });
         if (!user) {
             res.status(404).json({
                 success: false,
@@ -425,12 +416,6 @@ const changePassword = async (req, res) => {
         }
         // Verify current password
         const isCurrentPasswordValid = await bcryptjs_1.default.compare(currentPassword, user.password);
-        logger_1.logger.info('Password verification result', {
-            userId,
-            isCurrentPasswordValid,
-            hasCurrentPassword: !!currentPassword,
-            hasUserPassword: !!user.password
-        });
         if (!isCurrentPasswordValid) {
             res.status(400).json({
                 success: false,
@@ -441,11 +426,11 @@ const changePassword = async (req, res) => {
             });
             return;
         }
-        // Update password and clear mustChangePassword flag
+        // Update password (hashing is handled by the User model's pre-save hook)
         user.password = newPassword;
         user.mustChangePassword = false;
         await user.save();
-        logger_1.logger.info('Password changed successfully and flag cleared', {
+        logger_1.logger.info('Password changed successfully', {
             userId,
             ip: req.ip
         });

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Subscription Expiring Soon - NotifyX</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #F59E0B; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+        .button { display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+        .warning { background: #FEF3C7; padding: 15px; border-radius: 6px; border-left: 4px solid #F59E0B; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⏰ Subscription Expiring Soon</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{name}}!</h2>
+            <p>We wanted to let you know that your <strong>{{plan}}</strong> subscription will expire in {{daysRemaining}} days.</p>
+            
+            <div class="warning">
+                <h3>⚠️ Don't Miss Out!</h3>
+                <p>When your subscription expires, you'll lose access to:</p>
+                <ul>
+                    {{#each features}}
+                    <li>{{this}}</li>
+                    {{/each}}
+                </ul>
+            </div>
+            
+            <p>To continue enjoying all the benefits of your {{plan}} plan, please renew your subscription before it expires.</p>
+            
+            <a href="{{frontendUrl}}/subscription/renew" class="button">Renew Your Subscription</a>
+            
+            <p>If you have any questions or need assistance, please don't hesitate to contact our support team at {{supportEmail}}.</p>
+            
+            <p>Thank you for being a valued member of the NotifyX community!</p>
+            
+            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>© 2024 NotifyX. All rights reserved.</p>
+            <p>You received this email because your subscription is expiring soon.</p>
+        </div>
+    </div>
+</body>
+</html>

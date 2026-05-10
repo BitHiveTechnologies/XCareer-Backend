@@ -1,6 +1,5 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
-import { logger } from '../utils/logger';
 
 export interface ValidationSchema {
   body?: Joi.ObjectSchema;
@@ -12,24 +11,17 @@ export const validate = (schema: ValidationSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const validationOptions = {
       abortEarly: false,
-      allowUnknown: false, // Changed to false for better security
+      allowUnknown: true,
       stripUnknown: true
     };
 
     const errors: string[] = [];
-    const errorDetails: any[] = [];
 
     // Validate request body
     if (schema.body) {
       const { error } = schema.body.validate(req.body, validationOptions);
       if (error) {
-        const bodyErrors = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value
-        }));
-        errors.push(...bodyErrors.map(e => e.message));
-        errorDetails.push(...bodyErrors);
+        errors.push(...error.details.map(detail => detail.message));
       }
     }
 
@@ -37,13 +29,7 @@ export const validate = (schema: ValidationSchema) => {
     if (schema.query) {
       const { error } = schema.query.validate(req.query, validationOptions);
       if (error) {
-        const queryErrors = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value
-        }));
-        errors.push(...queryErrors.map(e => e.message));
-        errorDetails.push(...queryErrors);
+        errors.push(...error.details.map(detail => detail.message));
       }
     }
 
@@ -51,35 +37,16 @@ export const validate = (schema: ValidationSchema) => {
     if (schema.params) {
       const { error } = schema.params.validate(req.params, validationOptions);
       if (error) {
-        const paramErrors = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message,
-          value: detail.context?.value
-        }));
-        errors.push(...paramErrors.map(e => e.message));
-        errorDetails.push(...paramErrors);
+        errors.push(...error.details.map(detail => detail.message));
       }
     }
 
     if (errors.length > 0) {
-      // Log validation errors for monitoring
-      logger.warn('Validation Error', {
-        url: req.url,
-        method: req.method,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-        errors: errorDetails,
-        body: req.method !== 'GET' ? req.body : undefined,
-        query: req.query,
-        params: req.params
-      });
-
       res.status(400).json({
         success: false,
         error: {
-          message: 'Request validation failed',
-          details: errorDetails,
-          count: errors.length
+          message: 'Validation failed',
+          details: errors
         },
         timestamp: new Date().toISOString()
       });

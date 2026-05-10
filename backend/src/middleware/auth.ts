@@ -1,46 +1,80 @@
-import { NextFunction, Request, Response } from 'express';
-
-// Extend Express Request interface to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        email: string;
-        firstName?: string;
-        lastName?: string;
-        role: 'user' | 'admin' | 'super_admin';
-        type: 'user' | 'admin';
-        clerkUserId?: string;
-        metadata?: any;
-      };
-      userContext?: {
-        id: string;
-        role: string;
-        subscriptionPlan?: string;
-        subscriptionStatus?: string;
-        isActive?: boolean;
-      };
-    }
-  }
-}
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '../utils/jwt';
+import { logger } from '../utils/logger';
 
 /**
- * Basic authentication middleware - placeholder for now
+ * Core JWT authentication middleware
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  // TODO: Implement proper JWT authentication
-  // For now, create a mock admin user for testing job creation
-  req.user = {
-    id: '507f1f77bcf86cd799439011', // Valid ObjectId for testing
-    email: 'admin@example.com',
-    firstName: 'Admin',
-    lastName: 'User',
-    role: 'admin',
-    type: 'admin'
-  };
-  
-  next();
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Authorization header with Bearer token is required'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    try {
+      // Verify the token
+      const decoded = verifyToken(token);
+      
+      // Populate req.user with decoded token data
+      req.user = {
+        id: decoded.id || decoded.userId,
+        userId: decoded.userId || decoded.id,
+        email: decoded.email,
+        firstName: decoded.firstName,
+        lastName: decoded.lastName,
+        role: decoded.role,
+        type: decoded.type,
+        metadata: decoded.metadata
+      };
+
+      logger.info('User authenticated successfully', {
+        userId: req.user.id,
+        email: req.user.email,
+        role: req.user.role,
+        ip: req.ip
+      });
+
+      next();
+    } catch (error) {
+      logger.error('Token verification failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        ip: req.ip
+      });
+
+      res.status(401).json({
+        success: false,
+        error: {
+          message: 'Invalid or expired token'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+  } catch (error) {
+    logger.error('Authentication middleware error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Authentication error'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
 };
 
 /**
@@ -58,7 +92,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
     return;
   }
 
-  if (req.user.type !== 'admin') {
+  if (req.user.type !== 'admin' && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     res.status(403).json({
       success: false,
       error: {
@@ -70,4 +104,79 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   }
 
   next();
+};
+
+/**
+ * Super admin middleware - requires super admin authentication
+ */
+export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: {
+        message: 'Authentication required'
+      },
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  if (req.user.role !== 'super_admin') {
+    res.status(403).json({
+      success: false,
+      error: {
+        message: 'Super admin access required'
+      },
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  next();
+};
+
+/**
+ * Optional authentication middleware - populates user if token exists, but doesn't fail if missing
+ */
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided, continue without user
+      next();
+      return;
+    }
+
+    const token = authHeader.substring(7);
+    
+    try {
+      // Try to verify the token, but don't fail if invalid
+      const decoded = verifyToken(token);
+      
+      req.user = {
+        id: decoded.id || decoded.userId,
+        userId: decoded.userId || decoded.id,
+        email: decoded.email,
+        firstName: decoded.firstName,
+        lastName: decoded.lastName,
+        role: decoded.role,
+        type: decoded.type,
+        metadata: decoded.metadata
+      };
+    } catch (error) {
+      // Token verification failed, continue without user
+      logger.debug('Optional auth failed, continuing without user', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+
+    next();
+  } catch (error) {
+    // Any other error, continue without user
+    logger.debug('Optional auth error, continuing without user', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    next();
+  }
 };

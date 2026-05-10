@@ -45,7 +45,7 @@ const createIndexes = async () => {
         // Note: ResumeTemplate and Notification models are not currently exported from models/index.ts
         // These indexes will be added when those models are properly exported
         // Subscription Model Indexes
-        await createIndexSafely(Subscription_1.Subscription.collection, { userId: 1 }, { unique: true }); // One active subscription per user
+        await createIndexSafely(Subscription_1.Subscription.collection, { userId: 1 }); // Index for fetching user subscriptions
         await createIndexSafely(Subscription_1.Subscription.collection, { status: 1 });
         await createIndexSafely(Subscription_1.Subscription.collection, { plan: 1 });
         await createIndexSafely(Subscription_1.Subscription.collection, { startDate: -1 });

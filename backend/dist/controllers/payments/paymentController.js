@@ -3,315 +3,114 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelSubscription = exports.getPaymentStatus = exports.handleWebhook = exports.getPaymentHistory = exports.verifyPayment = exports.createOrder = void 0;
-const mongoose_1 = __importDefault(require("mongoose"));
-const environment_1 = require("../../config/environment");
-const Subscription_1 = require("../../models/Subscription");
+exports.handleWebhook = exports.getPaymentHistory = exports.getPaymentStatus = exports.verifyPayment = exports.createOrder = void 0;
+const crypto_1 = __importDefault(require("crypto"));
 const User_1 = require("../../models/User");
-const paymentService_1 = require("../../utils/paymentService");
-const userProvisioningService_1 = require("../../services/userProvisioningService");
+const Subscription_1 = require("../../models/Subscription");
 const logger_1 = require("../../utils/logger");
-const getUserByRequest = async (req) => {
-    if (req.user?.id == null)
-        return null;
-    try {
-        // Try by ObjectId first if it's potentially a valid ID
-        if (mongoose_1.default.Types.ObjectId.isValid(req.user.id)) {
-            const byId = await User_1.User.findById(req.user.id);
-            if (byId)
-                return byId;
-        }
-        // Fallback to clerkUserId or other string IDs
-        const byClerk = await User_1.User.findOne({ clerkUserId: req.user.id });
-        if (byClerk)
-            return byClerk;
-        // Last resort: find by email
-        if (req.user?.email) {
-            return await User_1.User.findOne({ email: req.user.email });
-        }
-    }
-    catch (error) {
-        logger_1.logger.error('Error fetching user for payment request', {
-            userId: req.user.id,
-            error: error instanceof Error ? error.message : 'Unknown error'
-        });
-    }
-    return null;
-};
-const normalizePaymentStatus = (status) => {
-    switch ((status || '').toUpperCase()) {
-        case 'SUCCESS':
-            return 'SUCCESS';
-        case 'FAILED':
-            return 'FAILED';
-        case 'USER_DROPPED':
-            return 'USER_DROPPED';
-        case 'REFUNDED':
-            return 'REFUNDED';
-        case 'CANCELLED':
-            return 'CANCELLED';
-        case 'PENDING':
-            return 'PENDING';
-        default:
-            return 'CREATED';
-    }
-};
-const mapPaymentToSubscriptionStatus = (paymentStatus) => {
-    switch (normalizePaymentStatus(paymentStatus)) {
-        case 'SUCCESS':
-            return 'completed';
-        case 'FAILED':
-            return 'failed';
-        case 'REFUNDED':
-            return 'refunded';
-        case 'CANCELLED':
-        case 'USER_DROPPED':
-            return 'cancelled';
-        case 'PENDING':
-        case 'CREATED':
-        default:
-            return 'pending';
-    }
-};
-const buildSubscriptionResponse = (subscription, paymentDetails) => ({
-    id: subscription._id,
-    plan: subscription.plan,
-    status: subscription.status,
-    startDate: subscription.startDate,
-    endDate: subscription.endDate,
-    expiresAt: subscription.endDate,
-    amount: subscription.amount,
-    paymentId: subscription.paymentId,
-    orderId: subscription.orderId,
-    paymentSessionId: subscription.paymentSessionId,
-    paymentStatus: subscription.paymentStatus,
-    isActive: typeof subscription.isActive === 'function' ? subscription.isActive() : subscription.status === 'completed',
-    isExpired: typeof subscription.isExpired === 'function' ? subscription.isExpired() : false,
-    daysRemaining: typeof subscription.getDaysRemaining === 'function' ? subscription.getDaysRemaining() : 0,
-    daysSinceStart: typeof subscription.getDaysSinceStart === 'function' ? subscription.getDaysSinceStart() : 0,
-    features: (0, paymentService_1.getPlanDetails)(subscription.plan)?.features || [],
-    payment: paymentDetails || null
-});
-const upsertSubscriptionFromCashfreePayment = async (params) => {
-    const now = new Date();
-    const endDate = (0, paymentService_1.calculateSubscriptionEndDate)(params.plan, now);
-    const normalizedPaymentStatus = normalizePaymentStatus(params.paymentStatus);
-    const subscriptionStatus = mapPaymentToSubscriptionStatus(normalizedPaymentStatus);
-    let subscription = await Subscription_1.Subscription.findOne({ orderId: params.orderId });
-    let user = await User_1.User.findById(params.userId);
-    if (!user && params.userId.startsWith('temp_')) {
-        // Find user by email from metadata
-        const email = params.metadata?.customerEmail;
-        if (email) {
-            user = await User_1.User.findOne({ email });
-        }
-    }
-    // If user still not found and payment is successful, auto-create using UserProvisioningService
-    if (!user && normalizedPaymentStatus === 'SUCCESS') {
-        const email = params.metadata?.customerEmail;
-        if (email) {
-            logger_1.logger.info('User not found for successful payment, auto-creating via UserProvisioningService', { email, orderId: params.orderId });
-            const provisioningResult = await userProvisioningService_1.UserProvisioningService.provisionUser({
-                email,
-                subscriptionPlan: params.plan,
-                subscriptionStatus: 'active',
-                profileData: {
-                    firstName: params.metadata?.customerName?.split(' ')[0] || 'User',
-                    lastName: params.metadata?.customerName?.split(' ').slice(1).join(' ') || ''
-                },
-                metadata: {
-                    source: 'payment_auto_provisioning',
-                    notes: `Auto-created from payment order ${params.orderId}`
-                }
-            });
-            if (provisioningResult.success && provisioningResult.user) {
-                user = provisioningResult.user;
-                // Link the existing subscription if it was already created
-                if (subscription) {
-                    subscription.userId = user._id;
-                }
-            }
-        }
-    }
-    if (user) {
-        // Ensure params.userId is updated if it was a temp ID
-        params.userId = String(user._id);
-    }
-    else if (normalizedPaymentStatus === 'SUCCESS') {
-        logger_1.logger.error('Failed to find or create user for successful payment', { orderId: params.orderId });
-        // We'll proceed with creating subscription if possible, but it might fail due to lack of userId
-    }
-    if (subscription) {
-        subscription.plan = params.plan;
-        subscription.amount = params.amount;
-        subscription.orderId = params.orderId;
-        subscription.paymentId = params.paymentId || subscription.paymentId || '';
-        subscription.paymentSessionId = params.paymentSessionId || subscription.paymentSessionId || '';
-        subscription.paymentStatus = normalizedPaymentStatus;
-        subscription.status = subscriptionStatus;
-        if (normalizedPaymentStatus === 'SUCCESS') {
-            subscription.startDate = now;
-            subscription.endDate = endDate;
-        }
-        subscription.metadata = {
-            ...subscription.metadata,
-            ...params.metadata,
-            source: params.metadata?.source || subscription.metadata?.source || 'web'
-        };
-    }
-    else {
-        subscription = new Subscription_1.Subscription({
-            userId: params.userId,
-            plan: params.plan,
-            amount: params.amount,
-            orderId: params.orderId,
-            paymentId: params.paymentId || '',
-            paymentSessionId: params.paymentSessionId || '',
-            provider: 'cashfree',
-            paymentStatus: normalizedPaymentStatus,
-            status: subscriptionStatus,
-            startDate: now,
-            endDate,
-            metadata: {
-                source: params.metadata?.source || 'web',
-                campaign: params.metadata?.campaign,
-                referrer: params.metadata?.referrer,
-                notes: params.metadata?.notes
-            }
-        });
-    }
-    await subscription.save();
-    if (normalizedPaymentStatus === 'SUCCESS') {
-        await User_1.User.findByIdAndUpdate(params.userId, {
-            subscriptionPlan: params.plan,
-            subscriptionStatus: 'active',
-            subscriptionStartDate: subscription.startDate,
-            subscriptionEndDate: subscription.endDate
-        });
-    }
-    else if (normalizedPaymentStatus === 'FAILED' || normalizedPaymentStatus === 'USER_DROPPED' || normalizedPaymentStatus === 'CANCELLED') {
-        await User_1.User.findByIdAndUpdate(params.userId, {
-            subscriptionStatus: 'inactive'
-        });
-    }
-    return subscription;
-};
-const resolveCashfreePaymentFromOrder = async (orderId, paymentId) => {
-    const paymentsResult = await (0, paymentService_1.fetchCashfreeOrderPayments)(orderId);
-    if (paymentsResult.success === false) {
-        return { success: false, error: paymentsResult.error };
-    }
-    const payments = (paymentsResult.payments || []);
-    if (paymentId) {
-        const matched = payments.find(payment => payment?.cf_payment_id === paymentId || payment?.payment_id === paymentId);
-        if (matched) {
-            return { success: true, payment: matched };
-        }
-    }
-    const successfulPayment = payments.find(payment => String(payment?.payment_status || payment?.status || '').toUpperCase() === 'SUCCESS');
-    if (successfulPayment) {
-        return { success: true, payment: successfulPayment };
-    }
-    const latest = payments[0];
-    return latest ? { success: true, payment: latest } : { success: false, error: 'No payment found for order' };
-};
+const environment_1 = require("../../config/environment");
+const paymentService_1 = require("../../utils/paymentService");
+const emailService_1 = require("../../utils/emailService");
+const jwt_1 = require("../../utils/jwt");
 const createOrder = async (req, res) => {
     try {
         const { plan, amount, currency = 'INR', email, name } = req.body;
-        let user = await getUserByRequest(req);
-        if (user == null && !email) {
-            res.status(401).json({ success: false, error: { message: 'Authentication required or email must be provided' }, timestamp: new Date().toISOString() });
-            return;
+        const userId = req.user?.id;
+        let userEmail = email || req.user?.email;
+        // Prevent duplicate subscriptions
+        if (userEmail) {
+            const existingUser = await User_1.User.findOne({ email: userEmail });
+            if (existingUser) {
+                const activeSub = await Subscription_1.Subscription.findOne({
+                    userId: existingUser._id,
+                    status: 'completed',
+                    endDate: { $gt: new Date() }
+                });
+                if (activeSub) {
+                    // If the user is trying to buy the SAME plan they already have active
+                    if (activeSub.plan === plan) {
+                        res.status(400).json({
+                            success: false,
+                            error: {
+                                message: `An active ${activeSub.plan} subscription already exists for this email. You cannot purchase the same plan while it is active.`
+                            },
+                            timestamp: new Date().toISOString()
+                        });
+                        return;
+                    }
+                    // If they are buying a different plan (upgrade or downgrade), we allow it
+                    logger_1.logger.info('User is changing subscription plan', {
+                        userId: existingUser._id,
+                        from: activeSub.plan,
+                        to: plan
+                    });
+                }
+            }
         }
-        if ((0, paymentService_1.validateSubscriptionPlan)(plan) === false) {
-            res.status(400).json({ success: false, error: { message: 'Invalid subscription plan' }, timestamp: new Date().toISOString() });
-            return;
-        }
-        const planDetails = (0, paymentService_1.getPlanDetails)(plan);
-        if (planDetails == null) {
-            res.status(400).json({ success: false, error: { message: 'Invalid subscription plan' }, timestamp: new Date().toISOString() });
-            return;
-        }
-        if (Number(amount) !== planDetails.price) {
+        if (!userId && !email) {
             res.status(400).json({
                 success: false,
-                error: { message: `Amount mismatch for ${plan}. Expected ₹${planDetails.price}.` },
+                error: { message: 'Authentication or email required for guest checkout' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
-        // Use user ID if authenticated, else use a placeholder or derived ID
-        const userId = user ? String(user._id) : `temp_${Date.now()}`;
-        const customerEmail = user ? user.email : email;
-        const customerName = user ? user.name : (name || email.split('@')[0]);
-        const createResult = await (0, paymentService_1.createCashfreeOrder)({
-            userId,
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                res.status(400).json({
+                    success: false,
+                    error: { message: 'Invalid email address format' },
+                    timestamp: new Date().toISOString()
+                });
+                return;
+            }
+        }
+        const validPlans = ['basic', 'premium', 'enterprise'];
+        if (!validPlans.includes(plan)) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Invalid subscription plan' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        if (!amount || amount <= 0) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Invalid amount' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        let userName = name;
+        if (userId) {
+            const user = await User_1.User.findById(userId);
+            if (user) {
+                userEmail = user.email;
+                userName = user.name;
+            }
+        }
+        const orderResponse = await (0, paymentService_1.createCashfreeOrder)({
+            userId: userId || '',
             plan,
-            amount: planDetails.price,
+            amount,
             currency,
-            customer: {
-                customerId: userId,
-                email: customerEmail,
-                name: customerName,
-                phone: '9999999999'
-            },
-            notes: {
-                orderNote: `Subscription payment for ${plan}`,
-                customerEmail,
-                customerName
-            },
-            returnUrl: `${environment_1.config.FRONTEND_URL}/profile?payment=success&order_id={order_id}`
+            email: userEmail,
+            name: userName
         });
-        if (createResult.success === false || createResult.order == null) {
+        if (!orderResponse.success) {
             res.status(500).json({
                 success: false,
-                error: { message: createResult.error || 'Failed to create order' },
+                error: { message: orderResponse.error || 'Failed to create order' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
-        const order = createResult.order;
-        const subscription = await upsertSubscriptionFromCashfreePayment({
-            userId,
-            plan,
-            amount: planDetails.price,
-            orderId: order.orderId,
-            paymentSessionId: order.paymentSessionId,
-            paymentStatus: 'CREATED',
-            metadata: {
-                source: 'web',
-                notes: 'Created during Cashfree order initiation'
-            }
-        });
-        logger_1.logger.info('Payment order created', {
-            userId: String(user._id),
-            orderId: order.orderId,
-            cfOrderId: order.cfOrderId,
-            amount: planDetails.price,
-            plan,
-            ip: req.ip
-        });
         res.status(201).json({
             success: true,
             message: 'Order created successfully',
-            data: {
-                order: {
-                    id: order.orderId,
-                    cfOrderId: order.cfOrderId,
-                    paymentSessionId: order.paymentSessionId,
-                    amount: order.amount,
-                    currency: order.currency,
-                    status: order.status,
-                    orderMeta: order.orderMeta,
-                    customerDetails: order.customerDetails,
-                    createdAt: order.createdAt
-                },
-                cashfree: {
-                    mode: environment_1.config.CASHFREE_ENV,
-                    apiVersion: environment_1.config.CASHFREE_API_VERSION
-                },
-                subscription: buildSubscriptionResponse(subscription)
-            },
+            data: orderResponse,
             timestamp: new Date().toISOString()
         });
     }
@@ -321,101 +120,196 @@ const createOrder = async (req, res) => {
             userId: req.user?.id,
             ip: req.ip
         });
-        res.status(500).json({ success: false, error: { message: 'Failed to create order' }, timestamp: new Date().toISOString() });
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to create order' },
+            timestamp: new Date().toISOString()
+        });
     }
 };
 exports.createOrder = createOrder;
 const verifyPayment = async (req, res) => {
     try {
-        const { orderId, paymentId } = req.body;
-        const user = await getUserByRequest(req);
-        if (user == null) {
-            res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
-            return;
-        }
+        const { orderId } = req.body;
+        const authUserId = req.user?.id;
         if (!orderId) {
-            res.status(400).json({ success: false, error: { message: 'orderId is required' }, timestamp: new Date().toISOString() });
+            res.status(400).json({
+                success: false,
+                error: { message: 'Order ID is required' },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        const subscription = await Subscription_1.Subscription.findOne({
-            userId: user._id,
-            $or: [{ orderId }, ...(paymentId ? [{ paymentId }] : [])]
-        });
-        if (subscription == null) {
-            res.status(404).json({ success: false, error: { message: 'Subscription not found for order' }, timestamp: new Date().toISOString() });
+        // Check for replay attack - is this order already processed?
+        const existingSubscription = await Subscription_1.Subscription.findOne({ orderId, status: 'completed' });
+        if (existingSubscription) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'This order has already been processed' },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        const paymentResult = await resolveCashfreePaymentFromOrder(orderId, paymentId);
-        if (paymentResult.success === false || paymentResult.payment == null) {
-            res.status(200).json({
-                success: true,
-                message: 'Payment is still processing',
-                data: { status: 'processing', subscription: buildSubscriptionResponse(subscription), payment: null },
+        const paymentResult = await (0, paymentService_1.fetchPaymentDetails)(orderId);
+        if (!paymentResult.success || !paymentResult.payment) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Payment not found or failed to fetch' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
         const payment = paymentResult.payment;
-        const paymentStatus = String(payment.payment_status || payment.status || '').toUpperCase();
-        if (paymentStatus === 'SUCCESS') {
-            const activeSubscription = await upsertSubscriptionFromCashfreePayment({
-                userId: String(user._id),
-                plan: subscription.plan,
-                amount: subscription.amount,
-                orderId,
-                paymentId: payment.cf_payment_id || payment.payment_id,
-                paymentStatus,
-                paymentSessionId: subscription.paymentSessionId,
-                metadata: { source: 'api', notes: 'Activated via client-side confirmation after checkout' }
-            });
-            const paymentDetails = {
-                id: payment.cf_payment_id || payment.payment_id,
-                status: paymentStatus,
-                amount: payment.payment_amount,
-                currency: payment.payment_currency || 'INR',
-                message: payment.payment_message,
-                createdAt: payment.payment_time
-            };
-            res.status(200).json({
-                success: true,
-                message: 'Payment verified and subscription activated',
-                data: {
-                    status: 'completed',
-                    subscription: buildSubscriptionResponse(activeSubscription, paymentDetails),
-                    payment: paymentDetails
-                },
+        if (payment.order_status !== 'PAID') {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Payment not completed' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
-        const updatedSubscription = await upsertSubscriptionFromCashfreePayment({
-            userId: String(user._id),
-            plan: subscription.plan,
-            amount: subscription.amount,
-            orderId,
-            paymentId: payment.cf_payment_id || payment.payment_id,
-            paymentStatus,
-            paymentSessionId: subscription.paymentSessionId,
-            metadata: { source: 'api', notes: 'Updated after client-side confirmation' }
+        const email = payment.customer_details?.customer_email;
+        const tags = payment.order_tags || {};
+        const plan = tags.plan || 'premium';
+        const amount = payment.order_amount;
+        const paymentId = payment.payment_session_id || orderId; // or appropriate payment ID
+        let user = null;
+        let isNewUser = false;
+        let tempPassword = '';
+        if (authUserId) {
+            user = await User_1.User.findById(authUserId);
+        }
+        if (!user && email) {
+            user = await User_1.User.findOne({ email });
+        }
+        if (!user && email) {
+            // Create guest user
+            tempPassword = Math.random().toString(36).slice(-8) + 'X!';
+            logger_1.logger.info('TEST_CREDENTIALS', { email, password: tempPassword });
+            require('fs').writeFileSync('/Users/apple/Desktop/Careerx/test_creds.txt', `Email: ${email}\nPassword: ${tempPassword}`);
+            user = new User_1.User({
+                email,
+                name: payment.customer_details?.customer_name || 'User',
+                password: tempPassword,
+                role: 'user',
+                mustChangePassword: true
+            });
+            await user.save();
+            isNewUser = true;
+        }
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'User could not be determined or created' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        const userId = user._id;
+        let subscription = await Subscription_1.Subscription.findOne({ userId });
+        const now = new Date();
+        const endDate = (0, paymentService_1.calculateSubscriptionEndDate)(plan, now);
+        if (subscription) {
+            subscription.plan = plan;
+            subscription.amount = amount;
+            subscription.paymentId = paymentId;
+            subscription.orderId = orderId;
+            subscription.status = 'completed';
+            subscription.startDate = now;
+            subscription.endDate = endDate;
+            subscription.updatedAt = now;
+        }
+        else {
+            subscription = new Subscription_1.Subscription({
+                userId,
+                plan,
+                amount,
+                paymentId,
+                orderId,
+                status: 'completed',
+                startDate: now,
+                endDate
+            });
+        }
+        await subscription.save();
+        await User_1.User.findByIdAndUpdate(userId, {
+            subscriptionPlan: plan,
+            subscriptionStatus: 'active',
+            subscriptionStartDate: now,
+            subscriptionEndDate: endDate
         });
-        const responseStatus = paymentStatus === 'SUCCESS'
-            ? 'completed'
-            : paymentStatus === 'FAILED' || paymentStatus === 'USER_DROPPED' || paymentStatus === 'CANCELLED' || paymentStatus === 'REFUNDED'
-                ? 'failed'
-                : 'processing';
+        // Generate tokens for auto-login
+        const tokenPayload = {
+            id: user._id.toString(),
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user'
+        };
+        const accessToken = (0, jwt_1.generateToken)(tokenPayload);
+        const refreshToken = (0, jwt_1.generateRefreshToken)({
+            id: user._id.toString(),
+            userId: user._id.toString(),
+            tokenVersion: 0
+        });
+        logger_1.logger.info('Payment verified and subscription created', {
+            userId,
+            orderId,
+            plan,
+            amount,
+            ip: req.ip
+        });
+        // Send confirmation email
+        const confirmationHtml = `
+      <h1>Your NotifyX ${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription is Active!</h1>
+      <p>Amount Paid: ₹${amount}</p>
+      <p>Valid Until: ${endDate.toDateString()}</p>
+      <p>Thank you for choosing NotifyX.</p>
+    `;
+        await emailService_1.emailService.sendEmail({
+            to: email,
+            subject: `Your NotifyX ${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription is Active!`,
+            template: 'subscription-confirmation',
+            context: { html: confirmationHtml, text: 'Your subscription is active.' }
+        }).catch(err => logger_1.logger.error('Failed to send confirmation email', { error: err }));
+        if (isNewUser) {
+            const credentialsHtml = `
+        <h1>Your X Career Account Credentials</h1>
+        <p>Login URL: <a href="${environment_1.config.FRONTEND_URL}/login">${environment_1.config.FRONTEND_URL}/login</a></p>
+        <p>Email: ${email}</p>
+        <p>Password: ${tempPassword}</p>
+        <p>Please change your password after your first login.</p>
+      `;
+            await emailService_1.emailService.sendEmail({
+                to: email,
+                subject: 'Your X Career Account Credentials',
+                template: 'login-credentials',
+                context: { html: credentialsHtml, text: `Email: ${email}\nPassword: ${tempPassword}` }
+            }).catch(err => logger_1.logger.error('Failed to send credentials email', { error: err }));
+        }
         res.status(200).json({
             success: true,
-            message: 'Payment is not complete yet',
+            message: 'Payment verified and subscription activated',
             data: {
-                status: responseStatus,
-                subscription: buildSubscriptionResponse(updatedSubscription),
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                },
+                accessToken,
+                refreshToken,
+                subscription: {
+                    id: subscription._id,
+                    plan: subscription.plan,
+                    status: subscription.status,
+                    startDate: subscription.startDate,
+                    endDate: subscription.endDate,
+                    amount: subscription.amount
+                },
                 payment: {
-                    id: payment.cf_payment_id || payment.payment_id,
-                    status: paymentStatus,
-                    amount: payment.payment_amount,
-                    currency: payment.payment_currency || 'INR',
-                    message: payment.payment_message,
-                    createdAt: payment.payment_time
+                    orderId,
+                    status: payment.order_status
                 }
             },
             timestamp: new Date().toISOString()
@@ -427,281 +321,179 @@ const verifyPayment = async (req, res) => {
             userId: req.user?.id,
             ip: req.ip
         });
-        res.status(500).json({ success: false, error: { message: 'Payment verification failed' }, timestamp: new Date().toISOString() });
-    }
-};
-exports.verifyPayment = verifyPayment;
-const getPaymentHistory = async (req, res) => {
-    try {
-        const user = await getUserByRequest(req);
-        const { page = 1, limit = 10 } = req.query;
-        if (user == null) {
-            res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
-            return;
-        }
-        const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 10;
-        const skip = (pageNum - 1) * limitNum;
-        const subscriptions = await Subscription_1.Subscription.find({ userId: user._id }).sort({ createdAt: -1 }).skip(skip).limit(limitNum);
-        const total = await Subscription_1.Subscription.countDocuments({ userId: user._id });
-        const paymentHistory = subscriptions.map(subscription => ({
-            id: subscription._id,
-            plan: subscription.plan,
-            status: subscription.status,
-            amount: subscription.amount,
-            currency: 'INR',
-            paymentStatus: subscription.paymentStatus,
-            paymentId: subscription.paymentId,
-            orderId: subscription.orderId,
-            paymentSessionId: subscription.paymentSessionId,
-            startDate: subscription.startDate,
-            endDate: subscription.endDate,
-            createdAt: subscription.createdAt
-        }));
-        res.status(200).json({
-            success: true,
-            data: {
-                subscriptions: paymentHistory,
-                payments: paymentHistory,
-                pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
-            },
+        res.status(500).json({
+            success: false,
+            error: { message: 'Payment verification failed' },
             timestamp: new Date().toISOString()
         });
     }
-    catch (error) {
-        logger_1.logger.error('Get payment history failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            userId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({ success: false, error: { message: 'Failed to get payment history' }, timestamp: new Date().toISOString() });
-    }
 };
-exports.getPaymentHistory = getPaymentHistory;
-const handleWebhook = async (req, res) => {
-    try {
-        const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
-        const signature = req.headers['x-webhook-signature'];
-        const timestamp = req.headers['x-webhook-timestamp'];
-        const verification = (0, paymentService_1.verifyCashfreeWebhookSignature)(rawBody, signature, timestamp);
-        if (verification.valid === false) {
-            logger_1.logger.warn('Cashfree webhook signature verification failed', {
-                reason: verification.reason,
-                ip: req.ip,
-                userAgent: req.get('User-Agent')
-            });
-            res.status(400).json({ success: false, error: { message: verification.reason || 'Invalid webhook signature' } });
-            return;
-        }
-        const body = req.body;
-        const type = String(body.type || body.event || '').toUpperCase();
-        const data = body.data || body.payload || body;
-        const order = data?.order || data?.order_details || {};
-        const payment = data?.payment || data?.payment_details || {};
-        const orderId = order?.order_id || payment?.order_id;
-        const paymentId = payment?.cf_payment_id || payment?.payment_id;
-        const paymentStatus = payment?.payment_status || payment?.status;
-        logger_1.logger.info('Cashfree webhook received', { type, orderId, paymentId, paymentStatus, ip: req.ip });
-        if (!orderId) {
-            res.status(400).json({ success: false, error: { message: 'Order ID missing from webhook payload' } });
-            return;
-        }
-        const subscription = await Subscription_1.Subscription.findOne({ orderId });
-        if (subscription == null) {
-            logger_1.logger.warn('Cashfree webhook received for unknown order', { orderId, paymentId, type });
-            res.status(200).json({ success: true, message: 'Webhook ignored: unknown order' });
-            return;
-        }
-        const normalized = normalizePaymentStatus(paymentStatus);
-        const subscriptionStatus = mapPaymentToSubscriptionStatus(normalized);
-        if (subscription.paymentId === paymentId && subscription.paymentStatus === normalized && subscription.status === subscriptionStatus) {
-            res.status(200).json({ success: true, message: 'Webhook processed successfully' });
-            return;
-        }
-        subscription.paymentId = paymentId || subscription.paymentId || '';
-        subscription.paymentStatus = normalized;
-        subscription.provider = 'cashfree';
-        subscription.metadata = {
-            ...subscription.metadata,
-            source: 'cashfree_webhook',
-            notes: `Cashfree webhook ${type || normalized}`
-        };
-        if (normalized === 'SUCCESS') {
-            subscription.status = 'completed';
-            subscription.startDate = subscription.startDate || new Date();
-            subscription.endDate = (0, paymentService_1.calculateSubscriptionEndDate)(subscription.plan, subscription.startDate || new Date());
-            let userId = subscription.userId;
-            // Handle guest checkout in webhook
-            if (String(userId).startsWith('temp_')) {
-                const email = subscription.metadata?.customerEmail || subscription.metadata?.email;
-                if (email) {
-                    logger_1.logger.info('Guest checkout detected in webhook, provisioning user', { email, orderId });
-                    const provisioningResult = await userProvisioningService_1.UserProvisioningService.provisionUser({
-                        email,
-                        subscriptionPlan: subscription.plan,
-                        subscriptionStatus: 'active',
-                        metadata: {
-                            source: 'webhook_auto_provisioning',
-                            notes: `Auto-created from webhook for order ${orderId}`
-                        }
-                    });
-                    if (provisioningResult.success && provisioningResult.user) {
-                        userId = provisioningResult.user._id;
-                        subscription.userId = userId;
-                    }
-                }
-            }
-            await User_1.User.findByIdAndUpdate(userId, {
-                subscriptionPlan: subscription.plan,
-                subscriptionStatus: 'active',
-                subscriptionStartDate: subscription.startDate,
-                subscriptionEndDate: subscription.endDate
-            });
-        }
-        else if (normalized === 'FAILED') {
-            subscription.status = 'failed';
-            await User_1.User.findByIdAndUpdate(subscription.userId, { subscriptionStatus: 'inactive' });
-        }
-        else if (normalized === 'USER_DROPPED') {
-            subscription.status = 'cancelled';
-            await User_1.User.findByIdAndUpdate(subscription.userId, { subscriptionStatus: 'inactive' });
-        }
-        else if (normalized === 'REFUNDED') {
-            subscription.status = 'refunded';
-        }
-        else if (normalized === 'CANCELLED') {
-            subscription.status = 'cancelled';
-            await User_1.User.findByIdAndUpdate(subscription.userId, { subscriptionStatus: 'inactive' });
-        }
-        else {
-            subscription.status = 'pending';
-        }
-        if (payment) {
-            subscription.amount = payment.payment_amount || subscription.amount;
-        }
-        await subscription.save();
-        res.status(200).json({ success: true, message: 'Webhook processed successfully' });
-    }
-    catch (error) {
-        logger_1.logger.error('Webhook processing failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            ip: req.ip
-        });
-        res.status(500).json({ success: false, error: { message: 'Webhook processing failed' } });
-    }
-};
-exports.handleWebhook = handleWebhook;
+exports.verifyPayment = verifyPayment;
 const getPaymentStatus = async (req, res) => {
     try {
-        const referenceId = req.params.subscriptionId;
-        const user = await getUserByRequest(req);
-        if (user == null) {
-            res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
+        const { orderId } = req.params;
+        if (!orderId) {
+            res.status(400).json({
+                success: false,
+                error: { message: 'Order ID is required' },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        const subscription = await Subscription_1.Subscription.findOne({
-            userId: user._id,
-            $or: [{ _id: referenceId }, { orderId: referenceId }, { paymentId: referenceId }]
-        });
-        if (subscription == null) {
-            res.status(404).json({ success: false, error: { message: 'Subscription not found' }, timestamp: new Date().toISOString() });
+        // Check if we have a subscription for this order
+        const subscription = await Subscription_1.Subscription.findOne({ orderId });
+        if (subscription && subscription.status === 'completed') {
+            res.status(200).json({
+                success: true,
+                data: {
+                    status: 'completed',
+                    subscription: {
+                        id: subscription._id,
+                        plan: subscription.plan,
+                        status: subscription.status,
+                        startDate: subscription.startDate,
+                        endDate: subscription.endDate,
+                        amount: subscription.amount
+                    }
+                },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        let paymentDetails = null;
-        if (subscription.orderId) {
-            const paymentResult = await resolveCashfreePaymentFromOrder(subscription.orderId, subscription.paymentId || undefined);
-            if (paymentResult.success && paymentResult.payment) {
-                const payment = paymentResult.payment;
-                paymentDetails = {
-                    id: payment.cf_payment_id || payment.payment_id,
-                    status: payment.payment_status || payment.status,
-                    amount: payment.payment_amount,
-                    currency: payment.payment_currency,
-                    method: payment.payment_method,
-                    captured: String(payment.payment_status || payment.status || '').toUpperCase() === 'SUCCESS',
-                    createdAt: payment.payment_time
-                };
-            }
+        // If no local subscription yet, check Cashfree directly
+        const paymentResult = await (0, paymentService_1.fetchPaymentDetails)(orderId);
+        if (paymentResult.success && paymentResult.payment) {
+            const payment = paymentResult.payment;
+            res.status(200).json({
+                success: true,
+                data: {
+                    status: payment.order_status === 'PAID' ? 'completed' : 'processing',
+                    subscription: subscription ? {
+                        id: subscription._id,
+                        plan: subscription.plan,
+                        status: subscription.status,
+                        startDate: subscription.startDate,
+                        endDate: subscription.endDate,
+                        amount: subscription.amount
+                    } : null
+                },
+                timestamp: new Date().toISOString()
+            });
+            return;
         }
         res.status(200).json({
             success: true,
-            data: {
-                subscription: buildSubscriptionResponse(subscription, paymentDetails),
-                payment: paymentDetails
-            },
+            data: { status: 'processing', subscription: null },
             timestamp: new Date().toISOString()
         });
     }
     catch (error) {
         logger_1.logger.error('Get payment status failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
-            subscriptionId: req.params.subscriptionId,
-            userId: req.user?.id,
-            ip: req.ip
+            orderId: req.params.orderId
         });
-        res.status(500).json({ success: false, error: { message: 'Failed to get payment status' }, timestamp: new Date().toISOString() });
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to get payment status' },
+            timestamp: new Date().toISOString()
+        });
     }
 };
 exports.getPaymentStatus = getPaymentStatus;
-const cancelSubscription = async (req, res) => {
+const getPaymentHistory = async (req, res) => {
     try {
-        const { subscriptionId, reason } = req.body;
-        const user = await getUserByRequest(req);
-        if (user == null) {
-            res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
+        const userId = req.user?.id;
+        const { page = 1, limit = 10 } = req.query;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: { message: 'Authentication required' },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        const subscription = await Subscription_1.Subscription.findOne({ _id: subscriptionId, userId: user._id });
-        if (subscription == null) {
-            res.status(404).json({ success: false, error: { message: 'Subscription not found' }, timestamp: new Date().toISOString() });
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: { message: 'User not found' },
+                timestamp: new Date().toISOString()
+            });
             return;
         }
-        if (subscription.status === 'cancelled') {
-            res.status(400).json({ success: false, error: { message: 'Subscription is already cancelled' }, timestamp: new Date().toISOString() });
-            return;
-        }
-        if (subscription.status === 'expired') {
-            res.status(400).json({ success: false, error: { message: 'Cannot cancel expired subscription' }, timestamp: new Date().toISOString() });
-            return;
-        }
-        subscription.status = 'cancelled';
-        subscription.paymentStatus = 'CANCELLED';
-        subscription.updatedAt = new Date();
-        subscription.cancellationDate = new Date();
-        subscription.cancellationReason = reason || 'Cancelled by user';
-        await subscription.save();
-        await User_1.User.findByIdAndUpdate(user._id, { subscriptionStatus: 'inactive' });
-        logger_1.logger.info('Subscription cancelled', {
-            userId: user._id,
-            subscriptionId,
-            plan: subscription.plan,
-            reason: reason || 'No reason provided',
-            ip: req.ip
-        });
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 10;
+        const skip = (pageNum - 1) * limitNum;
+        const subscriptions = await Subscription_1.Subscription.find({ userId: user._id })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum);
+        const total = await Subscription_1.Subscription.countDocuments({ userId: user._id });
         res.status(200).json({
             success: true,
-            message: 'Subscription cancelled successfully',
             data: {
-                subscription: {
-                    id: subscription._id,
-                    plan: subscription.plan,
-                    status: subscription.status,
-                    cancelledAt: subscription.updatedAt,
-                    reason: reason || 'No reason provided'
+                subscriptions,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    pages: Math.ceil(total / limitNum)
                 }
             },
             timestamp: new Date().toISOString()
         });
     }
     catch (error) {
-        logger_1.logger.error('Cancel subscription failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            subscriptionId: req.body.subscriptionId,
-            userId: req.user?.id,
-            ip: req.ip
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to get payment history' },
+            timestamp: new Date().toISOString()
         });
-        res.status(500).json({ success: false, error: { message: 'Failed to cancel subscription' }, timestamp: new Date().toISOString() });
     }
 };
-exports.cancelSubscription = cancelSubscription;
+exports.getPaymentHistory = getPaymentHistory;
+const handleWebhook = async (req, res) => {
+    try {
+        const webhookSecret = environment_1.config.CASHFREE_WEBHOOK_SECRET || 'default_webhook_secret';
+        const signature = req.headers['x-webhook-signature'];
+        const timestamp = req.headers['x-webhook-timestamp'];
+        if (!signature || !timestamp) {
+            res.status(400).json({ success: false, error: { message: 'Webhook signature/timestamp missing' } });
+            return;
+        }
+        const rawBody = req.rawBody || JSON.stringify(req.body);
+        const text = timestamp + rawBody;
+        const expectedSignature = crypto_1.default
+            .createHmac('sha256', webhookSecret)
+            .update(text)
+            .digest('base64');
+        if (signature !== expectedSignature) {
+            logger_1.logger.warn('Webhook signature verification failed', { ip: req.ip });
+            res.status(400).json({ success: false, error: { message: 'Invalid webhook signature' } });
+            return;
+        }
+        const { type, data } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
+            const paymentId = data.payment.payment_id;
+            const orderId = data.order.order_id;
+            const subscription = await Subscription_1.Subscription.findOne({ orderId });
+            if (subscription && subscription.status !== 'completed') {
+                subscription.status = 'completed';
+                subscription.paymentId = paymentId;
+                await subscription.save();
+                await User_1.User.findByIdAndUpdate(subscription.userId, {
+                    subscriptionPlan: subscription.plan,
+                    subscriptionStatus: 'completed'
+                });
+                logger_1.logger.info('Subscription activated via webhook', { orderId, subscriptionId: subscription._id });
+            }
+        }
+        res.status(200).json({ success: true, message: 'Webhook processed successfully' });
+    }
+    catch (error) {
+        logger_1.logger.error('Webhook processing failed', { error: error instanceof Error ? error.message : 'Unknown error', ip: req.ip });
+        res.status(500).json({ success: false, error: { message: 'Webhook processing failed' } });
+    }
+};
+exports.handleWebhook = handleWebhook;
 //# sourceMappingURL=paymentController.js.map

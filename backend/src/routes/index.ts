@@ -1,26 +1,16 @@
 import express from 'express';
-import adminAuthRoutes from './admin/adminAuth';
-import adminRoutes from './admin/adminRoutes';
+import userRoutes from './users/userRoutes';
+import paymentRoutes from './payments/paymentRoutes';
+import subscriptionRoutes from './subscriptions/subscriptionRoutes';
+import jobRoutes from './jobs/jobRoutes';
+import jobApplicationRoutes from './jobs/jobApplicationRoutes';
+import jobMatchingRoutes from './jobs/jobMatchingRoutes';
 import authRoutes from './auth/authRoutes';
 import clerkAuthRoutes from './auth/clerkAuthRoutes';
 import jwtAuthRoutes from './auth/jwtAuthRoutes';
-import jobApplicationRoutes from './jobs/jobApplicationRoutes';
-import jobMatchingRoutes from './jobs/jobMatchingRoutes';
-import jobRoutes from './jobs/jobRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
-import notificationRoutes from './notifications/notificationRoutes';
-import paymentRoutes from './payments/paymentRoutes';
-import performanceRoutes from './performanceRoutes';
-import rbacRoutes from './rbacRoutes';
-import resumeTemplateRoutes from './resumeTemplateRoutes';
-import subscriptionRoutes from './subscriptions/subscriptionRoutes';
-import userProvisioningRoutes from './userProvisioningRoutes';
-import userRoutes from './users/userRoutes';
-import testimonialRoutes from './testimonialRoutes';
-import systemSettingsRoutes from './admin/systemSettingsRoutes';
-import logoRoutes from './admin/logoRoutes';
-import resumeRoutes from './resumeRoutes';
-
+import adminAuthRoutes from './admin/adminAuth';
+import adminRoutes from './admin/adminRoutes';
 
 const router = express.Router();
 
@@ -56,11 +46,8 @@ router.use(`${API_VERSION}/applications`, jobApplicationRoutes);
 // Job matching routes
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes);
 
-// Email notification routes (admin only)
-router.use(`${API_VERSION}/notifications/email`, emailNotificationRoutes);
-
-// User notification routes
-router.use(`${API_VERSION}/notifications`, notificationRoutes);
+// Email notification routes
+router.use(`${API_VERSION}/notifications`, emailNotificationRoutes);
 
 // Admin authentication routes (public)
 router.use(`${API_VERSION}/admin`, adminAuthRoutes);
@@ -68,29 +55,13 @@ router.use(`${API_VERSION}/admin`, adminAuthRoutes);
 // Admin management routes (protected)
 router.use(`${API_VERSION}/admin`, adminRoutes);
 
-// User provisioning routes (admin only)
-router.use(`${API_VERSION}/provisioning`, userProvisioningRoutes);
-
-// RBAC routes (role-based access control)
-router.use(`${API_VERSION}/rbac`, rbacRoutes);
-
-// Resume template routes
-router.use(`${API_VERSION}/templates`, resumeTemplateRoutes);
-
-// Performance monitoring routes (admin only)
-router.use(`${API_VERSION}/performance`, performanceRoutes);
-
-// Testimonial routes
-router.use(`${API_VERSION}/testimonials`, testimonialRoutes);
-
-// Admin System Settings routes
-router.use(`${API_VERSION}/admin/settings`, systemSettingsRoutes);
-
-// Admin Logo routes
-router.use(`${API_VERSION}/admin/logos`, logoRoutes);
-// Resume routes
-router.use(`${API_VERSION}/resumes`, resumeRoutes);
-
+// Mock testimonials route to prevent 404s
+router.get(`${API_VERSION}/testimonials`, (_req, res) => {
+  res.status(200).json({
+    success: true,
+    data: [] // Frontend will fall back to dummy data if array is empty
+  });
+});
 
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
@@ -108,15 +79,7 @@ router.get(`${API_VERSION}`, (_req, res) => {
       applications: `${API_VERSION}/applications`,
       matching: `${API_VERSION}/matching`,
       notifications: `${API_VERSION}/notifications`,
-      admin: `${API_VERSION}/admin`,
-      provisioning: `${API_VERSION}/provisioning`,
-      rbac: `${API_VERSION}/rbac`,
-      templates: `${API_VERSION}/templates`,
-      performance: `${API_VERSION}/performance`,
-      testimonials: `${API_VERSION}/testimonials`,
-      adminSettings: `${API_VERSION}/admin/settings`,
-      adminLogos: `${API_VERSION}/admin/logos`,
-      resumes: `${API_VERSION}/resumes`
+      admin: `${API_VERSION}/admin`
     },
     timestamp: new Date().toISOString()
   });

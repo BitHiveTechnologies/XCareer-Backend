@@ -44,7 +44,7 @@ const generateToken = (payload) => {
     try {
         const token = jwt.sign(payload, environment_1.config.JWT_SECRET, {
             expiresIn: environment_1.config.JWT_EXPIRE,
-            issuer: 'notifyx-backend',
+            issuer: 'notifyx-api',
             audience: 'notifyx-users'
         });
         logger_1.logger.info('JWT access token generated successfully', {
@@ -68,7 +68,7 @@ exports.generateToken = generateToken;
 const verifyToken = (token) => {
     try {
         const decoded = jwt.verify(token, environment_1.config.JWT_SECRET, {
-            issuer: 'notifyx-backend',
+            issuer: 'notifyx-api',
             audience: 'notifyx-users'
         });
         logger_1.logger.info('JWT token verified successfully', {
@@ -101,7 +101,7 @@ const generateRefreshToken = (payload) => {
     try {
         const token = jwt.sign(payload, environment_1.config.JWT_SECRET, {
             expiresIn: environment_1.config.JWT_REFRESH_EXPIRE,
-            issuer: 'notifyx-backend',
+            issuer: 'notifyx-api',
             audience: 'notifyx-users'
         });
         logger_1.logger.info('Refresh token generated successfully', {
@@ -124,7 +124,7 @@ exports.generateRefreshToken = generateRefreshToken;
 const verifyRefreshToken = (token) => {
     try {
         const decoded = jwt.verify(token, environment_1.config.JWT_SECRET, {
-            issuer: 'notifyx-backend',
+            issuer: 'notifyx-api',
             audience: 'notifyx-users'
         });
         logger_1.logger.info('Refresh token verified successfully', {

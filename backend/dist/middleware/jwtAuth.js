@@ -2,8 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.optionalAuth = exports.requireSuperAdmin = exports.requireAdmin = exports.authenticate = void 0;
 const jwt_1 = require("../utils/jwt");
+const environment_1 = require("../config/environment");
 const logger_1 = require("../utils/logger");
-// JWT utility functions are imported from '../utils/jwt'
+const JWT_SECRET = environment_1.config.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const JWT_EXPIRES_IN = environment_1.config.JWT_EXPIRES_IN || '24h'; // 24 hours by default
 /**
  * Core JWT authentication middleware
  */
@@ -22,29 +24,19 @@ const authenticate = async (req, res, next) => {
         }
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
         try {
-            // Verify the token using JWT utility
+            // Verify the token
             const decoded = (0, jwt_1.verifyToken)(token);
-            logger_1.logger.info('JWT middleware - Token decoded', {
-                decoded,
-                userIdFromDecoded: decoded.userId,
-                idFromDecoded: decoded.userId // using userId as it's the correct field
-            });
             // Populate req.user with decoded token data
             req.user = {
-                id: decoded.userId, // JWT utility uses userId field
+                id: decoded.id || decoded.userId,
+                userId: decoded.userId || decoded.id,
                 email: decoded.email,
-                firstName: '', // JWT utility doesn't include firstName/lastName
-                lastName: '', // JWT utility doesn't include firstName/lastName
+                firstName: decoded.firstName,
+                lastName: decoded.lastName,
                 role: decoded.role,
-                type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
-                metadata: {}
+                type: decoded.type,
+                metadata: decoded.metadata
             };
-            logger_1.logger.info('JWT middleware - User populated', {
-                reqUser: req.user,
-                userId: req.user.id,
-                email: req.user.email,
-                role: req.user.role
-            });
             logger_1.logger.info('User authenticated successfully', {
                 userId: req.user.id,
                 email: req.user.email,
@@ -150,16 +142,17 @@ const optionalAuth = async (req, res, next) => {
         }
         const token = authHeader.substring(7);
         try {
-            // Try to verify the token using JWT utility, but don't fail if invalid
+            // Try to verify the token, but don't fail if invalid
             const decoded = (0, jwt_1.verifyToken)(token);
             req.user = {
-                id: decoded.userId,
+                id: decoded.id || decoded.userId,
+                userId: decoded.userId || decoded.id,
                 email: decoded.email,
-                firstName: '',
-                lastName: '',
+                firstName: decoded.firstName,
+                lastName: decoded.lastName,
                 role: decoded.role,
-                type: decoded.role === 'admin' || decoded.role === 'super_admin' ? 'admin' : 'user',
-                metadata: {}
+                type: decoded.type,
+                metadata: decoded.metadata
             };
         }
         catch (error) {

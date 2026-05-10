@@ -3,6 +3,7 @@ import { Request } from 'express';
 export interface CustomRequest extends Request {
   user?: {
     id: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -14,8 +15,9 @@ export interface CustomRequest extends Request {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user: {
+  user?: {
     id: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -27,8 +29,9 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export interface AdminRequest extends Request {
-  user: {
+  user?: {
     id: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -40,8 +43,9 @@ export interface AdminRequest extends Request {
 }
 
 export interface AuthRequest extends Request {
-  user: {
+  user?: {
     id: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -53,8 +57,9 @@ export interface AuthRequest extends Request {
 }
 
 export interface ClerkAuthRequest extends Request {
-  user: {
+  user?: {
     id: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;

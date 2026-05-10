@@ -1,16 +1,18 @@
 import express from 'express';
-import {
-    deleteUser,
-    getAllUsers,
-    getCurrentUserProfile,
-    getProfileCompletionStatus,
-    getUserProfile,
-    getUserStats,
-    updateCurrentUserProfile,
-    updateUserProfile
-} from '../../controllers/users/userController';
+import Joi from 'joi';
+import { validate } from '../../middleware/validation';
 import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
-import { commonSchemas, validate } from '../../middleware/validation';
+import {
+  getCurrentUserProfile,
+  updateCurrentUserProfile,
+  getProfileCompletionStatus,
+  getUserProfile,
+  updateUserProfile,
+  getAllUsers,
+  deleteUser,
+  getUserStats
+} from '../../controllers/users/userController';
+import { commonSchemas } from '../../middleware/validation';
 
 const router = express.Router();
 
@@ -22,21 +24,27 @@ router.get('/me', getCurrentUserProfile);
 router.get('/me/completion', getProfileCompletionStatus);
 router.put('/me',
   validate({
-    body: commonSchemas.object({
-      name: commonSchemas.string().min(2).max(100).optional(),
-      mobile: commonSchemas.phoneNumber.optional(),
+    body: Joi.object({
+      name: Joi.string().min(2).max(100).optional().allow('', null),
+      firstName: Joi.string().max(50).optional().allow('', null),
+      lastName: Joi.string().max(50).optional().allow('', null),
+      mobile: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow('', null),
       // Profile fields
-      qualification: commonSchemas.string().max(100).optional(),
-      stream: commonSchemas.string().max(100).optional(),
-      yearOfPassout: commonSchemas.number().integer().min(2000).max(new Date().getFullYear() + 5).optional(),
-      cgpaOrPercentage: commonSchemas.number().min(0).max(100).optional(),
-      collegeName: commonSchemas.string().allow('', null).max(200).optional(),
+      qualification: Joi.string().max(100).optional().allow('', null),
+      stream: Joi.string().max(100).optional().allow('', null),
+      yearOfPassout: Joi.number().integer().min(0).max(new Date().getFullYear() + 10).optional().allow(null),
+      cgpaOrPercentage: Joi.number().min(0).max(100).optional().allow(null),
+      collegeName: Joi.string().max(200).optional().allow('', null),
       // Additional fields
-      dateOfBirth: commonSchemas.date.optional(),
-      skills: commonSchemas.string().allow('', null).max(500).optional(),
-      resumeUrl: commonSchemas.uri().allow('', null).optional(),
-      linkedinUrl: commonSchemas.uri().allow('', null).optional(),
-      githubUrl: commonSchemas.uri().allow('', null).optional()
+      dateOfBirth: Joi.date().optional().allow(null, ''),
+      address: Joi.string().max(500).optional().allow('', null),
+      city: Joi.string().max(100).optional().allow('', null),
+      state: Joi.string().max(100).optional().allow('', null),
+      pincode: Joi.string().optional().allow('', null),
+      skills: Joi.string().max(500).optional().allow('', null),
+      resumeUrl: Joi.string().optional().allow('', null),
+      linkedinUrl: Joi.string().optional().allow('', null),
+      githubUrl: Joi.string().optional().allow('', null)
     })
   }),
   updateCurrentUserProfile
@@ -54,6 +62,10 @@ router.put('/profile/:userId',
       // Profile fields
       dateOfBirth: commonSchemas.date.optional(),
       gender: commonSchemas.string().valid('male', 'female', 'other').optional(),
+      address: commonSchemas.string().max(500).optional(),
+      city: commonSchemas.string().max(100).optional(),
+      state: commonSchemas.string().max(100).optional(),
+      pincode: commonSchemas.string().pattern(/^[1-9][0-9]{5}$/).optional(),
       // Education fields
       highestQualification: commonSchemas.string().max(100).optional(),
       stream: commonSchemas.string().max(100).optional(),

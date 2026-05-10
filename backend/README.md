@@ -66,65 +66,38 @@ npm run dev:build
 ### 4. Production Build
 
 ```bash
-# Build the project (cleans dist, compiles TypeScript, copies assets)
+# Build the project
 npm run build
-
-# Build for production with NODE_ENV=production
-npm run build:production
 
 # Start production server
 npm start
-
-# Start production server with NODE_ENV=production
-npm run start:prod
 ```
-
-**Build Process:**
-- `prebuild`: Automatically cleans the `dist` directory
-- `build`: Compiles TypeScript and copies static assets (templates, etc.)
-- `postbuild`: Verifies the build was successful
-- Output: All compiled JavaScript files in `dist/` directory
 
 ## 📁 Project Structure
 
 ```
 src/
-├── config/          # Configuration files
-│   ├── database.ts  # MongoDB connection
-│   └── environment.ts # Environment variables
-├── controllers/     # Route controllers
-├── middleware/      # Custom middleware
-│   ├── errorHandler.ts
-│   ├── notFound.ts
-│   ├── rateLimiter.ts
-│   └── validation.ts
-├── models/          # Database models
-├── routes/          # API routes
-├── utils/           # Utility functions
-│   └── logger.ts    # Logging utility
-└── index.ts         # Main application entry point
+├── __tests__/       # Automated unit and integration tests
+│   ├── unit/        # Unit tests for controllers, services, models
+│   └── integration/ # End-to-end API testing
+├── config/          # Configuration and environment setup
+├── controllers/     # Business logic for API endpoints
+├── middleware/      # Authentication, validation, and security middleware
+├── models/          # Mongoose database schemas
+├── routes/          # Express route definitions
+├── services/        # Third-party integrations (Email, Payment)
+├── utils/           # Shared utility functions (Logger, Error types)
+└── index.ts         # Application entry point
 ```
 
 ## 🔧 Available Scripts
 
-### Development
-- `npm run dev` - Start development server with hot reload (nodemon + ts-node)
-- `npm run dev:build` - Build and start in development mode
-
-### Building
-- `npm run build` - Build TypeScript to JavaScript (includes prebuild clean and postbuild verification)
-- `npm run build:production` - Build with NODE_ENV=production
-- `npm run clean` - Remove build artifacts (dist directory)
-- `npm run verify:build` - Verify build output exists
-
-### Production
-- `npm start` - Start production server (runs `dist/index.js`)
-- `npm run start:prod` - Start with NODE_ENV=production
-
-### Testing & Utilities
-- `npm run seed:test-data` - Seed test data
-- `npm run create:admin` - Create admin user
-- `npm run fix:indexes` - Fix database indexes
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Compile TypeScript to production-ready JavaScript
+- `npm start` - Run the compiled production server
+- `npm test` - Run the automated test suite using Jest
+- `npm run clean` - Clear build artifacts and caches
+- `npm run seed:test-data` - Seed the database with mock users and jobs
 
 ## 🌐 API Endpoints
 
@@ -160,62 +133,23 @@ src/
 
 ## 🧪 Testing
 
-The backend uses Jest, Supertest, and MongoMemoryServer for comprehensive testing without affecting the production database.
+Testing framework setup coming soon:
+- Unit tests for business logic
+- Integration tests for API endpoints
+- Database transaction testing
+- Minimum 80% code coverage target
 
-### Running Tests
+## 🚀 Deployment (Railway)
 
-```bash
-# Run all tests (unit + integration)
-npm test
+1. **Setup Railway**: Connect your GitHub repository to Railway.app.
+2. **Environment Variables**: Add the variables from `.env.example` to the Railway project settings.
+3. **Automatic Build**: Railway will detect the `package.json` and run `npm run build` followed by `npm start`.
+4. **Database**: Use the Railway MongoDB plugin or provide an external `MONGODB_URI`.
 
-# Run only unit tests
-npm run test:unit
-
-# Run only integration tests
-npm run test:integration
-
-# Run tests and generate coverage report
-npm run test:coverage
-```
-
-Test results are output to the terminal, and the coverage report is saved in the `/coverage` directory.
-
-## 🚀 Deployment
-
-### Docker Deployment
-
-The project includes a production-ready Dockerfile:
-
-```bash
-# Build Docker image
-docker build -f Dockerfile.prod -t notifyx-backend:latest .
-
-# Run container
-docker run -p 3001:3001 --env-file .env notifyx-backend:latest
-```
-
-**Docker Build Process:**
-1. **Builder Stage**: Installs all dependencies (including devDependencies for TypeScript)
-2. **Builder Stage**: Compiles TypeScript and copies static assets
-3. **Production Stage**: Installs only production dependencies
-4. **Production Stage**: Copies only the `dist` directory (optimized image size)
-
-### Build Features
-- ✅ Cross-platform build script (works on Windows, macOS, Linux)
-- ✅ Automatic cleanup of old build artifacts
-- ✅ Static asset copying (templates, etc.)
-- ✅ Build verification to ensure successful compilation
-- ✅ Optimized Docker builds with multi-stage builds
-- ✅ Production-ready with proper environment handling
-
-### Deployment Checklist
-- [ ] Set all required environment variables
-- [ ] Run `npm run build` to verify build works locally
-- [ ] Test production build with `npm run start:prod`
-- [ ] Build Docker image and test container
-- [ ] Configure production database connection
-- [ ] Set up monitoring and logging
-- [ ] Configure reverse proxy (nginx) if needed
+### Build Checklist
+- [ ] Run `npm run build` locally to check for TS errors.
+- [ ] Run `npm test` to ensure security logic is intact.
+- [ ] Verify `FRONTEND_URL` in Railway matches your deployed website.
 
 ## 📝 Environment Variables
 

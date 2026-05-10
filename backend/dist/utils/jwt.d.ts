@@ -1,12 +1,18 @@
 export interface JWTPayload {
     userId: string;
+    id: string;
     email: string;
     role: 'user' | 'admin' | 'super_admin';
+    type: 'user' | 'admin';
+    firstName?: string;
+    lastName?: string;
+    metadata?: any;
     iat?: number;
     exp?: number;
 }
 export interface RefreshTokenPayload {
     userId: string;
+    id: string;
     tokenVersion: number;
     iat?: number;
     exp?: number;

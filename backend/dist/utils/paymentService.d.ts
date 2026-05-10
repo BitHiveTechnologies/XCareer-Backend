@@ -12,119 +12,58 @@ export interface CreateOrderOptions {
     plan: string;
     amount: number;
     currency?: string;
-    customer?: {
-        customerId?: string;
-        name?: string;
-        email?: string;
-        phone?: string;
-    };
-    returnUrl?: string;
-    notifyUrl?: string;
     notes?: Record<string, any>;
+    email?: string;
+    name?: string;
+    phone?: string;
 }
-export interface CashfreeOrderResponse {
-    cfOrderId?: string;
+export interface PaymentVerificationData {
     orderId: string;
-    paymentSessionId: string;
-    currency: string;
+    paymentId?: string;
+    signature?: string;
+}
+export interface SubscriptionDetails {
+    plan: string;
+    startDate: Date;
+    endDate: Date;
+    status: 'pending' | 'completed' | 'failed' | 'refunded';
     amount: number;
-    status: string;
-    orderMeta?: {
-        return_url?: string;
-        notify_url?: string;
-    };
-    customerDetails?: Record<string, any>;
-    createdAt?: string;
-}
-export interface CashfreePaymentRecord {
-    cf_payment_id?: string;
-    payment_status?: string;
-    payment_amount?: number;
-    payment_currency?: string;
-    payment_message?: string;
-    payment_time?: string;
-    bank_reference?: string;
-    auth_id?: string | null;
-}
-export interface WebhookVerificationResult {
-    valid: boolean;
-    reason?: string;
 }
 export declare const SUBSCRIPTION_PLANS: Record<string, PaymentPlan>;
-/**
- * Create a new Cashfree order
- */
 export declare const createCashfreeOrder: (options: CreateOrderOptions) => Promise<{
     success: boolean;
     order: {
-        orderId: any;
-        cfOrderId: any;
+        id: any;
         paymentSessionId: any;
         amount: any;
         currency: any;
         status: any;
-        orderMeta: any;
-        customerDetails: any;
-        createdAt: any;
+    };
+    cashfree: {
+        mode: string;
     };
     error?: undefined;
 } | {
     success: boolean;
-    error: string;
+    error: any;
     order?: undefined;
+    cashfree?: undefined;
 }>;
-/**
- * Fetch a Cashfree order by order ID
- */
-export declare const fetchCashfreeOrder: (orderId: string) => Promise<{
+export declare const verifyPaymentSignature: (data: PaymentVerificationData) => boolean;
+export declare const fetchPaymentDetails: (orderId: string) => Promise<{
     success: boolean;
-    order: any;
+    payment: any;
     error?: undefined;
 } | {
     success: boolean;
-    error: string;
-    order?: undefined;
+    error: any;
+    payment?: undefined;
 }>;
-/**
- * Fetch payments for a Cashfree order
- */
-export declare const fetchCashfreeOrderPayments: (orderId: string) => Promise<{
-    success: boolean;
-    payments: any;
-    error?: undefined;
-} | {
-    success: boolean;
-    error: string;
-    payments?: undefined;
-}>;
-/**
- * Verify webhook signature using the Cashfree webhook secret.
- * Cashfree webhook docs use raw payload plus timestamp headers.
- */
-export declare const verifyCashfreeWebhookSignature: (rawBody: string, signature: string | undefined, timestamp: string | undefined) => WebhookVerificationResult;
-/**
- * Calculate subscription end date based on plan
- */
 export declare const calculateSubscriptionEndDate: (plan: string, startDate?: Date) => Date;
-/**
- * Get plan details by ID
- */
 export declare const getPlanDetails: (planId: string) => PaymentPlan | null;
-/**
- * Get all available plans
- */
 export declare const getAllPlans: () => PaymentPlan[];
-/**
- * Validate subscription plan
- */
 export declare const validateSubscriptionPlan: (plan: string) => boolean;
-/**
- * Calculate plan price in different currencies
- */
 export declare const getPlanPrice: (planId: string, currency?: string) => number;
-/**
- * Generate payment receipt
- */
 export declare const generatePaymentReceipt: (paymentData: {
     orderId: string;
     paymentId: string;
@@ -143,9 +82,6 @@ export declare const generatePaymentReceipt: (paymentData: {
     timestamp: string;
     status: string;
 };
-/**
- * Handle payment failure - retained for compatibility with existing callers.
- */
 export declare const handlePaymentFailure: (orderId: string, reason: string) => Promise<{
     success: boolean;
     message: string;
@@ -154,15 +90,12 @@ export declare const handlePaymentFailure: (orderId: string, reason: string) => 
     error?: undefined;
 } | {
     success: boolean;
-    error: string;
+    error: any;
     message?: undefined;
     orderId?: undefined;
     reason?: undefined;
 }>;
-/**
- * Refunds are not part of the first Cashfree migration pass.
- */
-export declare const processRefund: (_paymentId: string, _amount: number, _reason: string) => Promise<{
+export declare const processRefund: (paymentId: string, amount: number, reason: string) => Promise<{
     success: boolean;
     error: string;
 }>;

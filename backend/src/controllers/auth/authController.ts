@@ -1,23 +1,13 @@
-import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
-import { config } from '../../config/environment';
+import bcrypt from 'bcryptjs';
+import { logger } from '../../utils/logger';
+import { generateToken, generateRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import { User } from '../../models/User';
 import { UserProfile } from '../../models/UserProfile';
-import { generateRefreshToken, generateToken, verifyRefreshToken } from '../../utils/jwt';
-import { logger } from '../../utils/logger';
+import { config } from '../../config/environment';
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    role: 'user' | 'admin' | 'super_admin';
-    type: 'user' | 'admin';
-    clerkUserId?: string;
-    metadata?: any;
-  };
-}
+import { AuthenticatedRequest as AuthRequest } from '../../types/express';
+
 
 /**
  * User registration
@@ -39,64 +29,47 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Validate name is present before using split
-    if (!name && !email) {
-      res.status(400).json({
-        success: false,
-        error: { message: 'Name or email is required' },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
     // Create user (password will be hashed by User model pre-save middleware)
     const user = new User({
+      name,
       email,
       password,
+      mobile,
       subscriptionPlan: 'basic',
       subscriptionStatus: 'inactive'
     });
 
     await user.save();
 
-    // Create user profile only if minimum mandatory profile fields are provided
-    let userProfile: (typeof UserProfile)['prototype'] | null = null;
-    const hasRequiredProfileFields = (
-      typeof mobile === 'string' && mobile.trim() !== '' &&
-      typeof qualification === 'string' && qualification.trim() !== '' &&
-      typeof stream === 'string' && stream.trim() !== '' &&
-      typeof yearOfPassout !== 'undefined' &&
-      typeof cgpaOrPercentage !== 'undefined'
-    );
+    // Create user profile
+    const userProfile = new UserProfile({
+      userId: user._id,
+      firstName: name.split(' ')[0] || name,
+      lastName: name.split(' ').slice(1).join(' ') || '',
+      email,
+      contactNumber: mobile,
+      dateOfBirth: new Date('1995-01-01'), // Default value for 16+ age validation
+      qualification,
+      stream,
+      yearOfPassout,
+      cgpaOrPercentage,
+      collegeName: 'Not specified' // Default value, can be updated later
+    });
 
-    if (hasRequiredProfileFields) {
-      // Guard against undefined name — fall back to email prefix
-      const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : email.split('@')[0];
-      userProfile = new UserProfile({
-        userId: user._id,
-        firstName: safeName.split(' ')[0] || safeName,
-        lastName: safeName.split(' ').slice(1).join(' ') || '',
-        fullName: safeName, // pre-save will compute too
-        contactNumber: mobile,
-        dateOfBirth: new Date('1995-01-01'), // default valid DOB
-        qualification,
-        stream,
-        yearOfPassout,
-        cgpaOrPercentage,
-        collegeName: 'Not specified'
-      });
-      await userProfile.save();
-    }
+    await userProfile.save();
 
     // Generate tokens
-    const tokenPayload = {
+    const tokenPayload: any = {
+      id: user._id.toString(),
       userId: user._id.toString(),
       email: user.email,
-      role: 'user' as const
+      role: 'user' as const,
+      type: 'user' as const
     };
 
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken({
+      id: user._id.toString(),
       userId: user._id.toString(),
       tokenVersion: 0
     });
@@ -112,12 +85,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: {
           id: user._id,
+          name: user.name,
           email: user.email,
-          role: 'user',
-          firstName: userProfile?.firstName,
-          lastName: userProfile?.lastName,
-          fullName: userProfile?.fullName,
-          contactNumber: userProfile?.contactNumber
+          role: user.role,
+          subscriptionStatus: user.subscriptionStatus,
+          subscriptionPlan: user.subscriptionPlan,
+          mustChangePassword: user.mustChangePassword
         },
         accessToken,
         refreshToken,
@@ -149,8 +122,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
+    console.log(`[LOGIN DEBUG] Attempting login for email: ${email}`);
     // Find user
     const user = await User.findOne({ email }).select('+password');
+    console.log(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
     if (!user) {
       res.status(401).json({
         success: false,
@@ -163,7 +138,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check password
+    console.log(`[LOGIN DEBUG] Comparing passwords...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
     if (!isPasswordValid) {
       res.status(401).json({
         success: false,
@@ -188,22 +165,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate tokens
-    const tokenPayload = {
+    const tokenPayload: any = {
+      id: user._id.toString(),
       userId: user._id.toString(),
       email: user.email,
-      role: user.role
+      role: user.role as any,
+      type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user'
     };
 
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken({
+      id: user._id.toString(),
       userId: user._id.toString(),
       tokenVersion: 0
     });
 
     // Update subscription status if needed
     if (user.subscriptionStatus === 'inactive') {
-      user.subscriptionStatus = 'active';
-      await user.save();
+      await User.findByIdAndUpdate(user._id, { subscriptionStatus: 'active' });
     }
 
     logger.info('User logged in successfully', {
@@ -212,20 +191,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       ip: req.ip
     });
 
-    // Get user profile for additional info
-    const userProfile = await UserProfile.findOne({ userId: user._id });
-
     res.status(200).json({
       success: true,
       data: {
         user: {
           id: user._id,
+          name: user.name,
           email: user.email,
           role: user.role,
-          firstName: userProfile?.firstName,
-          lastName: userProfile?.lastName,
-          fullName: userProfile?.fullName,
-          contactNumber: userProfile?.contactNumber
+          subscriptionStatus: user.subscriptionStatus,
+          subscriptionPlan: user.subscriptionPlan,
+          mustChangePassword: user.mustChangePassword
         },
         accessToken,
         refreshToken,
@@ -285,10 +261,12 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     // Generate new access token
-    const tokenPayload = {
+    const tokenPayload: any = {
+      id: user._id.toString(),
       userId: user._id.toString(),
       email: user.email,
-      role: user.role
+      role: user.role as any,
+      type: user.role === 'admin' || user.role === 'super_admin' ? 'admin' : 'user'
     };
 
     const newAccessToken = generateToken(tokenPayload);
@@ -400,36 +378,17 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       ip: req.ip
     });
 
-    // Build subscriptionInfo for frontend premium badge
-    const now = new Date();
-    const subEndDate = user.subscriptionEndDate ? new Date(user.subscriptionEndDate) : null;
-    const isSubActive = user.subscriptionStatus === 'active' && subEndDate != null && now < subEndDate;
-    const daysRemaining = isSubActive && subEndDate
-      ? Math.ceil((subEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
-
     res.status(200).json({
       success: true,
       data: {
         user: {
           id: user._id,
+          name: user.name,
           email: user.email,
           role: 'user',
-          firstName: userProfile?.firstName,
-          lastName: userProfile?.lastName,
-          fullName: userProfile?.fullName,
-          contactNumber: userProfile?.contactNumber,
-          mobile: userProfile?.contactNumber,
-          mustChangePassword: user.mustChangePassword,
+          mobile: user.mobile,
           subscriptionStatus: user.subscriptionStatus,
-          subscriptionPlan: user.subscriptionPlan,
-          subscriptionInfo: {
-            isActive: isSubActive,
-            daysRemaining,
-            plan: user.subscriptionPlan,
-            startDate: user.subscriptionStartDate,
-            endDate: user.subscriptionEndDate
-          }
+          subscriptionPlan: user.subscriptionPlan
         },
         profile: userProfile ? {
           qualification: userProfile.qualification,
@@ -465,12 +424,6 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     const userId = req.user?.id;
     const { currentPassword, newPassword } = req.body;
 
-    logger.info('Change password attempt', {
-      userId,
-      hasCurrentPassword: !!currentPassword,
-      hasNewPassword: !!newPassword
-    });
-
     if (!userId) {
       res.status(401).json({
         success: false,
@@ -484,12 +437,6 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 
     // Find user with password
     const user = await User.findById(userId).select('+password');
-    logger.info('User lookup result', {
-      userId,
-      userFound: !!user,
-      userEmail: user?.email
-    });
-    
     if (!user) {
       res.status(404).json({
         success: false,
@@ -503,13 +450,6 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    logger.info('Password verification result', {
-      userId,
-      isCurrentPasswordValid,
-      hasCurrentPassword: !!currentPassword,
-      hasUserPassword: !!user.password
-    });
-    
     if (!isCurrentPasswordValid) {
       res.status(400).json({
         success: false,
@@ -521,12 +461,12 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Update password and clear mustChangePassword flag
+    // Update password (hashing is handled by the User model's pre-save hook)
     user.password = newPassword;
     user.mustChangePassword = false;
     await user.save();
 
-    logger.info('Password changed successfully and flag cleared', {
+    logger.info('Password changed successfully', {
       userId,
       ip: req.ip
     });

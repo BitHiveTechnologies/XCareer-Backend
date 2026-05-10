@@ -12,14 +12,15 @@ export interface IUser extends BaseDocument {
   clerkUserId?: string; // Clerk user ID for external auth
   email: string; // Unique, serves as username
   password?: string; // Hashed - optional when using Clerk
-  // Personal information (name, mobile) is now stored in UserProfile model
+  name: string;
+  mobile: string;
   role: 'user' | 'admin' | 'super_admin'; // User role for access control
   subscriptionPlan: 'basic' | 'premium'; // ₹49 or ₹99
   subscriptionStatus: 'active' | 'inactive' | 'expired';
   subscriptionStartDate: Date;
   subscriptionEndDate: Date;
   isProfileComplete: boolean;
-  mustChangePassword?: boolean; // Required if password was system-generated
+  mustChangePassword?: boolean;
 }
 
 // User Profile interface
@@ -28,8 +29,8 @@ export interface IUserProfile extends BaseDocument {
   userId: ObjectId; // Reference to Users
   firstName: string;
   lastName: string;
-  fullName: string; // Computed field: firstName + lastName
-  contactNumber: string; // Mobile number
+  email: string;
+  contactNumber: string;
   dateOfBirth: Date;
   qualification: string; // B.E, B.Tech, M.Tech, etc.
   customQualification?: string; // If "Others" selected
@@ -38,10 +39,16 @@ export interface IUserProfile extends BaseDocument {
   yearOfPassout: number; // 2023-2029
   cgpaOrPercentage: number;
   collegeName: string;
-  skills?: string[]; // Array of skills
+  // Optional/Additional fields
+  skills?: string;
+  resumeUrl?: string;
   linkedinUrl?: string;
   githubUrl?: string;
-  resumeUrl?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  completionPercentage?: number;
 }
 
 // Job interface
@@ -65,7 +72,6 @@ export interface IJob extends BaseDocument {
   isActive: boolean;
   postedBy: ObjectId; // Admin user ID
   applications?: ObjectId[]; // Job applications
-  companyLogo?: string; // S3/Cloudinary URL or relative path
 }
 
 // Job Notification interface
@@ -101,29 +107,16 @@ export interface IAdmin extends BaseDocument {
 // Subscription interface
 export interface ISubscription extends BaseDocument {
   _id: ObjectId;
-  userId?: ObjectId;
+  userId: ObjectId;
   plan: 'basic' | 'premium' | 'enterprise';
   amount: number;
-  provider?: 'cashfree';
-  paymentId?: string; // Cashfree payment ID (cf_payment_id)
+  paymentId: string; // Cashfree payment ID
   orderId: string; // Cashfree order ID
-  paymentSessionId?: string;
-  paymentStatus?: 'CREATED' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'USER_DROPPED' | 'REFUNDED' | 'CANCELLED';
   status: 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled' | 'expired';
   startDate: Date;
   endDate: Date;
-  nextBillingDate?: Date; // For recurring subscriptions
-  autoRenew: boolean; // Auto-renewal setting
-  trialEndDate?: Date; // For trial subscriptions
-  cancellationDate?: Date; // When subscription was cancelled
-  cancellationReason?: string; // Reason for cancellation
-  metadata?: {
-    source?: string; // How the subscription was created (web, mobile, admin)
-    campaign?: string; // Marketing campaign that led to subscription
-    referrer?: string; // Referral source
-    notes?: string; // Admin notes
-    [key: string]: any;
-  };
+  autoRenew: boolean;
+  metadata?: Record<string, any>;
 }
 
 // Job Application interface (additional for future use)
@@ -158,45 +151,27 @@ export interface ISystemSettings extends BaseDocument {
   category: 'general' | 'email' | 'payment' | 'security';
 }
 
-// Testimonial interface
-export interface ITestimonial extends BaseDocument {
-  _id: ObjectId;
-  userId?: ObjectId; // Optional if manual
-  name: string;
-  role: string;
-  content: string;
-  rating: number; // 1-5
-  avatar?: string;
-  isApproved: boolean;
-  isVerified: boolean;
-  linkedinUrl?: string;
-}
-
-// Notification interface
-export interface INotification extends BaseDocument {
-  _id: ObjectId;
-  userId: ObjectId;
-  type: 'job_alert' | 'subscription' | 'payment' | 'system' | 'profile' | 'application';
-  title: string;
-  message: string;
-  data?: Record<string, any>;
-  isRead: boolean;
-  readAt?: Date;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: 'info' | 'success' | 'warning' | 'error';
-  actionUrl?: string;
-  actionText?: string;
-  expiresAt?: Date;
-  metadata?: Record<string, any>;
-}
-
 // Resume interface
 export interface IResume extends BaseDocument {
   _id: ObjectId;
   userId: ObjectId;
-  data: any; // Flexible JSON for resume fields
-  templateId: string; // vinod, professional, creative
-  previewUrl?: string; // S3/Cloudinary URL or relative path
-  pdfUrl?: string; // S3/Cloudinary URL or relative path
+  data: any;
+  templateId: string;
+  previewUrl?: string;
+  pdfUrl?: string;
   isPublic: boolean;
+}
+
+// Testimonial interface
+export interface ITestimonial extends BaseDocument {
+  _id: ObjectId;
+  userId?: ObjectId;
+  name: string;
+  role: string;
+  content: string;
+  rating: number;
+  avatar?: string;
+  isApproved: boolean;
+  isVerified: boolean;
+  linkedinUrl?: string;
 }
