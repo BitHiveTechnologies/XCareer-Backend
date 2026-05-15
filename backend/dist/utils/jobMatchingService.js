@@ -1,169 +1,243 @@
 "use strict";
+/**
+ * JobMatchingEngine — Production-grade matching service.
+ *
+ * Scoring Breakdown (max 100 pts + up to 10 bonus):
+ *   Qualification match : 35 pts (exact) | 15 pts (related group)
+ *   Stream match        : 30 pts (exact) | 15 pts (CS/IT group)
+ *   Passout year        : 20 pts (exact) | 15 (±1yr) | 10 (±2yr) | 0 (>2yr)
+ *   CGPA / Percentage   : 15 pts (meets) | 8 pts (within 10% below) | 0 pts
+ *   Skills bonus        : up to 10 pts based on keyword overlap
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findMatchingJobsAdvanced = exports.getMatchingStatistics = exports.getJobRecommendations = exports.findMatchingUsersForJob = exports.findMatchingJobsForUser = exports.calculateMatchScore = void 0;
+exports.getMatchingStatistics = exports.getJobRecommendations = exports.findMatchingJobsForUser = exports.findMatchingUsersForJob = exports.calculateMatchScore = void 0;
 const Job_1 = require("../models/Job");
 const UserProfile_1 = require("../models/UserProfile");
+const User_1 = require("../models/User");
 const logger_1 = require("./logger");
+// ─── Qualification Groupings ───────────────────────────────────────────────────
+/** CS/IT related qualification aliases for soft-matching */
+const CS_QUALIFICATIONS = new Set([
+    'B.E', 'B.Tech', 'M.Tech', 'M.E', 'BCA', 'MCA', 'B.Sc (CS)', 'B.Sc (IT)',
+    'B.Sc', 'M.Sc', 'B.C.A', 'M.C.A'
+]);
+/** CS/IT streams that are closely related */
+const CS_STREAMS = new Set([
+    'CSE', 'IT', 'Computer Science', 'Information Technology',
+    'CS', 'Computer Engineering', 'Software Engineering',
+    'Artificial Intelligence', 'AI & ML', 'Data Science',
+    'AI', 'ML', 'Data Engineering', 'Cyber Security'
+]);
+/** Engineering streams that are closely related */
+const ENGINEERING_STREAMS = new Set([
+    'ECE', 'EEE', 'EE', 'Electronics', 'Electrical', 'Electronics and Communication',
+    'Embedded Systems', 'VLSI', 'Robotics', 'Mechatronics'
+]);
+// ─── Core Scoring Function ─────────────────────────────────────────────────────
 /**
- * Calculate match score between user and job
+ * Calculate a match score between a user profile and job eligibility criteria.
+ * Returns a MatchResult with score 0–110 and human-readable breakdown.
  */
 const calculateMatchScore = (userProfile, jobEligibility) => {
-    let score = 0;
+    const breakdown = { qualification: 0, stream: 0, passoutYear: 0, cgpa: 0, skillsBonus: 0 };
     const reasons = [];
-    // Qualification match (40% weight)
-    const qualificationMatch = userProfile.qualification === jobEligibility.qualifications[0] ||
-        jobEligibility.qualifications.includes(userProfile.qualification);
-    if (qualificationMatch) {
-        score += 40;
-        reasons.push('Qualification matches job requirements');
+    const jobQuals = jobEligibility.qualifications || [];
+    const jobStreams = jobEligibility.streams || [];
+    const jobYears = jobEligibility.passoutYears || [];
+    const minCGPA = jobEligibility.minCGPA;
+    const userQual = userProfile.qualification || '';
+    const userStream = userProfile.stream || '';
+    const userYear = userProfile.yearOfPassout || 0;
+    const userCGPA = userProfile.cgpaOrPercentage || 0;
+    const userSkills = (userProfile.skills || '').toLowerCase();
+    // ─── 1. Qualification (35 pts) ─────────────────────────────────────────────
+    if (jobQuals.length === 0) {
+        // No requirement specified → full points
+        breakdown.qualification = 35;
+        reasons.push('No specific qualification required');
+    }
+    else if (jobQuals.includes(userQual)) {
+        breakdown.qualification = 35;
+        reasons.push(`Qualification matches: ${userQual}`);
     }
     else {
-        reasons.push('Qualification does not match job requirements');
-    }
-    // Stream match (30% weight)
-    const streamMatch = userProfile.stream === jobEligibility.streams[0] ||
-        jobEligibility.streams.includes(userProfile.stream);
-    if (streamMatch) {
-        score += 30;
-        reasons.push('Academic stream matches job requirements');
-    }
-    else {
-        reasons.push('Academic stream does not match job requirements');
-    }
-    // Passout year match (20% weight)
-    const yearMatch = jobEligibility.passoutYears.includes(userProfile.yearOfPassout);
-    if (yearMatch) {
-        score += 20;
-        reasons.push('Graduation year matches job requirements');
-    }
-    else {
-        const yearDiff = Math.abs(userProfile.yearOfPassout - Math.min(...jobEligibility.passoutYears));
-        if (yearDiff <= 1) {
-            score += 10;
-            reasons.push('Graduation year is within acceptable range');
+        // Check if same education group (e.g., both CS qualifications)
+        const userIsCS = CS_QUALIFICATIONS.has(userQual);
+        const jobNeedsCS = jobQuals.some((q) => CS_QUALIFICATIONS.has(q));
+        if (userIsCS && jobNeedsCS) {
+            breakdown.qualification = 15;
+            reasons.push(`Related qualification: ${userQual} (partial match)`);
         }
         else {
-            reasons.push('Graduation year does not match job requirements');
+            reasons.push(`Qualification not matched (required: ${jobQuals.join(', ')})`);
         }
     }
-    // CGPA match (10% weight)
-    if (jobEligibility.minCGPA && userProfile.cgpaOrPercentage) {
-        const userCGPA = userProfile.cgpaOrPercentage;
-        if (userCGPA >= jobEligibility.minCGPA) {
-            score += 10;
-            reasons.push(`CGPA (${userCGPA}) meets minimum requirement (${jobEligibility.minCGPA})`);
-        }
-        else {
-            reasons.push(`CGPA (${userCGPA}) below minimum requirement (${jobEligibility.minCGPA})`);
-        }
+    // ─── 2. Stream (30 pts) ───────────────────────────────────────────────────
+    if (jobStreams.length === 0) {
+        breakdown.stream = 30;
+        reasons.push('No specific stream required');
+    }
+    else if (jobStreams.includes(userStream)) {
+        breakdown.stream = 30;
+        reasons.push(`Stream matches: ${userStream}`);
     }
     else {
-        score += 10;
-        reasons.push('No CGPA requirement specified');
+        // CS/IT soft match
+        const userIsCSStream = CS_STREAMS.has(userStream);
+        const jobNeedsCSStream = jobStreams.some((s) => CS_STREAMS.has(s));
+        const userIsEng = ENGINEERING_STREAMS.has(userStream);
+        const jobNeedsEng = jobStreams.some((s) => ENGINEERING_STREAMS.has(s));
+        if (userIsCSStream && jobNeedsCSStream) {
+            breakdown.stream = 15;
+            reasons.push(`Related CS/IT stream: ${userStream} (partial match)`);
+        }
+        else if (userIsEng && jobNeedsEng) {
+            breakdown.stream = 12;
+            reasons.push(`Related Engineering stream: ${userStream} (partial match)`);
+        }
+        else {
+            reasons.push(`Stream not matched (required: ${jobStreams.join(', ')})`);
+        }
     }
-    // Bonus points for exact matches
-    if (qualificationMatch && streamMatch && yearMatch) {
-        score += 5;
-        reasons.push('Perfect match bonus');
+    // ─── 3. Passout Year (20 pts) ─────────────────────────────────────────────
+    if (jobYears.length === 0) {
+        breakdown.passoutYear = 20;
+        reasons.push('No specific passout year required');
     }
-    return { score, reasons };
+    else if (jobYears.includes(userYear)) {
+        breakdown.passoutYear = 20;
+        reasons.push(`Passout year matches: ${userYear}`);
+    }
+    else {
+        const closestYear = jobYears.reduce((prev, curr) => Math.abs(curr - userYear) < Math.abs(prev - userYear) ? curr : prev);
+        const diff = Math.abs(userYear - closestYear);
+        if (diff === 1) {
+            breakdown.passoutYear = 15;
+            reasons.push(`Passout year within 1 year of requirement (${userYear})`);
+        }
+        else if (diff === 2) {
+            breakdown.passoutYear = 10;
+            reasons.push(`Passout year within 2 years of requirement (${userYear})`);
+        }
+        else {
+            reasons.push(`Passout year ${userYear} is outside expected range`);
+        }
+    }
+    // ─── 4. CGPA / Percentage (15 pts) ────────────────────────────────────────
+    if (!minCGPA || minCGPA === 0) {
+        breakdown.cgpa = 15;
+        reasons.push('No minimum CGPA required');
+    }
+    else if (userCGPA >= minCGPA) {
+        breakdown.cgpa = 15;
+        reasons.push(`CGPA/Percentage ${userCGPA} meets requirement (min: ${minCGPA})`);
+    }
+    else {
+        const deficit = minCGPA - userCGPA;
+        const thresholdTolerance = minCGPA * 0.10; // 10% tolerance
+        if (deficit <= thresholdTolerance) {
+            breakdown.cgpa = 8;
+            reasons.push(`CGPA/Percentage ${userCGPA} slightly below min ${minCGPA} (within 10%)`);
+        }
+        else {
+            reasons.push(`CGPA/Percentage ${userCGPA} below minimum ${minCGPA}`);
+        }
+    }
+    // ─── 5. Skills Bonus (up to 10 pts) ──────────────────────────────────────
+    if (userSkills && userSkills.length > 0) {
+        // Extract words from job title + description for skill matching
+        const jobText = `${jobEligibility.jobTitle || ''} ${jobEligibility.description || ''}`.toLowerCase();
+        const skillWords = userSkills.split(/[,\s]+/).filter((s) => s.length > 2);
+        const matchedSkills = [];
+        for (const skill of skillWords) {
+            if (jobText.includes(skill)) {
+                matchedSkills.push(skill);
+            }
+        }
+        if (matchedSkills.length > 0) {
+            // 2 pts per matched skill, max 10
+            breakdown.skillsBonus = Math.min(10, matchedSkills.length * 2);
+            reasons.push(`Skills matched: ${matchedSkills.slice(0, 5).join(', ')} (+${breakdown.skillsBonus} pts)`);
+        }
+    }
+    const score = breakdown.qualification + breakdown.stream + breakdown.passoutYear +
+        breakdown.cgpa + breakdown.skillsBonus;
+    return { score, reasons, breakdown };
 };
 exports.calculateMatchScore = calculateMatchScore;
+// ─── Find Users Matching a Job ────────────────────────────────────────────────
 /**
- * Find jobs that match a specific user
+ * Find all users whose profiles qualify for a specific job.
+ * Uses a relaxed DB query + post-filter with score-based sorting.
+ *
+ * @param jobId - the job to match against
+ * @param limit - max users to return (default 100)
+ * @param minScore - minimum score threshold (default 50)
  */
-const findMatchingJobsForUser = async (userId, limit = 20) => {
-    try {
-        const userProfile = await UserProfile_1.UserProfile.findOne({ userId }).populate('userId', 'name email');
-        if (!userProfile) {
-            throw new Error('User profile not found');
-        }
-        const jobs = await Job_1.Job.find({ isActive: true }).sort({ createdAt: -1 });
-        const jobMatches = [];
-        for (const job of jobs) {
-            const { score, reasons } = (0, exports.calculateMatchScore)(userProfile, job.eligibility);
-            if (score > 0) {
-                jobMatches.push({
-                    jobId: job._id.toString(),
-                    title: job.title,
-                    company: job.company,
-                    type: job.type,
-                    location: job.location,
-                    matchScore: score,
-                    matchReasons: reasons,
-                    eligibility: job.eligibility,
-                    userQualifications: {
-                        qualification: userProfile.qualification,
-                        stream: userProfile.stream,
-                        yearOfPassout: userProfile.yearOfPassout,
-                        cgpa: userProfile.cgpaOrPercentage
-                    }
-                });
-            }
-        }
-        return jobMatches
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, limit);
-    }
-    catch (error) {
-        logger_1.logger.error('Find matching jobs for user failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            userId
-        });
-        throw error;
-    }
-};
-exports.findMatchingJobsForUser = findMatchingJobsForUser;
-/**
- * Find users that match a specific job
- */
-const findMatchingUsersForJob = async (jobId, limit = 50) => {
+const findMatchingUsersForJob = async (jobId, limit = 100, minScore = 50) => {
     try {
         const job = await Job_1.Job.findById(jobId);
-        if (!job) {
-            throw new Error('Job not found');
-        }
-        const query = {};
-        if (job.eligibility.qualifications.length > 0) {
-            query.qualification = { $in: job.eligibility.qualifications };
-        }
-        if (job.eligibility.streams.length > 0) {
-            query.stream = { $in: job.eligibility.streams };
-        }
-        if (job.eligibility.passoutYears.length > 0) {
-            query.yearOfPassout = { $in: job.eligibility.passoutYears };
-        }
-        const userProfiles = await UserProfile_1.UserProfile.find(query)
-            .populate('userId', 'name email')
-            .limit(limit * 2);
-        const userMatches = [];
-        for (const profile of userProfiles) {
-            if (job.eligibility.minCGPA && profile.cgpaOrPercentage < job.eligibility.minCGPA) {
-                continue;
+        if (!job)
+            throw new Error(`Job ${jobId} not found`);
+        const jobEligibility = {
+            ...job.eligibility,
+            jobTitle: job.title,
+            description: job.description
+        };
+        // Relaxed DB query — widen passout year range by ±2 years so we don't miss
+        // users that the strict $in would reject
+        const dbQuery = {};
+        if (job.eligibility.qualifications?.length > 0) {
+            // Include exact + related qualifications
+            const relatedQuals = [...job.eligibility.qualifications];
+            // Add CS group if any job qual is CS-related
+            const jobNeedsCS = job.eligibility.qualifications.some(q => CS_QUALIFICATIONS.has(q));
+            if (jobNeedsCS) {
+                CS_QUALIFICATIONS.forEach(q => relatedQuals.push(q));
             }
-            const { score, reasons } = (0, exports.calculateMatchScore)(profile, job.eligibility);
-            if (score > 0) {
-                userMatches.push({
-                    userId: profile.userId._id.toString(),
-                    name: profile.userId.name,
-                    email: profile.userId.email,
+            dbQuery.qualification = { $in: [...new Set(relatedQuals)] };
+        }
+        if (job.eligibility.passoutYears?.length > 0) {
+            const minYear = Math.min(...job.eligibility.passoutYears) - 2;
+            const maxYear = Math.max(...job.eligibility.passoutYears) + 2;
+            dbQuery.yearOfPassout = { $gte: minYear, $lte: maxYear };
+        }
+        const userProfiles = await UserProfile_1.UserProfile.find(dbQuery)
+            .populate('userId', 'name email isProfileComplete subscriptionStatus')
+            .limit(limit * 3) // fetch more than needed, then filter by score
+            .lean();
+        const matches = [];
+        for (const profile of userProfiles) {
+            const populatedUser = profile.userId;
+            if (!populatedUser || !populatedUser.name || !populatedUser.email)
+                continue;
+            // Only alert users with active subscriptions
+            if (populatedUser.subscriptionStatus !== 'active')
+                continue;
+            const { score, reasons } = (0, exports.calculateMatchScore)(profile, jobEligibility);
+            if (score >= minScore) {
+                matches.push({
+                    userId: populatedUser._id.toString(),
+                    name: populatedUser.name,
+                    email: populatedUser.email,
                     matchScore: score,
                     matchReasons: reasons,
                     profile: {
                         qualification: profile.qualification,
                         stream: profile.stream,
                         yearOfPassout: profile.yearOfPassout,
-                        cgpa: profile.cgpaOrPercentage
+                        cgpa: profile.cgpaOrPercentage,
+                        skills: profile.skills
                     }
                 });
             }
         }
-        return userMatches
+        return matches
             .sort((a, b) => b.matchScore - a.matchScore)
             .slice(0, limit);
     }
     catch (error) {
-        logger_1.logger.error('Find matching users for job failed', {
+        logger_1.logger.error('findMatchingUsersForJob failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
             jobId
         });
@@ -171,28 +245,67 @@ const findMatchingUsersForJob = async (jobId, limit = 50) => {
     }
 };
 exports.findMatchingUsersForJob = findMatchingUsersForJob;
+// ─── Find Jobs Matching a User ────────────────────────────────────────────────
 /**
- * Get job recommendations for a user
+ * Find all active jobs that match a given user's profile.
  */
-const getJobRecommendations = async (userId, preferences = {}) => {
+const findMatchingJobsForUser = async (userId, limit = 20, minScore = 50) => {
     try {
-        const { preferredJobTypes = ['job', 'internship'], preferredLocations = ['remote', 'onsite', 'hybrid'], minMatchScore = 40, maxResults = 15 } = preferences;
-        const userProfile = await UserProfile_1.UserProfile.findOne({ userId });
-        if (!userProfile) {
-            // Return empty recommendations if no user profile exists
+        const profile = await UserProfile_1.UserProfile.findOne({ userId }).lean();
+        if (!profile)
             return [];
-        }
+        const user = await User_1.User.findById(userId).lean();
+        if (!user)
+            return [];
         const jobs = await Job_1.Job.find({
             isActive: true,
-            type: { $in: preferredJobTypes },
-            location: { $in: preferredLocations },
             applicationDeadline: { $gt: new Date() }
-        }).sort({ createdAt: -1 });
-        const jobMatches = [];
+        }).lean();
+        const matches = [];
         for (const job of jobs) {
-            const { score, reasons } = (0, exports.calculateMatchScore)(userProfile, job.eligibility);
-            if (score >= minMatchScore) {
-                jobMatches.push({
+            const eligibility = { ...job.eligibility, jobTitle: job.title, description: job.description };
+            const { score, reasons } = (0, exports.calculateMatchScore)(profile, eligibility);
+            if (score >= minScore) {
+                matches.push({
+                    jobId: job._id.toString(),
+                    title: job.title,
+                    company: job.company,
+                    type: job.type,
+                    location: job.location,
+                    matchScore: score,
+                    matchReasons: reasons,
+                    eligibility: job.eligibility
+                });
+            }
+        }
+        return matches.sort((a, b) => b.matchScore - a.matchScore).slice(0, limit);
+    }
+    catch (error) {
+        logger_1.logger.error('findMatchingJobsForUser failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            userId
+        });
+        throw error;
+    }
+};
+exports.findMatchingJobsForUser = findMatchingJobsForUser;
+// ─── Job Recommendations for User ────────────────────────────────────────────
+const getJobRecommendations = async (userId, options = {}) => {
+    const { minScore = 50, limit = 15 } = options;
+    try {
+        const profile = await UserProfile_1.UserProfile.findOne({ userId }).lean();
+        if (!profile)
+            return [];
+        const jobs = await Job_1.Job.find({
+            isActive: true,
+            applicationDeadline: { $gt: new Date() }
+        }).lean();
+        const recommendations = [];
+        for (const job of jobs) {
+            const eligibility = { ...job.eligibility, jobTitle: job.title, description: job.description };
+            const { score, reasons } = (0, exports.calculateMatchScore)(profile, eligibility);
+            if (score >= minScore) {
+                recommendations.push({
                     jobId: job._id.toString(),
                     title: job.title,
                     company: job.company,
@@ -201,223 +314,44 @@ const getJobRecommendations = async (userId, preferences = {}) => {
                     matchScore: score,
                     matchReasons: reasons,
                     eligibility: job.eligibility,
-                    userQualifications: {
-                        qualification: userProfile.qualification,
-                        stream: userProfile.stream,
-                        yearOfPassout: userProfile.yearOfPassout,
-                        cgpa: userProfile.cgpaOrPercentage
-                    }
+                    salary: job.salary,
+                    stipend: job.stipend,
+                    applicationLink: job.applicationLink,
+                    applicationDeadline: job.applicationDeadline
                 });
             }
         }
-        return jobMatches
-            .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, maxResults);
+        return recommendations.sort((a, b) => b.matchScore - a.matchScore).slice(0, limit);
     }
     catch (error) {
-        logger_1.logger.error('Get job recommendations failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            userId
-        });
-        throw error;
+        logger_1.logger.error('getJobRecommendations failed', { error, userId });
+        return [];
     }
 };
 exports.getJobRecommendations = getJobRecommendations;
-/**
- * Generate detailed match reasons for a user-job combination
- */
-const generateMatchReasons = (userProfile, job) => {
-    const reasons = [];
-    // Qualification match
-    const qualificationMatch = userProfile.qualifications?.some((qual) => job.eligibility.qualifications.includes(qual)) || userProfile.qualification === job.eligibility.qualifications[0];
-    if (qualificationMatch) {
-        reasons.push(`Qualification match: ${userProfile.qualifications?.join(', ') || userProfile.qualification}`);
-    }
-    // Stream match
-    if (job.eligibility.streams.includes(userProfile.stream)) {
-        reasons.push(`Stream match: ${userProfile.stream}`);
-    }
-    // Passout year match
-    if (job.eligibility.passoutYears.includes(userProfile.yearOfPassout)) {
-        reasons.push(`Recent graduate (${userProfile.yearOfPassout})`);
-    }
-    // Location preference
-    if (job.location === 'remote') {
-        reasons.push('Remote work available');
-    }
-    return reasons;
-};
-/**
- * Get advanced matching statistics for analytics
- */
+// ─── Matching Statistics ──────────────────────────────────────────────────────
 const getMatchingStatistics = async () => {
-    try {
-        const totalUsers = await UserProfile_1.UserProfile.countDocuments();
-        const totalJobs = await Job_1.Job.countDocuments({ isActive: true });
-        // Get qualification distribution
-        const qualificationStats = await UserProfile_1.UserProfile.aggregate([
-            { $unwind: '$qualifications' },
-            { $group: { _id: '$qualifications', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 5 }
-        ]);
-        // Get stream distribution
-        const streamStats = await UserProfile_1.UserProfile.aggregate([
-            { $group: { _id: '$stream', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 5 }
-        ]);
-        // Calculate average match scores (placeholder for now)
-        const averageMatchScore = 75; // This would be calculated from actual matches
-        return {
-            totalUsers,
-            totalJobs,
-            averageMatchScore,
-            topQualifications: qualificationStats.map(stat => stat._id),
-            topStreams: streamStats.map(stat => stat._id),
-            matchingEfficiency: 'high',
-            lastUpdated: new Date()
-        };
-    }
-    catch (error) {
-        logger_1.logger.error('Get matching statistics failed', {
-            error: error instanceof Error ? error.message : 'Unknown error'
-        });
-        throw error;
-    }
+    const totalUsers = await UserProfile_1.UserProfile.countDocuments();
+    const totalJobs = await Job_1.Job.countDocuments({ isActive: true });
+    const qualificationStats = await UserProfile_1.UserProfile.aggregate([
+        { $group: { _id: '$qualification', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+    ]);
+    const streamStats = await UserProfile_1.UserProfile.aggregate([
+        { $group: { _id: '$stream', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+    ]);
+    return {
+        totalUsers,
+        totalJobs,
+        averageMatchScore: 0, // calculated from actual notifications in production
+        topQualifications: qualificationStats.map(s => s._id),
+        topStreams: streamStats.map(s => s._id),
+        matchingEfficiency: totalUsers > 0 && totalJobs > 0 ? 'high' : 'low',
+        lastUpdated: new Date()
+    };
 };
 exports.getMatchingStatistics = getMatchingStatistics;
-/**
- * Find jobs with advanced filtering and scoring
- */
-const findMatchingJobsAdvanced = async (userId, filters, options) => {
-    try {
-        const userProfile = await UserProfile_1.UserProfile.findOne({ userId });
-        if (!userProfile) {
-            throw new Error('User profile not found');
-        }
-        // Build query based on filters
-        const query = { isActive: true, applicationDeadline: { $gt: new Date() } };
-        if (filters.jobTypes?.length) {
-            query.type = { $in: filters.jobTypes };
-        }
-        if (filters.locations?.length) {
-            query.location = { $in: filters.locations };
-        }
-        if (filters.qualifications?.length) {
-            query['eligibility.qualifications'] = { $in: filters.qualifications };
-        }
-        if (filters.streams?.length) {
-            query['eligibility.streams'] = { $in: filters.streams };
-        }
-        // Find matching jobs
-        const jobs = await Job_1.Job.find(query)
-            .populate('postedBy', 'name company')
-            .limit(options.limit)
-            .skip(options.offset);
-        // Calculate advanced scores and create matches
-        const advancedMatches = jobs.map(job => {
-            const baseScore = (0, exports.calculateMatchScore)(userProfile, job.eligibility).score;
-            const advancedScore = calculateAdvancedScore(userProfile, job, filters);
-            const matchReasons = generateDetailedMatchReasons(userProfile, job);
-            return {
-                jobId: job._id.toString(),
-                title: job.title,
-                company: job.postedBy?.name || 'Unknown Company',
-                type: job.type,
-                location: job.location,
-                salary: job.salary,
-                stipend: job.stipend,
-                baseMatchScore: baseScore,
-                advancedMatchScore: advancedScore,
-                matchReasons,
-                applicationDeadline: job.applicationDeadline,
-                postedDate: job.createdAt
-            };
-        });
-        // Sort based on options
-        switch (options.sortBy) {
-            case 'relevance':
-                advancedMatches.sort((a, b) => b.advancedMatchScore - a.advancedMatchScore);
-                break;
-            case 'date':
-                advancedMatches.sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
-                break;
-            case 'salary':
-                advancedMatches.sort((a, b) => (parseInt(b.salary || '0') - parseInt(a.salary || '0')));
-                break;
-        }
-        return advancedMatches;
-    }
-    catch (error) {
-        logger_1.logger.error('Advanced job matching failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            userId
-        });
-        throw error;
-    }
-};
-exports.findMatchingJobsAdvanced = findMatchingJobsAdvanced;
-/**
- * Calculate advanced match score with additional factors
- */
-const calculateAdvancedScore = (userProfile, job, filters) => {
-    let score = (0, exports.calculateMatchScore)(userProfile, job.eligibility).score;
-    // Bonus for exact qualification match
-    if (filters.qualifications?.includes(userProfile.qualifications?.[0] || userProfile.qualification)) {
-        score += 10;
-    }
-    // Bonus for preferred location
-    if (filters.locations?.includes(job.location)) {
-        score += 5;
-    }
-    // Bonus for recent posting (within 7 days)
-    const daysSincePosted = Math.floor((Date.now() - new Date(job.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSincePosted <= 7) {
-        score += 3;
-    }
-    return Math.min(100, score);
-};
-/**
- * Generate detailed match reasons with explanations
- */
-const generateDetailedMatchReasons = (userProfile, job) => {
-    const reasons = [];
-    // Qualification analysis
-    const qualificationMatch = userProfile.qualifications?.some((qual) => job.eligibility.qualifications.includes(qual)) || userProfile.qualification === job.eligibility.qualifications[0];
-    if (qualificationMatch) {
-        reasons.push({
-            type: 'qualification',
-            message: `Your ${userProfile.qualifications?.join(', ') || userProfile.qualification} qualification(s) match the job requirements`,
-            score: 25
-        });
-    }
-    // Stream analysis
-    if (job.eligibility.streams.includes(userProfile.stream)) {
-        reasons.push({
-            type: 'stream',
-            message: `Your ${userProfile.stream} stream is exactly what they're looking for`,
-            score: 20
-        });
-    }
-    // Experience level analysis
-    const currentYear = new Date().getFullYear();
-    const yearsSinceGraduation = currentYear - userProfile.yearOfPassout;
-    if (yearsSinceGraduation <= 2) {
-        reasons.push({
-            type: 'experience',
-            message: `Recent graduate (${yearsSinceGraduation} year${yearsSinceGraduation === 1 ? '' : 's'} experience)`,
-            score: 15
-        });
-    }
-    // Location preference
-    if (job.location === 'remote') {
-        reasons.push({
-            type: 'location',
-            message: 'Remote work available - flexible location',
-            score: 10
-        });
-    }
-    return reasons;
-};
 //# sourceMappingURL=jobMatchingService.js.map

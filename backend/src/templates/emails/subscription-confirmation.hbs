@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; }
+    .header { background: #007bff; color: #fff; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+    .content { padding: 20px; }
+    .footer { text-align: center; font-size: 12px; color: #777; padding: 20px; }
+    .highlight { color: #007bff; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Subscription Activated!</h1>
+    </div>
+    <div class="content">
+      <p>Hello,</p>
+      <p>Your <span class="highlight">NotifyX {{plan}}</span> subscription is now active!</p>
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Amount Paid:</strong> ₹{{amount}}</p>
+        <p><strong>Valid Until:</strong> {{endDate}}</p>
+      </div>
+      <p>You can now access all the features included in your plan. Start exploring job opportunities that match your profile!</p>
+      <p>Thank you for choosing NotifyX.</p>
+    </div>
+    <div class="footer">
+      &copy; 2026 X Careers Connect Private Limited. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>

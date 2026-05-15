@@ -21,6 +21,7 @@ export interface EnhancedJobAlertOptions {
     minimumMatchPercentage?: number;
     maxUsers?: number;
     dryRun?: boolean;
+    force?: boolean;
     customCriteria?: Partial<MatchingCriteria>;
 }
 /**
@@ -34,6 +35,7 @@ export declare const sendAllJobAlertsEnhanced: (options?: {
     minimumMatchPercentage?: number;
     maxUsersPerJob?: number;
     dryRun?: boolean;
+    force?: boolean;
     customCriteria?: Partial<MatchingCriteria>;
 }) => Promise<{
     [jobId: string]: EnhancedJobAlertResult;

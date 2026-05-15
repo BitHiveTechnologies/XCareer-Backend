@@ -16,6 +16,8 @@ router.get('/plans', subscriptionController_1.getAvailablePlans);
 router.use(jwtAuth_1.authenticate);
 // Get current subscription
 router.get('/current', subscriptionController_1.getCurrentSubscription);
+// Get current user's plan access/feature flags (e.g. template access, notification priority)
+router.get('/access', subscriptionController_1.getUserPlanAccess);
 // Get subscription history
 router.get('/history', (0, validation_1.validate)({
     query: validation_2.commonSchemas.object({
@@ -33,7 +35,8 @@ router.delete('/:subscriptionId', (0, validation_1.validate)({
 // Renew subscription
 router.post('/renew', (0, validation_1.validate)({
     body: validation_2.commonSchemas.object({
-        plan: validation_2.commonSchemas.string().valid('basic', 'premium', 'enterprise').required(),
+        // 'enterprise' is the DB value for Pro plan; 'pro' is accepted as alias by the controller
+        plan: validation_2.commonSchemas.string().valid('basic', 'premium', 'enterprise', 'pro').required(),
         amount: validation_2.commonSchemas.number().positive().required()
     })
 }), subscriptionController_1.renewSubscription);

@@ -1,431 +1,198 @@
 import { Request, Response } from 'express';
 import { logger } from '../../utils/logger';
-import { sendJobAlertsEnhanced } from '../../services/enhancedJobAlertService';
-import { getJobAlertStats, retryFailedJobNotifications } from '../../services/jobAlertService';
+import {
+  sendJobAlertsForJob,
+  sendJobAlertsForAllActiveJobs,
+  retryFailedJobNotifications,
+  getJobAlertStats
+} from '../../services/jobAlertService';
 import { schedulerService } from '../../services/schedulerService';
 
 /**
- * Send job alerts for a specific job
+ * Send job alerts for a specific job (Admin only)
+ * POST /api/v1/jobs/alerts/send/:jobId
  */
 export const sendJobAlerts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const adminId = req.user?.id;
     const { jobId } = req.params;
-    const {
-      minMatchScore = 40,
-      maxUsers = 100,
-      dryRun = false
-    } = req.body;
+    const { minMatchScore = 50, maxUsers = 100, dryRun = false, force = false } = req.body;
+    const adminId = req.user?.id;
 
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
+    logger.info('Admin triggered job alert for single job', { adminId, jobId, minMatchScore, dryRun, ip: req.ip });
 
-    if (!jobId) {
-      res.status(400).json({
-        success: false,
-        error: {
-          message: 'Job ID is required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
-    logger.info('Manual job alerts triggered', {
-      adminId,
+    const stats = await sendJobAlertsForJob({
       jobId,
-      minMatchScore,
-      maxUsers,
-      dryRun,
-      ip: req.ip
+      minMatchScore: Number(minMatchScore),
+      maxUsers: Number(maxUsers),
+      dryRun: Boolean(dryRun),
+      force: Boolean(force),
+      isAutomatic: false,
+      triggeredBy: adminId
     });
-
-    const result = await sendJobAlertsEnhanced({
-      jobId,
-      minimumMatchPercentage: minMatchScore,
-      maxUsers,
-      dryRun
-    });
-
-    const stats = {
-      totalEligibleUsers: result.totalEligibleUsers,
-      emailsSent: result.emailsSent,
-      emailsFailed: result.emailsFailed,
-      duplicateNotifications: result.duplicateNotifications,
-      usersWithoutProfile: 0, // Enhanced service doesn't track this separately
-      usersWithInactiveSubscription: 0 // Enhanced service doesn't track this separately
-    };
 
     res.status(200).json({
       success: true,
-      message: dryRun ? 'Job alerts dry run completed' : 'Job alerts sent successfully',
-      data: {
-        jobId,
-        stats,
-        dryRun
-      },
+      message: dryRun ? 'Dry run completed' : 'Job alerts sent successfully',
+      data: stats,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Send job alerts failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
+    logger.error('sendJobAlerts failed', {
+      error: error instanceof Error ? error.message : String(error),
       jobId: req.params.jobId,
-      ip: req.ip
+      adminId: req.user?.id
     });
-
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to send job alerts'
-      },
+      error: { message: error instanceof Error ? error.message : 'Failed to send job alerts' },
       timestamp: new Date().toISOString()
     });
   }
 };
 
 /**
- * Send job alerts for all active jobs
+ * Send job alerts for ALL active jobs (Admin only)
+ * POST /api/v1/jobs/alerts/send-all
  */
 export const sendAllJobAlerts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { minMatchScore = 50, maxUsersPerJob = 100, dryRun = false, force = false } = req.body;
     const adminId = req.user?.id;
-    const {
-      minMatchScore = 40,
-      maxUsersPerJob = 100,
-      dryRun = false
-    } = req.body;
 
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
+    logger.info('Admin triggered bulk job alerts for all jobs', { adminId, minMatchScore, dryRun, ip: req.ip });
 
-    logger.info('Manual all job alerts triggered', {
-      adminId,
-      minMatchScore,
-      maxUsersPerJob,
-      dryRun,
-      ip: req.ip
+    const result = await sendJobAlertsForAllActiveJobs({
+      minMatchScore: Number(minMatchScore),
+      maxUsersPerJob: Number(maxUsersPerJob),
+      dryRun: Boolean(dryRun),
+      force: Boolean(force),
+      isAutomatic: false,
+      triggeredBy: adminId
     });
-
-    // Get all active jobs and send alerts for each
-    const { Job } = await import('../../models/Job');
-    const activeJobs = await Job.find({ isActive: true });
-    
-    const results: Record<string, any> = {};
-    let totalStats = {
-      totalEligibleUsers: 0,
-      emailsSent: 0,
-      emailsFailed: 0,
-      duplicateNotifications: 0,
-      usersWithoutProfile: 0,
-      usersWithInactiveSubscription: 0
-    };
-
-    for (const job of activeJobs) {
-      try {
-        const result = await sendJobAlertsEnhanced({
-          jobId: job._id.toString(),
-          minimumMatchPercentage: minMatchScore,
-          maxUsers: maxUsersPerJob,
-          dryRun
-        });
-
-        results[job._id.toString()] = {
-          totalEligibleUsers: result.totalEligibleUsers,
-          emailsSent: result.emailsSent,
-          emailsFailed: result.emailsFailed,
-          duplicateNotifications: result.duplicateNotifications,
-          usersWithoutProfile: 0,
-          usersWithInactiveSubscription: 0
-        };
-
-        totalStats.totalEligibleUsers += result.totalEligibleUsers;
-        totalStats.emailsSent += result.emailsSent;
-        totalStats.emailsFailed += result.emailsFailed;
-        totalStats.duplicateNotifications += result.duplicateNotifications;
-      } catch (error) {
-        logger.error('Failed to send alerts for job', {
-          jobId: job._id.toString(),
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-        
-        results[job._id.toString()] = {
-          totalEligibleUsers: 0,
-          emailsSent: 0,
-          emailsFailed: 0,
-          duplicateNotifications: 0,
-          usersWithoutProfile: 0,
-          usersWithInactiveSubscription: 0,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
-    }
 
     res.status(200).json({
       success: true,
       message: dryRun ? 'All job alerts dry run completed' : 'All job alerts sent successfully',
-      data: {
-        totalJobs: Object.keys(results).length,
-        totalStats,
-        results,
-        dryRun
-      },
+      data: result,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Send all job alerts failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
-      ip: req.ip
+    logger.error('sendAllJobAlerts failed', {
+      error: error instanceof Error ? error.message : String(error),
+      adminId: req.user?.id
     });
-
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to send all job alerts'
-      },
+      error: { message: error instanceof Error ? error.message : 'Failed to send all job alerts' },
       timestamp: new Date().toISOString()
     });
   }
 };
 
 /**
- * Get job alert statistics
+ * Get job alert statistics (Admin only)
+ * GET /api/v1/jobs/alerts/statistics
  */
 export const getJobAlertStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
-    const adminId = req.user?.id;
     const { jobId } = req.query;
-
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
-    const stats = await getJobAlertStats(jobId as string);
-
-    logger.info('Job alert statistics retrieved', {
-      adminId,
-      jobId,
-      ip: req.ip
-    });
+    const stats = await getJobAlertStats(jobId as string | undefined);
 
     res.status(200).json({
       success: true,
-      data: {
-        statistics: stats,
-        jobId: jobId || 'all'
-      },
+      data: { statistics: stats, jobId: jobId || 'all' },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Get job alert statistics failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
-      ip: req.ip
-    });
-
+    logger.error('getJobAlertStatistics failed', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to get job alert statistics'
-      },
+      error: { message: 'Failed to get statistics' },
       timestamp: new Date().toISOString()
     });
   }
 };
 
 /**
- * Retry failed job notifications
+ * Retry failed notifications (Admin only)
+ * POST /api/v1/jobs/alerts/retry-failed
  */
 export const retryFailedNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
-    const adminId = req.user?.id;
     const { jobId } = req.body;
-
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
-    logger.info('Manual retry failed notifications triggered', {
-      adminId,
-      jobId,
-      ip: req.ip
-    });
-
     const result = await retryFailedJobNotifications(jobId);
 
     res.status(200).json({
       success: true,
-      message: 'Failed notifications retry completed',
-      data: {
-        result,
-        jobId: jobId || 'all'
-      },
+      message: 'Retry completed',
+      data: { result, jobId: jobId || 'all' },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Retry failed notifications failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
-      ip: req.ip
-    });
-
+    logger.error('retryFailedNotifications failed', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to retry failed notifications'
-      },
+      error: { message: 'Failed to retry notifications' },
       timestamp: new Date().toISOString()
     });
   }
 };
 
 /**
- * Get scheduler status
+ * Get scheduler status (Admin only)
+ * GET /api/v1/jobs/alerts/scheduler/status
  */
 export const getSchedulerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const adminId = req.user?.id;
-
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
     const status = schedulerService.getStatus();
-
-    logger.info('Scheduler status retrieved', {
-      adminId,
-      ip: req.ip
-    });
-
     res.status(200).json({
       success: true,
-      data: {
-        status
-      },
+      data: { status },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Get scheduler status failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
-      ip: req.ip
-    });
-
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to get scheduler status'
-      },
+      error: { message: 'Failed to get scheduler status' },
       timestamp: new Date().toISOString()
     });
   }
 };
 
 /**
- * Manually trigger scheduler tasks
+ * Manually trigger scheduler tasks (Admin only)
+ * POST /api/v1/jobs/alerts/scheduler/trigger
  */
 export const triggerSchedulerTask = async (req: Request, res: Response): Promise<void> => {
   try {
-    const adminId = req.user?.id;
     const { task, dryRun = false } = req.body;
-
-    if (!adminId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          message: 'Authentication required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
 
     if (!task || !['jobAlerts', 'retryFailed'].includes(task)) {
       res.status(400).json({
         success: false,
-        error: {
-          message: 'Invalid task. Must be "jobAlerts" or "retryFailed"'
-        },
+        error: { message: 'Invalid task. Must be "jobAlerts" or "retryFailed"' },
         timestamp: new Date().toISOString()
       });
       return;
     }
 
-    logger.info('Manual scheduler task triggered', {
-      adminId,
-      task,
-      dryRun,
-      ip: req.ip
-    });
-
     let result;
     if (task === 'jobAlerts') {
       result = await schedulerService.triggerJobAlerts(dryRun);
-    } else if (task === 'retryFailed') {
+    } else {
       result = await schedulerService.triggerRetryFailed();
     }
 
     res.status(200).json({
       success: true,
-      message: `Scheduler task "${task}" completed successfully`,
-      data: {
-        task,
-        result,
-        dryRun
-      },
+      message: `Task "${task}" completed`,
+      data: { task, result, dryRun },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('Trigger scheduler task failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      adminId: req.user?.id,
-      task: req.body.task,
-      ip: req.ip
-    });
-
     res.status(500).json({
       success: false,
-      error: {
-        message: 'Failed to trigger scheduler task'
-      },
+      error: { message: 'Failed to trigger scheduler task' },
       timestamp: new Date().toISOString()
     });
   }

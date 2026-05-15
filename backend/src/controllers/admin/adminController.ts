@@ -3,6 +3,7 @@ import { User } from '../../models/User';
 import { UserProfile } from '../../models/UserProfile';
 import { Job } from '../../models/Job';
 import { Subscription } from '../../models/Subscription';
+import { Customer } from '../../models/Customer';
 import { JobApplication } from '../../models/JobApplication';
 import { sendJobAlertsForJob } from '../../services/jobAlertService';
 import { logger } from '../../utils/logger';
@@ -18,17 +19,6 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
     const adminId = req.user?.id;
     const adminRole = req.user?.role;
 
-    if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-      res.status(403).json({
-        success: false,
-        error: {
-          message: 'Admin access required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
     // Get real-time statistics
     const [
       totalUsers,
@@ -38,7 +28,8 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
       totalSubscriptions,
       activeSubscriptions,
       totalApplications,
-      pendingApplications
+      pendingApplications,
+      totalCustomers
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ subscriptionStatus: 'active' }),
@@ -47,7 +38,8 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
       Subscription.countDocuments(),
       Subscription.countDocuments({ status: 'completed' }),
       JobApplication.countDocuments(),
-      JobApplication.countDocuments({ status: 'applied' })
+      JobApplication.countDocuments({ status: 'applied' }),
+      Customer.countDocuments()
     ]);
 
     // Revenue calculation
@@ -122,6 +114,7 @@ export const getDashboardStats = async (req: AdminRequest, res: Response): Promi
           activeSubscriptions,
           totalApplications,
           pendingApplications,
+          totalCustomers,
           totalRevenue
         },
         growth: {
@@ -162,17 +155,6 @@ export const getUserAnalytics = async (req: AdminRequest, res: Response): Promis
   try {
     const adminId = req.user?.id;
     const adminRole = req.user?.role;
-
-    if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-      res.status(403).json({
-        success: false,
-        error: {
-          message: 'Admin access required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
 
     const { period = '30d' } = req.query;
     
@@ -304,17 +286,6 @@ export const getJobAnalytics = async (req: AdminRequest, res: Response): Promise
   try {
     const adminId = req.user?.id;
     const adminRole = req.user?.role;
-
-    if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-      res.status(403).json({
-        success: false,
-        error: {
-          message: 'Admin access required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
 
     // Get job statistics
     const [
@@ -456,17 +427,6 @@ export const getSystemHealth = async (req: AdminRequest, res: Response): Promise
     const adminId = req.user?.id;
     const adminRole = req.user?.role;
 
-    if (!adminId || !['admin', 'super_admin'].includes(adminRole || '')) {
-      res.status(403).json({
-        success: false,
-        error: {
-          message: 'Admin access required'
-        },
-        timestamp: new Date().toISOString()
-      });
-      return;
-    }
-
     // Get database statistics
     const dbStats = {
       users: await User.countDocuments(),
@@ -581,3 +541,221 @@ export const notifyUsersForJob = async (req: Request, res: Response): Promise<vo
     });
   }
 };
+
+/**
+ * Get all users with filtering and pagination (Admin only)
+ */
+export const getAllUsers = async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const adminId = req.user?.id;
+    const adminRole = req.user?.role;
+
+    const { page = 1, limit = 10, search, status, subscriptionPlan } = req.query;
+    
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    const query: any = {};
+    
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (status) {
+      query.subscriptionStatus = status;
+    }
+    
+    if (subscriptionPlan) {
+      query.subscriptionPlan = subscriptionPlan;
+    }
+
+    // Execute query
+    const users = await User.find(query)
+      .select('-password')
+      .skip(skip)
+      .limit(limitNum)
+      .sort({ createdAt: -1 });
+
+    const total = await User.countDocuments(query);
+
+    logger.info('Admin retrieved all users', {
+      adminId,
+      query: { search, status, subscriptionPlan },
+      count: users.length,
+      total
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Admin get all users failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      adminId: req.user?.id,
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to get users'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Get all payment history (admin only)
+ */
+export const getAllPayments = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10, status, plan } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const query: any = {};
+    if (status) query.status = status;
+    if (plan) query.plan = plan;
+
+    const subscriptions = await Subscription.find(query)
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Subscription.countDocuments(query);
+
+    const transformedPayments = subscriptions.map((sub: any) => ({
+      id: sub._id,
+      transactionId: sub.paymentId || sub._id,
+      customerName: sub.userId?.name || 'Unknown User',
+      customerEmail: sub.userId?.email || 'N/A',
+      amount: sub.amount,
+      plan: sub.plan,
+      status: sub.status,
+      date: sub.createdAt,
+      type: 'Subscription',
+      paymentMethod: 'Cashfree'
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        data: transformedPayments,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Admin get all payments failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      adminId: req.user?.id,
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to get payment history'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Get all customers (admin only)
+ */
+export const getAllCustomers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10, search, status } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const query: any = {};
+    if (status) query.status = status;
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const customers = await Customer.find(query)
+      .populate('userId', 'role subscriptionPlan subscriptionStatus createdAt')
+      .sort({ lastSubscriptionDate: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Customer.countDocuments(query);
+
+    const transformedCustomers = customers.map((c: any) => ({
+      id: c._id,
+      userId: c.userId?._id,
+      name: c.name,
+      email: c.email,
+      mobile: c.mobile,
+      totalPaid: c.totalPaid,
+      subscriptionCount: c.subscriptionCount,
+      lastSubscriptionDate: c.lastSubscriptionDate ? new Date(c.lastSubscriptionDate).toLocaleDateString() : 'N/A',
+      status: c.status,
+      role: c.userId?.role || 'user',
+      plan: c.userId?.subscriptionPlan || 'N/A',
+      profileStatus: c.userId?.isProfileComplete ? 'Complete' : 'Incomplete',
+      createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'N/A'
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        data: transformedCustomers,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Admin get all customers failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      adminId: (req as any).user?.id,
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to get customers'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+

@@ -10,6 +10,7 @@ const subscriptionRoutes_1 = __importDefault(require("./subscriptions/subscripti
 const jobRoutes_1 = __importDefault(require("./jobs/jobRoutes"));
 const jobApplicationRoutes_1 = __importDefault(require("./jobs/jobApplicationRoutes"));
 const jobMatchingRoutes_1 = __importDefault(require("./jobs/jobMatchingRoutes"));
+const jobAlertRoutes_1 = __importDefault(require("./jobs/jobAlertRoutes"));
 const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
 const clerkAuthRoutes_1 = __importDefault(require("./auth/clerkAuthRoutes"));
 const jwtAuthRoutes_1 = __importDefault(require("./auth/jwtAuthRoutes"));
@@ -38,6 +39,8 @@ router.use(`${API_VERSION}/jobs`, jobRoutes_1.default);
 router.use(`${API_VERSION}/applications`, jobApplicationRoutes_1.default);
 // Job matching routes
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes_1.default);
+// Job alert routes (email notifications)
+router.use(`${API_VERSION}/jobs/alerts`, jobAlertRoutes_1.default);
 // Email notification routes
 router.use(`${API_VERSION}/notifications`, emailNotificationRoutes_1.default);
 // Admin authentication routes (public)

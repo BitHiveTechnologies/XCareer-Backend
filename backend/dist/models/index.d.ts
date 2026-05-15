@@ -5,6 +5,7 @@ export { JobApplication } from './JobApplication';
 export { Admin, adminSchema } from './Admin';
 export { Subscription, subscriptionSchema } from './Subscription';
 export { JobNotification, jobNotificationSchema } from './JobNotification';
+export { Customer } from './Customer';
 export * from './interfaces';
 export declare const MODEL_NAMES: {
     readonly USER: "User";
@@ -14,6 +15,7 @@ export declare const MODEL_NAMES: {
     readonly ADMIN: "Admin";
     readonly SUBSCRIPTION: "Subscription";
     readonly JOB_NOTIFICATION: "JobNotification";
+    readonly CUSTOMER: "Customer";
 };
 export declare const COLLECTION_NAMES: {
     readonly USERS: "users";
@@ -23,5 +25,6 @@ export declare const COLLECTION_NAMES: {
     readonly ADMINS: "admins";
     readonly SUBSCRIPTIONS: "subscriptions";
     readonly JOB_NOTIFICATIONS: "jobnotifications";
+    readonly CUSTOMERS: "customers";
 };
 //# sourceMappingURL=index.d.ts.map

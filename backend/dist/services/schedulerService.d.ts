@@ -8,37 +8,18 @@ export declare class SchedulerService {
     private retryFailedTask;
     private config;
     constructor(config: SchedulerConfig);
-    /**
-     * Start all scheduled tasks
-     */
     start(): void;
-    /**
-     * Stop all scheduled tasks
-     */
     stop(): void;
-    /**
-     * Start job alert task
-     */
     private startJobAlertTask;
-    /**
-     * Start retry failed notifications task
-     */
     private startRetryFailedTask;
-    /**
-     * Manually trigger job alerts
-     */
+    /** Manual trigger — job alerts for all active jobs */
     triggerJobAlerts(dryRun?: boolean): Promise<any>;
-    /**
-     * Manually trigger retry failed notifications
-     */
+    /** Manual trigger — retry all failed notifications */
     triggerRetryFailed(): Promise<any>;
-    /**
-     * Get scheduler status
-     */
     getStatus(): {
         enabled: boolean;
-        jobAlertTask: boolean;
-        retryFailedTask: boolean;
+        jobAlertTaskRunning: boolean;
+        retryFailedTaskRunning: boolean;
         config: SchedulerConfig;
     };
 }

@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { validate, commonSchemas } from '../../middleware/validation';
 import { authenticate, requireAdmin } from '../../middleware/auth';
 import {
   sendJobAlerts,
@@ -12,101 +11,45 @@ import {
 
 const router = Router();
 
-// Apply authentication and admin authorization to all routes
+// Apply auth + admin check to all routes
 router.use(authenticate);
 router.use(requireAdmin);
 
 /**
- * @route POST /api/jobs/alerts/send/:jobId
- * @desc Send job alerts for a specific job
- * @access Admin only
+ * POST /api/v1/jobs/alerts/send/:jobId
+ * Send job alerts for a specific job
  */
-router.post(
-  '/send/:jobId',
-  validate({
-    params: commonSchemas.object({
-      jobId: commonSchemas.objectId.required()
-    }),
-    body: commonSchemas.object({
-      minMatchScore: commonSchemas.number().integer().min(0).max(100).optional(),
-      maxUsers: commonSchemas.number().integer().min(1).max(1000).optional(),
-      dryRun: commonSchemas.boolean().optional()
-    })
-  }),
-  sendJobAlerts
-);
+router.post('/send/:jobId', sendJobAlerts);
 
 /**
- * @route POST /api/jobs/alerts/send-all
- * @desc Send job alerts for all active jobs
- * @access Admin only
+ * POST /api/v1/jobs/alerts/send-all
+ * Send job alerts for all active jobs
  */
-router.post(
-  '/send-all',
-  validate({
-    body: commonSchemas.object({
-      minMatchScore: commonSchemas.number().integer().min(0).max(100).optional(),
-      maxUsersPerJob: commonSchemas.number().integer().min(1).max(1000).optional(),
-      dryRun: commonSchemas.boolean().optional()
-    })
-  }),
-  sendAllJobAlerts
-);
+router.post('/send-all', sendAllJobAlerts);
 
 /**
- * @route GET /api/jobs/alerts/statistics
- * @desc Get job alert statistics
- * @access Admin only
+ * GET /api/v1/jobs/alerts/statistics
+ * Get job alert statistics (optionally filtered by ?jobId=)
  */
-router.get(
-  '/statistics',
-  validate({
-    query: commonSchemas.object({
-      jobId: commonSchemas.objectId.optional()
-    })
-  }),
-  getJobAlertStatistics
-);
+router.get('/statistics', getJobAlertStatistics);
 
 /**
- * @route POST /api/jobs/alerts/retry-failed
- * @desc Retry failed job notifications
- * @access Admin only
+ * POST /api/v1/jobs/alerts/retry-failed
+ * Retry failed job notifications
  */
-router.post(
-  '/retry-failed',
-  validate({
-    body: commonSchemas.object({
-      jobId: commonSchemas.objectId.optional()
-    })
-  }),
-  retryFailedNotifications
-);
+router.post('/retry-failed', retryFailedNotifications);
 
 /**
- * @route GET /api/jobs/alerts/scheduler/status
- * @desc Get scheduler status
- * @access Admin only
+ * GET /api/v1/jobs/alerts/scheduler/status
+ * Get cron scheduler status
  */
-router.get(
-  '/scheduler/status',
-  getSchedulerStatus
-);
+router.get('/scheduler/status', getSchedulerStatus);
 
 /**
- * @route POST /api/jobs/alerts/scheduler/trigger
- * @desc Manually trigger scheduler tasks
- * @access Admin only
+ * POST /api/v1/jobs/alerts/scheduler/trigger
+ * Manually trigger a scheduler task
+ * Body: { task: 'jobAlerts' | 'retryFailed', dryRun?: boolean }
  */
-router.post(
-  '/scheduler/trigger',
-  validate({
-    body: commonSchemas.object({
-      task: commonSchemas.string().valid('jobAlerts', 'retryFailed').required(),
-      dryRun: commonSchemas.boolean().optional()
-    })
-  }),
-  triggerSchedulerTask
-);
+router.post('/scheduler/trigger', triggerSchedulerTask);
 
 export default router;

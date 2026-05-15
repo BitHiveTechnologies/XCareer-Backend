@@ -137,10 +137,8 @@ const getJobRecommendationsForUser = async (req, res) => {
             return;
         }
         const recommendations = await (0, jobMatchingService_1.getJobRecommendations)(user._id.toString(), {
-            preferredJobTypes: preferredJobTypes || ['job', 'internship'],
-            preferredLocations: preferredLocations || ['remote', 'onsite', 'hybrid'],
-            minMatchScore: parseInt(minMatchScore) || 40,
-            maxResults: parseInt(maxResults) || 15
+            minScore: parseInt(minMatchScore) || 50,
+            limit: parseInt(maxResults) || 15
         });
         logger_1.logger.info('Job recommendations retrieved', {
             userId,
@@ -231,64 +229,17 @@ exports.getMatchingStats = getMatchingStats;
  */
 const getAdvancedJobMatching = async (req, res) => {
     try {
-        const adminId = req.user?.id;
-        const { jobTypes, locations, qualifications, streams, minSalary, maxSalary, experienceLevel, limit = 20, offset = 0, sortBy = 'relevance' } = req.body;
-        if (!adminId) {
-            res.status(401).json({
-                success: false,
-                error: {
-                    message: 'Authentication required'
-                },
-                timestamp: new Date().toISOString()
-            });
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({ success: false, error: { message: 'Authentication required' }, timestamp: new Date().toISOString() });
             return;
         }
-        const filters = {
-            jobTypes,
-            locations,
-            qualifications,
-            streams,
-            minSalary,
-            maxSalary,
-            experienceLevel
-        };
-        const options = {
-            limit: parseInt(limit) || 20,
-            offset: parseInt(offset) || 0,
-            sortBy: sortBy
-        };
-        const advancedMatches = await (0, jobMatchingService_1.findMatchingJobsAdvanced)(adminId, filters, options);
-        logger_1.logger.info('Advanced job matching retrieved', {
-            adminId,
-            matchCount: advancedMatches.length,
-            filters,
-            options,
-            ip: req.ip
-        });
-        res.status(200).json({
-            success: true,
-            data: {
-                advancedMatches,
-                total: advancedMatches.length,
-                filters,
-                options
-            },
-            timestamp: new Date().toISOString()
-        });
+        const { minScore = 50, limit = 20 } = req.query;
+        const matches = await (0, jobMatchingService_1.findMatchingJobsForUser)(userId, parseInt(limit) || 20, parseInt(minScore) || 50);
+        res.status(200).json({ success: true, data: { matches, total: matches.length }, timestamp: new Date().toISOString() });
     }
     catch (error) {
-        logger_1.logger.error('Advanced job matching failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            adminId: req.user?.id,
-            ip: req.ip
-        });
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to get advanced job matching'
-            },
-            timestamp: new Date().toISOString()
-        });
+        res.status(500).json({ success: false, error: { message: 'Failed to get advanced job matching' }, timestamp: new Date().toISOString() });
     }
 };
 exports.getAdvancedJobMatching = getAdvancedJobMatching;

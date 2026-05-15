@@ -7,11 +7,13 @@ exports.handleWebhook = exports.getPaymentHistory = exports.getPaymentStatus = e
 const crypto_1 = __importDefault(require("crypto"));
 const User_1 = require("../../models/User");
 const Subscription_1 = require("../../models/Subscription");
+const Customer_1 = require("../../models/Customer");
 const logger_1 = require("../../utils/logger");
 const environment_1 = require("../../config/environment");
 const paymentService_1 = require("../../utils/paymentService");
 const emailService_1 = require("../../utils/emailService");
 const jwt_1 = require("../../utils/jwt");
+const plans_1 = require("../../config/plans");
 const createOrder = async (req, res) => {
     try {
         const { plan, amount, currency = 'INR', email, name } = req.body;
@@ -66,23 +68,17 @@ const createOrder = async (req, res) => {
                 return;
             }
         }
-        const validPlans = ['basic', 'premium', 'enterprise'];
-        if (!validPlans.includes(plan)) {
+        const planConfig = plans_1.PLANS[plan.toLowerCase() === 'pro' ? 'enterprise' : plan.toLowerCase()];
+        if (!planConfig) {
             res.status(400).json({
                 success: false,
-                error: { message: 'Invalid subscription plan' },
+                error: { message: 'Invalid subscription plan. Valid plans: basic, premium, pro' },
                 timestamp: new Date().toISOString()
             });
             return;
         }
-        if (!amount || amount <= 0) {
-            res.status(400).json({
-                success: false,
-                error: { message: 'Invalid amount' },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
+        // Force the correct amount from backend config
+        const validatedAmount = planConfig.price;
         let userName = name;
         if (userId) {
             const user = await User_1.User.findById(userId);
@@ -94,7 +90,7 @@ const createOrder = async (req, res) => {
         const orderResponse = await (0, paymentService_1.createCashfreeOrder)({
             userId: userId || '',
             plan,
-            amount,
+            amount: validatedAmount,
             currency,
             email: userEmail,
             name: userName
@@ -170,7 +166,9 @@ const verifyPayment = async (req, res) => {
         }
         const email = payment.customer_details?.customer_email;
         const tags = payment.order_tags || {};
-        const plan = tags.plan || 'premium';
+        // Normalize plan: 'pro' is the UI alias for 'enterprise' (DB value)
+        const rawPlan = tags.plan || 'premium';
+        const plan = rawPlan.toLowerCase() === 'pro' ? 'enterprise' : rawPlan.toLowerCase();
         const amount = payment.order_amount;
         const paymentId = payment.payment_session_id || orderId; // or appropriate payment ID
         let user = null;
@@ -238,6 +236,20 @@ const verifyPayment = async (req, res) => {
             subscriptionStartDate: now,
             subscriptionEndDate: endDate
         });
+        // Create or update Customer record
+        try {
+            await Customer_1.Customer.findOneAndUpdate({ userId }, {
+                name: user.name,
+                email: user.email,
+                mobile: user.mobile,
+                $inc: { totalPaid: amount, subscriptionCount: 1 },
+                lastSubscriptionDate: now,
+                status: 'active'
+            }, { upsert: true, new: true });
+        }
+        catch (customerError) {
+            logger_1.logger.error('Failed to update customer record', { error: customerError, userId });
+        }
         // Generate tokens for auto-login
         const tokenPayload = {
             id: user._id.toString(),
@@ -260,32 +272,19 @@ const verifyPayment = async (req, res) => {
             ip: req.ip
         });
         // Send confirmation email
-        const confirmationHtml = `
-      <h1>Your NotifyX ${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription is Active!</h1>
-      <p>Amount Paid: ₹${amount}</p>
-      <p>Valid Until: ${endDate.toDateString()}</p>
-      <p>Thank you for choosing NotifyX.</p>
-    `;
+        const planDisplayName = plan === 'enterprise' ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1);
         await emailService_1.emailService.sendEmail({
             to: email,
-            subject: `Your NotifyX ${plan.charAt(0).toUpperCase() + plan.slice(1)} Subscription is Active!`,
+            subject: `Your CareerX ${planDisplayName} Subscription is Active!`,
             template: 'subscription-confirmation',
-            context: { html: confirmationHtml, text: 'Your subscription is active.' }
+            context: {
+                plan: planDisplayName,
+                amount: amount,
+                endDate: endDate.toDateString()
+            }
         }).catch(err => logger_1.logger.error('Failed to send confirmation email', { error: err }));
         if (isNewUser) {
-            const credentialsHtml = `
-        <h1>Your X Career Account Credentials</h1>
-        <p>Login URL: <a href="${environment_1.config.FRONTEND_URL}/login">${environment_1.config.FRONTEND_URL}/login</a></p>
-        <p>Email: ${email}</p>
-        <p>Password: ${tempPassword}</p>
-        <p>Please change your password after your first login.</p>
-      `;
-            await emailService_1.emailService.sendEmail({
-                to: email,
-                subject: 'Your X Career Account Credentials',
-                template: 'login-credentials',
-                context: { html: credentialsHtml, text: `Email: ${email}\nPassword: ${tempPassword}` }
-            }).catch(err => logger_1.logger.error('Failed to send credentials email', { error: err }));
+            await emailService_1.emailService.sendSubscriptionWelcomeCredentialsEmail(email, user.name, tempPassword, plan).catch(err => logger_1.logger.error('Failed to send credentials email', { error: err }));
         }
         res.status(200).json({
             success: true,
@@ -297,6 +296,7 @@ const verifyPayment = async (req, res) => {
                     email: user.email,
                     role: user.role
                 },
+                isNewUser,
                 accessToken,
                 refreshToken,
                 subscription: {
@@ -483,8 +483,25 @@ const handleWebhook = async (req, res) => {
                 await subscription.save();
                 await User_1.User.findByIdAndUpdate(subscription.userId, {
                     subscriptionPlan: subscription.plan,
-                    subscriptionStatus: 'completed'
+                    subscriptionStatus: 'active'
                 });
+                // Create or update Customer record
+                try {
+                    const user = await User_1.User.findById(subscription.userId);
+                    if (user) {
+                        await Customer_1.Customer.findOneAndUpdate({ userId: user._id }, {
+                            name: user.name,
+                            email: user.email,
+                            mobile: user.mobile,
+                            $inc: { totalPaid: subscription.amount, subscriptionCount: 1 },
+                            lastSubscriptionDate: subscription.startDate,
+                            status: 'active'
+                        }, { upsert: true, new: true });
+                    }
+                }
+                catch (customerError) {
+                    logger_1.logger.error('Failed to update customer record via webhook', { error: customerError, userId: subscription.userId });
+                }
                 logger_1.logger.info('Subscription activated via webhook', { orderId, subscriptionId: subscription._id });
             }
         }

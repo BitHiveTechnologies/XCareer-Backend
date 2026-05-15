@@ -67,10 +67,7 @@ exports.generateToken = generateToken;
  */
 const verifyToken = (token) => {
     try {
-        const decoded = jwt.verify(token, environment_1.config.JWT_SECRET, {
-            issuer: 'notifyx-api',
-            audience: 'notifyx-users'
-        });
+        const decoded = jwt.verify(token, environment_1.config.JWT_SECRET);
         logger_1.logger.info('JWT token verified successfully', {
             userId: decoded.userId,
             role: decoded.role
@@ -123,10 +120,7 @@ exports.generateRefreshToken = generateRefreshToken;
  */
 const verifyRefreshToken = (token) => {
     try {
-        const decoded = jwt.verify(token, environment_1.config.JWT_SECRET, {
-            issuer: 'notifyx-api',
-            audience: 'notifyx-users'
-        });
+        const decoded = jwt.verify(token, environment_1.config.JWT_SECRET);
         logger_1.logger.info('Refresh token verified successfully', {
             userId: decoded.userId
         });

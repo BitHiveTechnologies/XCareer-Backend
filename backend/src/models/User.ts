@@ -49,8 +49,9 @@ const userSchema = new Schema<IUser>({
   subscriptionPlan: {
     type: String,
     enum: {
+      // 'enterprise' is the DB value for the 'Pro' plan
       values: ['basic', 'premium', 'enterprise'],
-      message: 'Subscription plan must be basic, premium, or enterprise'
+      message: 'Subscription plan must be basic, premium, or enterprise (pro)'
     },
     default: 'basic'
   },
@@ -90,8 +91,6 @@ const userSchema = new Schema<IUser>({
 });
 
 // Indexes for performance
-userSchema.index({ email: 1 });
-userSchema.index({ clerkUserId: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ subscriptionStatus: 1 });
 userSchema.index({ subscriptionEndDate: 1 });

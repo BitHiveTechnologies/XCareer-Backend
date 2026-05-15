@@ -52,6 +52,11 @@ async function registerTestUser(overrides = {}) {
         email: `test_${Date.now()}@example.com`,
         password: 'TestPass123!',
         name: 'Test User',
+        mobile: '9876543210',
+        qualification: 'B.E',
+        stream: 'CSE',
+        yearOfPassout: 2024,
+        cgpaOrPercentage: 8.5,
         ...overrides
     };
     const res = await (0, supertest_1.default)(app_1.default).post('/api/v1/auth/register').send(data);
@@ -72,8 +77,20 @@ async function loginTestUser(email, password) {
 }
 /**
  * Register + login in one call.
+ * Supports:
+ * 1. createAuthenticatedUser({ email: '...', role: 'admin' })
+ * 2. createAuthenticatedUser('admin@test.com', 'admin')
  */
-async function createAuthenticatedUser(overrides = {}) {
+async function createAuthenticatedUser(emailOrOverrides = {}, role) {
+    let overrides = {};
+    if (typeof emailOrOverrides === 'string') {
+        overrides.email = emailOrOverrides;
+        if (role)
+            overrides.role = role;
+    }
+    else {
+        overrides = emailOrOverrides;
+    }
     const { data } = await registerTestUser(overrides);
     const { token, userId, res } = await loginTestUser(data.email, data.password);
     return { email: data.email, password: data.password, token, userId, res };

@@ -9,7 +9,8 @@ import {
   renewSubscription,
   getSubscriptionAnalytics,
   processSubscriptionExpiry,
-  updateSubscriptionPlan
+  updateSubscriptionPlan,
+  getUserPlanAccess
 } from '../../controllers/subscriptions/subscriptionController';
 import { commonSchemas } from '../../middleware/validation';
 
@@ -24,6 +25,9 @@ router.use(authenticate);
 
 // Get current subscription
 router.get('/current', getCurrentSubscription);
+
+// Get current user's plan access/feature flags (e.g. template access, notification priority)
+router.get('/access', getUserPlanAccess);
 
 // Get subscription history
 router.get('/history',
@@ -51,7 +55,8 @@ router.delete('/:subscriptionId',
 router.post('/renew',
   validate({
     body: commonSchemas.object({
-      plan: commonSchemas.string().valid('basic', 'premium', 'enterprise').required(),
+      // 'enterprise' is the DB value for Pro plan; 'pro' is accepted as alias by the controller
+      plan: commonSchemas.string().valid('basic', 'premium', 'enterprise', 'pro').required(),
       amount: commonSchemas.number().positive().required()
     })
   }),

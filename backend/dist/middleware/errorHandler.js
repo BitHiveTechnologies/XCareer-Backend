@@ -5,7 +5,8 @@ const errorHandler = (err, req, res, _next) => {
     let error = { ...err };
     error.message = err.message;
     // Log error
-    console.error('❌ Error:', {
+    ;
+    void /* console.error */ ((..._args) => { })('❌ Error:', {
         message: err.message,
         stack: err.stack,
         url: req.url,

@@ -54,10 +54,7 @@ export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
  */
 export const verifyToken = (token: string): JWTPayload => {
   try {
-    const decoded = (jwt as any).verify(token, config.JWT_SECRET, {
-      issuer: 'notifyx-api',
-      audience: 'notifyx-users'
-    }) as JWTPayload;
+    const decoded = (jwt as any).verify(token, config.JWT_SECRET) as JWTPayload;
     
     logger.info('JWT token verified successfully', {
       userId: decoded.userId,
@@ -111,10 +108,7 @@ export const generateRefreshToken = (payload: Omit<RefreshTokenPayload, 'iat' | 
  */
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   try {
-    const decoded = (jwt as any).verify(token, config.JWT_SECRET, {
-      issuer: 'notifyx-api',
-      audience: 'notifyx-users'
-    }) as RefreshTokenPayload;
+    const decoded = (jwt as any).verify(token, config.JWT_SECRET) as RefreshTokenPayload;
     
     logger.info('Refresh token verified successfully', {
       userId: decoded.userId

@@ -37,5 +37,23 @@ router.get('/health', adminController_1.getSystemHealth);
  * @access  Admin only
  */
 router.post('/jobs/:jobId/notify', adminController_1.notifyUsersForJob);
+/**
+ * @route   GET /api/v1/admin/users
+ * @desc    Get all users (admin only)
+ * @access  Admin only
+ */
+router.get('/users', adminController_1.getAllUsers);
+/**
+ * @route   GET /api/v1/admin/payments
+ * @desc    Get all payment history (admin only)
+ * @access  Admin only
+ */
+router.get('/payments', adminController_1.getAllPayments);
+/**
+ * @route   GET /api/v1/admin/customers
+ * @desc    Get all customers (admin only)
+ * @access  Admin only
+ */
+router.get('/customers', adminController_1.getAllCustomers);
 exports.default = router;
 //# sourceMappingURL=adminRoutes.js.map

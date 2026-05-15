@@ -11,7 +11,7 @@ Object.defineProperty(exports, "DEFAULT_CRITERIA", { enumerable: true, get: func
  * Send job alerts using enhanced percentage-based matching
  */
 const sendJobAlertsEnhanced = async (options) => {
-    const { jobId, minimumMatchPercentage = 50, maxUsers = 100, dryRun = false, customCriteria = {} } = options;
+    const { jobId, minimumMatchPercentage = 50, maxUsers = 100, dryRun = false, force = false, customCriteria = {} } = options;
     // Initialize result
     const result = {
         jobId,
@@ -39,7 +39,8 @@ const sendJobAlertsEnhanced = async (options) => {
             company: job.company,
             minimumMatchPercentage,
             maxUsers,
-            dryRun
+            dryRun,
+            force
         });
         // Find eligible users using enhanced matching
         const eligibleUsers = await (0, enhancedJobMatching_1.findEligibleUsersForJobEnhanced)(jobId, {
@@ -64,27 +65,29 @@ const sendJobAlertsEnhanced = async (options) => {
         for (const userMatch of eligibleUsers) {
             const userEmail = userMatch.email;
             const userName = userMatch.name;
-            const userProfile = userMatch.userProfile;
-            // Check for existing notification (prevent duplicates)
-            const existingNotification = await JobNotification_1.JobNotification.findOne({
-                userId: userMatch.userId,
-                jobId
-            });
-            if (existingNotification) {
-                result.duplicateNotifications++;
-                result.userMatches.push({
-                    email: userEmail,
-                    matchPercentage: userMatch.matchPercentage,
-                    emailSent: false,
-                    emailStatus: 'duplicate'
-                });
-                logger_1.logger.debug('Duplicate notification prevented', {
+            // Check for existing notification (prevent duplicates) unless forced
+            if (!force) {
+                const existingNotification = await JobNotification_1.JobNotification.findOne({
                     userId: userMatch.userId,
-                    email: userEmail,
                     jobId,
-                    existingStatus: existingNotification.emailStatus
+                    emailStatus: 'sent' // Only skip if it was actually sent successfully
                 });
-                continue;
+                if (existingNotification) {
+                    result.duplicateNotifications++;
+                    result.userMatches.push({
+                        email: userEmail,
+                        matchPercentage: userMatch.matchPercentage,
+                        emailSent: false,
+                        emailStatus: 'duplicate'
+                    });
+                    logger_1.logger.debug('Duplicate notification prevented', {
+                        userId: userMatch.userId,
+                        email: userEmail,
+                        jobId,
+                        existingStatus: existingNotification.emailStatus
+                    });
+                    continue;
+                }
             }
             // Create notification record
             const notification = new JobNotification_1.JobNotification({
@@ -95,22 +98,16 @@ const sendJobAlertsEnhanced = async (options) => {
             if (!dryRun) {
                 await notification.save();
             }
-            // Prepare job data for email template
+            // Prepare job data for email template — matches new typed interface
             const jobData = {
-                title: job.title,
-                company: job.company,
+                userName: userName || 'there',
+                jobTitle: job.title,
+                companyName: job.company,
                 location: job.location,
-                type: job.type,
-                description: job.description,
-                applicationLink: job.applicationLink || `https://notifyx.com/jobs/${jobId}/apply`,
-                matchPercentage: userMatch.matchPercentage,
-                matchReasons: userMatch.matchReasons.slice(0, 3), // Top 3 reasons
-                userProfile: {
-                    name: userName,
-                    qualification: userProfile?.qualification,
-                    stream: userProfile?.stream,
-                    cgpa: userProfile?.cgpa
-                }
+                jobType: job.type === 'internship' ? 'Internship' : 'Full-time Job',
+                description: job.description ? job.description.substring(0, 200) : '',
+                applicationLink: job.applicationLink || `${process.env.FRONTEND_URL}/jobs`,
+                matchScore: Math.round(userMatch.matchPercentage)
             };
             // Send email alert (if not dry run)
             let emailSent = false;
@@ -192,29 +189,29 @@ exports.sendJobAlertsEnhanced = sendJobAlertsEnhanced;
  * Send job alerts for all active jobs using enhanced matching
  */
 const sendAllJobAlertsEnhanced = async (options = {}) => {
-    const { minimumMatchPercentage = 50, maxUsersPerJob = 50, dryRun = false, customCriteria = {} } = options;
+    const { minimumMatchPercentage = 50, maxUsersPerJob = 50, dryRun = false, force = false, customCriteria = {} } = options;
     const results = {};
     try {
-        // Get all active jobs created in the last 24 hours
-        const oneDayAgo = new Date();
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        const recentJobs = await Job_1.Job.find({
+        // All active jobs that haven't expired
+        const activeJobs = await Job_1.Job.find({
             isActive: true,
-            createdAt: { $gte: oneDayAgo }
+            applicationDeadline: { $gt: new Date() }
         }).sort({ createdAt: -1 });
         logger_1.logger.info('Processing enhanced job alerts for multiple jobs', {
-            totalJobs: recentJobs.length,
+            totalJobs: activeJobs.length,
             minimumMatchPercentage,
             maxUsersPerJob,
-            dryRun
+            dryRun,
+            force
         });
-        for (const job of recentJobs) {
+        for (const job of activeJobs) {
             try {
                 const jobResult = await (0, exports.sendJobAlertsEnhanced)({
                     jobId: job._id.toString(),
                     minimumMatchPercentage,
                     maxUsers: maxUsersPerJob,
                     dryRun,
+                    force,
                     customCriteria
                 });
                 results[job._id.toString()] = jobResult;

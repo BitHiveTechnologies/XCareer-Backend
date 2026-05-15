@@ -5,6 +5,7 @@ import subscriptionRoutes from './subscriptions/subscriptionRoutes';
 import jobRoutes from './jobs/jobRoutes';
 import jobApplicationRoutes from './jobs/jobApplicationRoutes';
 import jobMatchingRoutes from './jobs/jobMatchingRoutes';
+import jobAlertRoutes from './jobs/jobAlertRoutes';
 import authRoutes from './auth/authRoutes';
 import clerkAuthRoutes from './auth/clerkAuthRoutes';
 import jwtAuthRoutes from './auth/jwtAuthRoutes';
@@ -45,6 +46,9 @@ router.use(`${API_VERSION}/applications`, jobApplicationRoutes);
 
 // Job matching routes
 router.use(`${API_VERSION}/matching`, jobMatchingRoutes);
+
+// Job alert routes (email notifications)
+router.use(`${API_VERSION}/jobs/alerts`, jobAlertRoutes);
 
 // Email notification routes
 router.use(`${API_VERSION}/notifications`, emailNotificationRoutes);

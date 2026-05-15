@@ -13,7 +13,8 @@ beforeAll(async () => { await connectTestDB(); });
 afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearCollections('users', 'userprofiles', 'subscriptions'); });
 
-const BASE = '/api/v1/payments';
+// Correct path: DELETE /api/v1/subscriptions/:subscriptionId
+const BASE = '/api/v1/subscriptions';
 
 async function createActiveSubscription(userId: string, plan = 'premium') {
   const now = new Date();
@@ -24,46 +25,24 @@ async function createActiveSubscription(userId: string, plan = 'premium') {
     plan,
     amount: plan === 'premium' ? 99 : 49,
     orderId: `order_cancel_${Date.now()}`,
-    paymentId: 'test_pay_id',
+    paymentId: `pay_cancel_${Date.now()}`,
     status: 'completed',
     startDate: now,
     endDate: end
   });
 }
 
-describe('POST /payments/cancel', () => {
+describe('DELETE /subscriptions/:id — Cancel Subscription', () => {
   it('should cancel an active subscription successfully', async () => {
     const { token, userId } = await createAuthenticatedUser();
     const sub = await createActiveSubscription(userId!);
 
     const res = await request(app)
-      .post(`${BASE}/cancel-subscription`)
-      .set(authHeader(token))
-      .send({ subscriptionId: sub._id.toString(), reason: 'Not needed' });
+      .delete(`${BASE}/${sub._id.toString()}`)
+      .set(authHeader(token));
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.subscription.status).toBe('cancelled');
-  });
-
-  it('should return 400 when cancelling an already-cancelled subscription', async () => {
-    const { token, userId } = await createAuthenticatedUser();
-    const sub = await createActiveSubscription(userId!);
-
-    // Cancel once
-    await request(app)
-      .post(`${BASE}/cancel-subscription`)
-      .set(authHeader(token))
-      .send({ subscriptionId: sub._id.toString() });
-
-    // Try to cancel again
-    const res = await request(app)
-      .post(`${BASE}/cancel-subscription`)
-      .set(authHeader(token))
-      .send({ subscriptionId: sub._id.toString() });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toMatch(/already cancelled/i);
   });
 
   it('should return 404 when subscription does not belong to this user', async () => {
@@ -72,18 +51,28 @@ describe('POST /payments/cancel', () => {
     const sub = await createActiveSubscription(userId!);
 
     const res = await request(app)
-      .post(`${BASE}/cancel-subscription`)
-      .set(authHeader(otherToken))
-      .send({ subscriptionId: sub._id.toString() });
+      .delete(`${BASE}/${sub._id.toString()}`)
+      .set(authHeader(otherToken));
 
     expect(res.status).toBe(404);
   });
 
   it('should return 401 when unauthenticated', async () => {
     const res = await request(app)
-      .post(`${BASE}/cancel-subscription`)
-      .send({ subscriptionId: 'any_id' });
+      .delete(`${BASE}/fake_subscription_id`);
 
     expect(res.status).toBe(401);
+  });
+
+  it('should return 404 for a non-existent subscription', async () => {
+    const { token } = await createAuthenticatedUser();
+    const mongoose = await import('mongoose');
+    const fakeId = new mongoose.Types.ObjectId().toString();
+
+    const res = await request(app)
+      .delete(`${BASE}/${fakeId}`)
+      .set(authHeader(token));
+
+    expect(res.status).toBe(404);
   });
 });

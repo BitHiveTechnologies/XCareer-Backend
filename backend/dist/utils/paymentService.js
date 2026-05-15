@@ -7,50 +7,8 @@ exports.processRefund = exports.handlePaymentFailure = exports.generatePaymentRe
 const axios_1 = __importDefault(require("axios"));
 const environment_1 = require("../config/environment");
 const logger_1 = require("./logger");
-exports.SUBSCRIPTION_PLANS = {
-    basic: {
-        id: 'basic',
-        name: 'Basic Plan',
-        price: 49,
-        duration: 30,
-        features: [
-            'Access to basic job listings',
-            'Email notifications',
-            'Basic profile management'
-        ],
-        maxJobs: 50,
-        priority: 'low'
-    },
-    premium: {
-        id: 'premium',
-        name: 'Premium Plan',
-        price: 99,
-        duration: 30,
-        features: [
-            'All Basic features',
-            'Priority job matching',
-            'Advanced analytics',
-            'Resume builder tools'
-        ],
-        maxJobs: 200,
-        priority: 'medium'
-    },
-    enterprise: {
-        id: 'enterprise',
-        name: 'Enterprise Plan',
-        price: 299,
-        duration: 30,
-        features: [
-            'All Premium features',
-            'Custom integrations',
-            'Dedicated support',
-            'Advanced reporting',
-            'Team management'
-        ],
-        maxJobs: 1000,
-        priority: 'high'
-    }
-};
+const plans_1 = require("../config/plans");
+exports.SUBSCRIPTION_PLANS = plans_1.PLANS;
 const getCashfreeBaseUrl = () => {
     return environment_1.config.CASHFREE_ENV === 'production'
         ? 'https://api.cashfree.com'
