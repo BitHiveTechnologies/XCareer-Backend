@@ -75,12 +75,15 @@ export const getAllTemplates = async (req: Request, res: Response): Promise<void
     if (!subscriptionTier) {
       if (userId) {
         // Authenticated user - filter based on their subscription tier
-        const tierHierarchy = { basic: 1, premium: 2, enterprise: 3 };
-        const userTierLevel = tierHierarchy[userTier as keyof typeof tierHierarchy] || 0;
+        // 'enterprise' is the DB value for 'Pro' plan (tier level 3)
+        const tierHierarchy: Record<string, number> = { basic: 1, premium: 2, enterprise: 3, pro: 3 };
+        const normalizedPlan = userTier?.toLowerCase() === 'pro' ? 'enterprise' : (userTier?.toLowerCase() || 'basic');
+        const userTierLevel = tierHierarchy[normalizedPlan] || 1;
         
-        const accessibleTiers = Object.keys(tierHierarchy).filter(tier => 
-          tierHierarchy[tier as keyof typeof tierHierarchy] <= userTierLevel
-        );
+        // User can access all tiers at or below their level
+        const accessibleTiers = ['basic'];
+        if (userTierLevel >= 2) accessibleTiers.push('premium');
+        if (userTierLevel >= 3) accessibleTiers.push('enterprise');
         
         query.subscriptionTier = { $in: accessibleTiers };
       } else {
@@ -116,6 +119,7 @@ export const getAllTemplates = async (req: Request, res: Response): Promise<void
 
     const total = await ResumeTemplate.countDocuments(query);
 
+    // Handle empty state gracefully — return empty array, not an error
     res.status(200).json({
       success: true,
       data: {
@@ -131,7 +135,7 @@ export const getAllTemplates = async (req: Request, res: Response): Promise<void
           downloadCount: template.downloadCount,
           rating: template.rating,
           tags: template.tags,
-          preview: template.templateData.preview,
+          preview: template.templateData?.preview || null,
           createdBy: template.createdBy,
           createdAt: template.createdAt
         })),
@@ -140,7 +144,9 @@ export const getAllTemplates = async (req: Request, res: Response): Promise<void
           limit: limitNum,
           total,
           pages: Math.ceil(total / limitNum)
-        }
+        },
+        // Indicate if this is an empty state (no templates in DB yet)
+        isEmpty: templates.length === 0
       },
       timestamp: new Date().toISOString()
     });

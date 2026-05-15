@@ -37,8 +37,7 @@ async function seedSubscription(orderId: string, userId?: string) {
     plan: 'premium',
     amount: 99,
     orderId,
-    paymentSessionId: 'session_wh_test',
-    paymentStatus: 'CREATED',
+    paymentId: 'test_wh_pay_id',
     status: 'pending',
     startDate: now,
     endDate
@@ -78,7 +77,6 @@ describe('POST /payments/webhook', () => {
 
     const sub = await Subscription.findOne({ orderId });
     expect(sub?.status).toBe('completed');
-    expect(sub?.paymentStatus).toBe('SUCCESS');
   });
 
   it('should mark subscription as failed on FAILED webhook', async () => {

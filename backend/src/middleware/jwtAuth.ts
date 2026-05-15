@@ -116,7 +116,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
     return;
   }
 
-  if (req.user.type !== 'admin') {
+  if (req.user.type !== 'admin' && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     res.status(403).json({
       success: false,
       error: {

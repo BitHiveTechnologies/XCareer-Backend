@@ -43,24 +43,18 @@ class SchedulerService {
         this.retryFailedTask = null;
         this.config = config;
     }
-    /**
-     * Start all scheduled tasks
-     */
     start() {
         if (!this.config.enabled) {
-            logger_1.logger.info('Scheduler service disabled');
+            logger_1.logger.info('Scheduler disabled (set ENABLE_SCHEDULER=true to enable)');
             return;
         }
         this.startJobAlertTask();
         this.startRetryFailedTask();
-        logger_1.logger.info('Scheduler service started', {
+        logger_1.logger.info('Scheduler started', {
             jobAlertCron: this.config.jobAlertCron,
             retryFailedCron: this.config.retryFailedCron
         });
     }
-    /**
-     * Stop all scheduled tasks
-     */
     stop() {
         if (this.jobAlertTask) {
             this.jobAlertTask.stop();
@@ -70,138 +64,90 @@ class SchedulerService {
             this.retryFailedTask.stop();
             this.retryFailedTask = null;
         }
-        logger_1.logger.info('Scheduler service stopped');
+        logger_1.logger.info('Scheduler stopped');
     }
-    /**
-     * Start job alert task
-     */
     startJobAlertTask() {
         if (!cron.validate(this.config.jobAlertCron)) {
-            logger_1.logger.error('Invalid job alert cron expression', {
-                cron: this.config.jobAlertCron
-            });
+            logger_1.logger.error('Invalid job alert cron expression', { cron: this.config.jobAlertCron });
             return;
         }
         this.jobAlertTask = cron.schedule(this.config.jobAlertCron, async () => {
             try {
-                logger_1.logger.info('Starting scheduled job alerts');
-                const results = await (0, jobAlertService_1.sendJobAlertsForAllActiveJobs)({
-                    minMatchScore: 40,
+                logger_1.logger.info('⏰ Scheduled job alerts starting...');
+                const result = await (0, jobAlertService_1.sendJobAlertsForAllActiveJobs)({
+                    minMatchScore: 50,
                     maxUsersPerJob: 100,
-                    dryRun: false
+                    dryRun: false,
+                    isAutomatic: true
                 });
-                const totalStats = Object.values(results).reduce((acc, stats) => ({
-                    totalEligibleUsers: acc.totalEligibleUsers + stats.totalEligibleUsers,
-                    emailsSent: acc.emailsSent + stats.emailsSent,
-                    emailsFailed: acc.emailsFailed + stats.emailsFailed,
-                    duplicateNotifications: acc.duplicateNotifications + stats.duplicateNotifications,
-                    usersWithoutProfile: acc.usersWithoutProfile + stats.usersWithoutProfile,
-                    usersWithInactiveSubscription: acc.usersWithInactiveSubscription + stats.usersWithInactiveSubscription
-                }), {
-                    totalEligibleUsers: 0,
-                    emailsSent: 0,
-                    emailsFailed: 0,
-                    duplicateNotifications: 0,
-                    usersWithoutProfile: 0,
-                    usersWithInactiveSubscription: 0
-                });
-                logger_1.logger.info('Scheduled job alerts completed', {
-                    totalJobs: Object.keys(results).length,
-                    totalStats
+                logger_1.logger.info('✅ Scheduled job alerts completed', {
+                    totalJobs: result.totalJobs,
+                    emailsSent: result.totalEmailsSent,
+                    duplicates: result.totalDuplicates
                 });
             }
             catch (error) {
-                logger_1.logger.error('Scheduled job alerts failed', {
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                logger_1.logger.error('❌ Scheduled job alerts failed', {
+                    error: error instanceof Error ? error.message : String(error)
                 });
             }
         });
         this.jobAlertTask.start();
         logger_1.logger.info('Job alert task scheduled', { cron: this.config.jobAlertCron });
     }
-    /**
-     * Start retry failed notifications task
-     */
     startRetryFailedTask() {
         if (!cron.validate(this.config.retryFailedCron)) {
-            logger_1.logger.error('Invalid retry failed cron expression', {
-                cron: this.config.retryFailedCron
-            });
+            logger_1.logger.error('Invalid retry failed cron expression', { cron: this.config.retryFailedCron });
             return;
         }
         this.retryFailedTask = cron.schedule(this.config.retryFailedCron, async () => {
             try {
-                logger_1.logger.info('Starting scheduled retry failed notifications');
+                logger_1.logger.info('⏰ Scheduled retry of failed notifications starting...');
                 const result = await (0, jobAlertService_1.retryFailedJobNotifications)();
-                logger_1.logger.info('Scheduled retry failed notifications completed', result);
+                logger_1.logger.info('✅ Retry completed', result);
             }
             catch (error) {
-                logger_1.logger.error('Scheduled retry failed notifications failed', {
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                logger_1.logger.error('❌ Retry of failed notifications failed', {
+                    error: error instanceof Error ? error.message : String(error)
                 });
             }
         });
         this.retryFailedTask.start();
-        logger_1.logger.info('Retry failed task scheduled', { cron: this.config.retryFailedCron });
+        logger_1.logger.info('Retry-failed task scheduled', { cron: this.config.retryFailedCron });
     }
-    /**
-     * Manually trigger job alerts
-     */
+    /** Manual trigger — job alerts for all active jobs */
     async triggerJobAlerts(dryRun = false) {
-        try {
-            logger_1.logger.info('Manually triggering job alerts', { dryRun });
-            const results = await (0, jobAlertService_1.sendJobAlertsForAllActiveJobs)({
-                minMatchScore: 40,
-                maxUsersPerJob: 100,
-                dryRun
-            });
-            logger_1.logger.info('Manual job alerts completed', { dryRun, results });
-            return results;
-        }
-        catch (error) {
-            logger_1.logger.error('Manual job alerts failed', {
-                error: error instanceof Error ? error.message : 'Unknown error',
-                dryRun
-            });
-            throw error;
-        }
+        logger_1.logger.info('Manual job alerts triggered', { dryRun });
+        return (0, jobAlertService_1.sendJobAlertsForAllActiveJobs)({
+            minMatchScore: 50,
+            maxUsersPerJob: 100,
+            dryRun,
+            isAutomatic: false
+        });
     }
-    /**
-     * Manually trigger retry failed notifications
-     */
+    /** Manual trigger — retry all failed notifications */
     async triggerRetryFailed() {
-        try {
-            logger_1.logger.info('Manually triggering retry failed notifications');
-            const result = await (0, jobAlertService_1.retryFailedJobNotifications)();
-            logger_1.logger.info('Manual retry failed notifications completed', result);
-            return result;
-        }
-        catch (error) {
-            logger_1.logger.error('Manual retry failed notifications failed', {
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            throw error;
-        }
+        logger_1.logger.info('Manual retry of failed notifications triggered');
+        return (0, jobAlertService_1.retryFailedJobNotifications)();
     }
-    /**
-     * Get scheduler status
-     */
     getStatus() {
         return {
             enabled: this.config.enabled,
-            jobAlertTask: this.jobAlertTask?.getStatus() === 'scheduled',
-            retryFailedTask: this.retryFailedTask?.getStatus() === 'scheduled',
+            jobAlertTaskRunning: this.jobAlertTask !== null,
+            retryFailedTaskRunning: this.retryFailedTask !== null,
             config: this.config
         };
     }
 }
 exports.SchedulerService = SchedulerService;
-// Default configuration
+// ─── Default config ────────────────────────────────────────────────────────────
 const defaultConfig = {
-    jobAlertCron: '0 */6 * * *', // Every 6 hours
-    retryFailedCron: '0 2 * * *', // Daily at 2 AM
+    // Daily at 8:00 AM — notify users about all open jobs
+    jobAlertCron: process.env.JOB_ALERT_CRON || '0 8 * * *',
+    // Daily at 2:00 AM — retry any failed notifications from the day before
+    retryFailedCron: process.env.RETRY_CRON || '0 2 * * *',
+    // Enable in production, or when explicitly set via env
     enabled: process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true'
 };
-// Create and export scheduler instance
 exports.schedulerService = new SchedulerService(defaultConfig);
 //# sourceMappingURL=schedulerService.js.map

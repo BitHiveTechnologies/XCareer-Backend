@@ -9,6 +9,7 @@ const logger_1 = require("../../utils/logger");
 const jwt_1 = require("../../utils/jwt");
 const User_1 = require("../../models/User");
 const UserProfile_1 = require("../../models/UserProfile");
+const emailService_1 = require("../../utils/emailService");
 /**
  * User registration
  */
@@ -112,10 +113,12 @@ exports.register = register;
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log(`[LOGIN DEBUG] Attempting login for email: ${email}`);
+        ;
+        void /* console.log */ ((..._args) => { })(`[LOGIN DEBUG] Attempting login for email: ${email}`);
         // Find user
         const user = await User_1.User.findOne({ email }).select('+password');
-        console.log(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
+        ;
+        void /* console.log */ ((..._args) => { })(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
         if (!user) {
             res.status(401).json({
                 success: false,
@@ -127,9 +130,11 @@ const login = async (req, res) => {
             return;
         }
         // Check password
-        console.log(`[LOGIN DEBUG] Comparing passwords...`);
+        ;
+        void /* console.log */ ((..._args) => { })(`[LOGIN DEBUG] Comparing passwords...`);
         const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
-        console.log(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
+        ;
+        void /* console.log */ ((..._args) => { })(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
         if (!isPasswordValid) {
             res.status(401).json({
                 success: false,
@@ -354,7 +359,7 @@ const getCurrentUser = async (req, res) => {
                     id: user._id,
                     name: user.name,
                     email: user.email,
-                    role: 'user',
+                    role: user.role,
                     mobile: user.mobile,
                     subscriptionStatus: user.subscriptionStatus,
                     subscriptionPlan: user.subscriptionPlan
@@ -433,6 +438,13 @@ const changePassword = async (req, res) => {
         logger_1.logger.info('Password changed successfully', {
             userId,
             ip: req.ip
+        });
+        // Send confirmation email
+        emailService_1.emailService.sendPasswordChangedEmail(user.email, user.name).catch(err => {
+            logger_1.logger.error('Failed to send password changed email', {
+                error: err instanceof Error ? err.message : 'Unknown error',
+                userId: user._id
+            });
         });
         res.status(200).json({
             success: true,

@@ -7,6 +7,7 @@ import { UserProfile } from '../../models/UserProfile';
 import { config } from '../../config/environment';
 
 import { AuthenticatedRequest as AuthRequest } from '../../types/express';
+import { emailService } from '../../utils/emailService';
 
 
 /**
@@ -122,10 +123,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    console.log(`[LOGIN DEBUG] Attempting login for email: ${email}`);
+    ; void /* console.log */ ((..._args) => {})(`[LOGIN DEBUG] Attempting login for email: ${email}`);
     // Find user
     const user = await User.findOne({ email }).select('+password');
-    console.log(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
+    ; void /* console.log */ ((..._args) => {})(`[LOGIN DEBUG] User found in DB:`, user ? `Yes, ID: ${user._id}` : 'No');
     if (!user) {
       res.status(401).json({
         success: false,
@@ -138,9 +139,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check password
-    console.log(`[LOGIN DEBUG] Comparing passwords...`);
+    ; void /* console.log */ ((..._args) => {})(`[LOGIN DEBUG] Comparing passwords...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
+    ; void /* console.log */ ((..._args) => {})(`[LOGIN DEBUG] Password match: ${isPasswordValid}`);
     if (!isPasswordValid) {
       res.status(401).json({
         success: false,
@@ -385,7 +386,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
           id: user._id,
           name: user.name,
           email: user.email,
-          role: 'user',
+          role: user.role,
           mobile: user.mobile,
           subscriptionStatus: user.subscriptionStatus,
           subscriptionPlan: user.subscriptionPlan
@@ -469,6 +470,14 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     logger.info('Password changed successfully', {
       userId,
       ip: req.ip
+    });
+
+    // Send confirmation email
+    emailService.sendPasswordChangedEmail(user.email, user.name).catch(err => {
+      logger.error('Failed to send password changed email', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        userId: user._id
+      });
     });
 
     res.status(200).json({

@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateSubscriptionPlan = exports.processSubscriptionExpiry = exports.getSubscriptionAnalytics = exports.renewSubscription = exports.cancelSubscription = exports.getSubscriptionHistory = exports.getAvailablePlans = exports.getCurrentSubscription = void 0;
+exports.updateSubscriptionPlan = exports.processSubscriptionExpiry = exports.getSubscriptionAnalytics = exports.renewSubscription = exports.cancelSubscription = exports.getSubscriptionHistory = exports.getUserPlanAccess = exports.getAvailablePlans = exports.getCurrentSubscription = void 0;
 const Subscription_1 = require("../../models/Subscription");
 const User_1 = require("../../models/User");
 const logger_1 = require("../../utils/logger");
 const paymentService_1 = require("../../utils/paymentService");
+const plans_1 = require("../../config/plans");
 /**
  * Get user's current subscription
  */
@@ -98,18 +99,22 @@ exports.getCurrentSubscription = getCurrentSubscription;
  */
 const getAvailablePlans = async (_req, res) => {
     try {
-        const plans = Object.values(paymentService_1.SUBSCRIPTION_PLANS);
+        const plans = Object.values(plans_1.PLANS);
         res.status(200).json({
             success: true,
             data: {
                 plans: plans.map(plan => ({
                     id: plan.id,
                     name: plan.name,
+                    displayName: plan.displayName || plan.name,
                     price: plan.price,
                     duration: plan.duration,
                     features: plan.features,
                     maxJobs: plan.maxJobs,
-                    priority: plan.priority
+                    priority: plan.priority,
+                    resumeTemplates: plan.resumeTemplates || [],
+                    jobNotifications: plan.jobNotifications ?? true,
+                    prioritySupport: plan.prioritySupport ?? false
                 }))
             },
             timestamp: new Date().toISOString()
@@ -130,6 +135,62 @@ const getAvailablePlans = async (_req, res) => {
     }
 };
 exports.getAvailablePlans = getAvailablePlans;
+/**
+ * Get the authenticated user's plan access/feature flags.
+ * Returns what features the current user can access based on their active subscription.
+ */
+const getUserPlanAccess = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: { message: 'Authentication required' },
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+        // Find active subscription
+        const subscription = await Subscription_1.Subscription.findOne({
+            userId,
+            status: 'completed',
+            endDate: { $gt: new Date() }
+        }).sort({ endDate: -1 });
+        const planId = subscription?.plan || 'basic';
+        const tierLevel = (0, plans_1.getPlanTierLevel)(planId);
+        res.status(200).json({
+            success: true,
+            data: {
+                plan: planId,
+                displayName: planId === 'enterprise' ? 'Pro' : planId.charAt(0).toUpperCase() + planId.slice(1),
+                isActive: !!subscription,
+                tierLevel,
+                features: {
+                    jobNotifications: true, // All plans get job notifications
+                    priorityNotifications: (0, plans_1.planHasPriorityNotifications)(planId),
+                    basicResumeTemplate: true, // All plans get basic template
+                    premiumResumeTemplates: (0, plans_1.planHasTemplateAccess)(planId, 'premium'),
+                    maxJobs: plans_1.PLANS[planId]?.maxJobs || 50,
+                    prioritySupport: plans_1.PLANS[planId]?.prioritySupport || false
+                }
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Get user plan access failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            userId: req.user?.id,
+            ip: req.ip
+        });
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to get plan access' },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.getUserPlanAccess = getUserPlanAccess;
 /**
  * Get subscription history for a user
  */

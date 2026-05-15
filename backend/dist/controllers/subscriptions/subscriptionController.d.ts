@@ -8,6 +8,11 @@ export declare const getCurrentSubscription: (req: Request, res: Response) => Pr
  */
 export declare const getAvailablePlans: (_req: Request, res: Response) => Promise<void>;
 /**
+ * Get the authenticated user's plan access/feature flags.
+ * Returns what features the current user can access based on their active subscription.
+ */
+export declare const getUserPlanAccess: (req: Request, res: Response) => Promise<void>;
+/**
  * Get subscription history for a user
  */
 export declare const getSubscriptionHistory: (req: Request, res: Response) => Promise<void>;

@@ -32,12 +32,20 @@ const getUserNotifications = async (req, res) => {
         const filter = { userId };
         if (type)
             filter.type = type;
-        if (priority)
-            filter.priority = priority;
         if (category)
             filter.category = category;
         if (isRead !== undefined)
             filter.isRead = isRead === 'true';
+        // Plan-based priority gating
+        const user = await User_1.User.findById(userId).select('subscriptionPlan');
+        const userPlan = user?.subscriptionPlan || 'basic';
+        if (priority) {
+            filter.priority = priority;
+        }
+        else if (userPlan !== 'enterprise') {
+            // Non-pro users only get low/medium priority notifications
+            filter.priority = { $in: ['low', 'medium'] };
+        }
         // Get notifications
         const notifications = await Notification_1.default.find(filter)
             .sort(sort)

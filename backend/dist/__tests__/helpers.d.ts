@@ -22,6 +22,11 @@ export declare function registerTestUser(overrides?: Record<string, any>): Promi
         email: string;
         password: string;
         name: string;
+        mobile: string;
+        qualification: string;
+        stream: string;
+        yearOfPassout: number;
+        cgpaOrPercentage: number;
     };
 }>;
 /**
@@ -34,8 +39,11 @@ export declare function loginTestUser(email: string, password: string): Promise<
 }>;
 /**
  * Register + login in one call.
+ * Supports:
+ * 1. createAuthenticatedUser({ email: '...', role: 'admin' })
+ * 2. createAuthenticatedUser('admin@test.com', 'admin')
  */
-export declare function createAuthenticatedUser(overrides?: Record<string, any>): Promise<{
+export declare function createAuthenticatedUser(emailOrOverrides?: string | Record<string, any>, role?: string): Promise<{
     email: string;
     password: string;
     token: any;

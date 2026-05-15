@@ -69,8 +69,15 @@ export interface IJobNotification extends BaseDocument {
     jobId: ObjectId;
     userId: ObjectId;
     emailSent: boolean;
-    emailSentAt?: Date;
+    emailSentAt?: Date | null;
     emailStatus: 'pending' | 'sent' | 'failed';
+    matchScore: number;
+    matchReasons: string[];
+    isAutomatic: boolean;
+    triggeredBy?: string | null;
+    retryCount: number;
+    lastRetryAt?: Date | null;
+    deliveryStatus?: string | null;
 }
 export interface IAdmin extends BaseDocument {
     _id: ObjectId;
@@ -147,5 +154,17 @@ export interface ITestimonial extends BaseDocument {
     isApproved: boolean;
     isVerified: boolean;
     linkedinUrl?: string;
+}
+export interface ICustomer extends BaseDocument {
+    _id: ObjectId;
+    userId: ObjectId;
+    name: string;
+    email: string;
+    mobile: string;
+    totalPaid: number;
+    subscriptionCount: number;
+    lastSubscriptionDate: Date;
+    cashfreeCustomerId?: string;
+    status: 'active' | 'inactive';
 }
 //# sourceMappingURL=interfaces.d.ts.map

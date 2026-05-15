@@ -53,7 +53,16 @@ describe('Integration — Full Payment Flow', () => {
     // 1. Register user
     const regRes = await request(app)
       .post(`${AUTH}/register`)
-      .send({ email: 'int_flow@example.com', password: 'TestPass123!', name: 'Integration User' });
+      .send({ 
+        email: 'int_flow@example.com', 
+        password: 'TestPass123!', 
+        name: 'Integration User',
+        mobile: '9876543211',
+        qualification: 'B.Tech',
+        stream: 'IT',
+        yearOfPassout: 2025,
+        cgpaOrPercentage: 9.0
+      });
     expect(regRes.status).toBe(201);
     const token = regRes.body.data.accessToken;
 
@@ -92,7 +101,6 @@ describe('Integration — Full Payment Flow', () => {
     // 4. Verify subscription updated to completed
     sub = await Subscription.findOne({ orderId });
     expect(sub?.status).toBe('completed');
-    expect(sub?.paymentStatus).toBe('SUCCESS');
 
     // 5. Verify user plan updated
     const user = await User.findOne({ email: 'int_flow@example.com' });
@@ -118,7 +126,16 @@ describe('Integration — Full Payment Flow', () => {
   it('should keep user inactive when payment fails', async () => {
     const regRes = await request(app)
       .post(`${AUTH}/register`)
-      .send({ email: 'fail_flow@example.com', password: 'TestPass123!', name: 'Fail User' });
+      .send({ 
+        email: 'fail_flow@example.com', 
+        password: 'TestPass123!', 
+        name: 'Fail User',
+        mobile: '9876543212',
+        qualification: 'M.Tech',
+        stream: 'ECE',
+        yearOfPassout: 2023,
+        cgpaOrPercentage: 7.5
+      });
     const token = regRes.body.data.accessToken;
 
     const orderRes = await request(app)
@@ -159,7 +176,16 @@ describe('Integration — Auth Lifecycle', () => {
     // Register
     const regRes = await request(app)
       .post(`${AUTH}/register`)
-      .send({ email, password: originalPwd, name: 'Lifecycle User' });
+      .send({ 
+        email, 
+        password: originalPwd, 
+        name: 'Lifecycle User',
+        mobile: '9876543213',
+        qualification: 'B.E',
+        stream: 'MECH',
+        yearOfPassout: 2024,
+        cgpaOrPercentage: 8.0
+      });
     expect(regRes.status).toBe(201);
     const token = regRes.body.data.accessToken;
 

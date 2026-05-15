@@ -12,8 +12,10 @@ const subscriptionSchema = new Schema<ISubscription>({
     type: String,
     required: [true, 'Subscription plan is required'],
     enum: {
+      // 'enterprise' is the DB value for the Pro plan (backward-compatible)
+      // 'pro' is accepted as an alias and mapped to 'enterprise' at the controller level
       values: ['basic', 'premium', 'enterprise'],
-      message: 'Subscription plan must be basic, premium, or enterprise'
+      message: 'Subscription plan must be basic, premium, or enterprise (pro)'
     }
   },
   amount: {
@@ -166,7 +168,12 @@ subscriptionSchema.methods.getTotalDuration = function(): number {
 
 // Instance method to get plan display name
 subscriptionSchema.methods.getPlanDisplay = function(): string {
-  return this.plan === 'basic' ? 'Basic Plan (₹49)' : 'Premium Plan (₹99)';
+  const displayMap: Record<string, string> = {
+    basic: 'Basic Plan (₹49/month)',
+    premium: 'Premium Plan (₹99/month)',
+    enterprise: 'Pro Plan (₹299/month)'
+  };
+  return displayMap[this.plan] || this.plan;
 };
 
 // Instance method to get status display

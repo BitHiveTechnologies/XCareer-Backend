@@ -59,9 +59,16 @@ const getAllTemplates = async (req, res) => {
         if (!subscriptionTier) {
             if (userId) {
                 // Authenticated user - filter based on their subscription tier
-                const tierHierarchy = { basic: 1, premium: 2, enterprise: 3 };
-                const userTierLevel = tierHierarchy[userTier] || 0;
-                const accessibleTiers = Object.keys(tierHierarchy).filter(tier => tierHierarchy[tier] <= userTierLevel);
+                // 'enterprise' is the DB value for 'Pro' plan (tier level 3)
+                const tierHierarchy = { basic: 1, premium: 2, enterprise: 3, pro: 3 };
+                const normalizedPlan = userTier?.toLowerCase() === 'pro' ? 'enterprise' : (userTier?.toLowerCase() || 'basic');
+                const userTierLevel = tierHierarchy[normalizedPlan] || 1;
+                // User can access all tiers at or below their level
+                const accessibleTiers = ['basic'];
+                if (userTierLevel >= 2)
+                    accessibleTiers.push('premium');
+                if (userTierLevel >= 3)
+                    accessibleTiers.push('enterprise');
                 query.subscriptionTier = { $in: accessibleTiers };
             }
             else {
@@ -95,6 +102,7 @@ const getAllTemplates = async (req, res) => {
             .skip(skip)
             .limit(limitNum);
         const total = await ResumeTemplate_1.default.countDocuments(query);
+        // Handle empty state gracefully — return empty array, not an error
         res.status(200).json({
             success: true,
             data: {
@@ -110,7 +118,7 @@ const getAllTemplates = async (req, res) => {
                     downloadCount: template.downloadCount,
                     rating: template.rating,
                     tags: template.tags,
-                    preview: template.templateData.preview,
+                    preview: template.templateData?.preview || null,
                     createdBy: template.createdBy,
                     createdAt: template.createdAt
                 })),
@@ -119,7 +127,9 @@ const getAllTemplates = async (req, res) => {
                     limit: limitNum,
                     total,
                     pages: Math.ceil(total / limitNum)
-                }
+                },
+                // Indicate if this is an empty state (no templates in DB yet)
+                isEmpty: templates.length === 0
             },
             timestamp: new Date().toISOString()
         });

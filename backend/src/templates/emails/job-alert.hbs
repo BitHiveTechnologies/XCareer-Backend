@@ -2,45 +2,82 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>New Job Opportunity</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Job Opportunity – X Career</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #10B981; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-        .job-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; }
-        .button { display: inline-block; background: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-        .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; color: #1a202c; }
+        .wrapper { max-width: 620px; margin: 30px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%); padding: 36px 32px; text-align: center; }
+        .header h1 { color: white; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { color: rgba(255,255,255,0.85); margin-top: 8px; font-size: 14px; }
+        .body { padding: 32px; }
+        .greeting { font-size: 16px; color: #374151; margin-bottom: 20px; }
+        .match-badge { display: inline-block; background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; border-radius: 20px; padding: 4px 14px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+        .job-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; margin-bottom: 24px; }
+        .job-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .company { font-size: 15px; color: #0ea5e9; font-weight: 600; margin-bottom: 16px; }
+        .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+        .meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 10px; }
+        .description { font-size: 14px; color: #475569; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        .cta-section { text-align: center; margin: 28px 0; }
+        .cta-btn { display: inline-block; background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%); color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
+        .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center; font-size: 12px; color: #94a3b8; }
+        .footer a { color: #0ea5e9; text-decoration: none; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="wrapper">
         <div class="header">
-            <h1>🚀 New Job Opportunity!</h1>
+            <h1>🚀 New Job Match Found!</h1>
+            <p>X Career found an opportunity that matches your profile</p>
         </div>
-        <div class="content">
-            <h2>Great news! We found a perfect match for you.</h2>
-            
+
+        <div class="body">
+            <p class="greeting">Hi <strong>{{userName}}</strong>,</p>
+            <p style="margin-bottom:16px; color:#475569; font-size:14px;">
+                Great news! We found a job that aligns with your qualifications. Don't miss out — applications close soon.
+            </p>
+
+            {{#if matchScore}}
+            <span class="match-badge">✅ {{matchScore}}% Profile Match</span>
+            {{/if}}
+
             <div class="job-card">
-                <h3>{{jobTitle}}</h3>
-                <p><strong>Company:</strong> {{companyName}}</p>
-                <p><strong>Location:</strong> {{location}}</p>
-                <p><strong>Type:</strong> {{jobType}}</p>
-                <p><strong>Description:</strong></p>
-                <p>{{description}}</p>
+                <div class="job-title">{{jobTitle}}</div>
+                <div class="company">{{companyName}}</div>
+
+                <div class="meta">
+                    <span class="meta-item">📍 {{location}}</span>
+                    <span class="meta-item">💼 {{jobType}}</span>
+                    {{#if salary}}<span class="meta-item">💰 {{salary}}</span>{{/if}}
+                    {{#if stipend}}<span class="meta-item">💵 {{stipend}}</span>{{/if}}
+                    {{#if applicationDeadline}}<span class="meta-item">⏰ Apply by {{applicationDeadline}}</span>{{/if}}
+                </div>
+
+                {{#if description}}
+                <div class="description">
+                    <strong style="display:block; margin-bottom:8px; color:#374151;">About the Role</strong>
+                    {{description}}
+                </div>
+                {{/if}}
             </div>
-            
-            <p>This opportunity matches your profile perfectly! Don't miss out - apply now!</p>
-            
-            <a href="{{applicationLink}}" class="button">Apply Now</a>
-            
-            <p>Good luck with your application!</p>
-            
-            <p>Best regards,<br><strong>The NotifyX Team</strong></p>
+
+            <div class="cta-section">
+                <a href="{{applicationLink}}" class="cta-btn">Apply Now →</a>
+            </div>
+
+            <p style="font-size:13px; color:#64748b; text-align:center;">
+                Good luck with your application! 🎯
+            </p>
         </div>
+
         <div class="footer">
-            <p>© 2024 NotifyX. All rights reserved.</p>
-            <p>You received this email because you're subscribed to job alerts.</p>
+            <p>© 2025 X Career. All rights reserved.</p>
+            <p style="margin-top:6px;">
+                You received this because you subscribed to job alerts on 
+                <a href="{{frontendUrl}}">xcareers.in</a>
+            </p>
         </div>
     </div>
 </body>

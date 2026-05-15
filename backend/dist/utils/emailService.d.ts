@@ -6,8 +6,10 @@ export interface EmailTemplate {
 export interface EmailData {
     to: string;
     subject: string;
-    template: string;
-    context: Record<string, any>;
+    template?: string;
+    context?: Record<string, any>;
+    html?: string;
+    text?: string;
     attachments?: Array<{
         filename: string;
         content: string | Buffer;
@@ -34,7 +36,40 @@ export declare class EmailService {
     sendEmail(emailData: EmailData): Promise<boolean>;
     sendWelcomeEmail(to: string, name: string, plan?: string, source?: string): Promise<boolean>;
     sendSubscriptionWelcomeCredentialsEmail(to: string, name: string, password?: string, plan?: string): Promise<boolean>;
-    sendJobAlertEmail(to: string, jobData: any): Promise<boolean>;
+    sendSubscriptionUpgradeEmail(to: string, name: string, plan: string, features: string[]): Promise<boolean>;
+    sendSubscriptionExpiryEmail(to: string, name: string, plan: string, daysLeft: number): Promise<boolean>;
+    sendJobAlertEmail(to: string, jobData: {
+        userName?: string;
+        jobTitle: string;
+        companyName: string;
+        location: string;
+        jobType?: string;
+        description?: string;
+        applicationLink?: string;
+        matchScore?: number;
+        salary?: string;
+        stipend?: string;
+        applicationDeadline?: string;
+    }): Promise<boolean>;
+    /**
+     * Send a single email containing multiple job matches (Aggregated)
+     */
+    sendAggregatedJobAlertEmail(to: string, data: {
+        name: string;
+        jobCount: number;
+        jobs: Array<{
+            title: string;
+            company: string;
+            location: string;
+            type: string;
+            matchPercentage: number;
+            description: string;
+            applicationLink: string;
+            salary?: string;
+        }>;
+        dashboardUrl: string;
+    }): Promise<boolean>;
+    sendPasswordChangedEmail(to: string, name: string): Promise<boolean>;
     private htmlToText;
     verifyConnection(): Promise<boolean>;
 }

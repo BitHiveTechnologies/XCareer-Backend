@@ -7,6 +7,7 @@ import {
   calculateSubscriptionEndDate,
   getPlanDetails 
 } from '../../utils/paymentService';
+import { PLANS, getPlanTierLevel, planHasTemplateAccess, planHasPriorityNotifications } from '../../config/plans';
 
 /**
  * Get user's current subscription
@@ -108,7 +109,7 @@ export const getCurrentSubscription = async (req: Request, res: Response): Promi
  */
 export const getAvailablePlans = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const plans = Object.values(SUBSCRIPTION_PLANS);
+    const plans = Object.values(PLANS);
 
     res.status(200).json({
       success: true,
@@ -116,11 +117,15 @@ export const getAvailablePlans = async (_req: Request, res: Response): Promise<v
         plans: plans.map(plan => ({
           id: plan.id,
           name: plan.name,
+          displayName: plan.displayName || plan.name,
           price: plan.price,
           duration: plan.duration,
           features: plan.features,
           maxJobs: plan.maxJobs,
-          priority: plan.priority
+          priority: plan.priority,
+          resumeTemplates: plan.resumeTemplates || [],
+          jobNotifications: plan.jobNotifications ?? true,
+          prioritySupport: plan.prioritySupport ?? false
         }))
       },
       timestamp: new Date().toISOString()
@@ -136,6 +141,66 @@ export const getAvailablePlans = async (_req: Request, res: Response): Promise<v
       error: {
         message: 'Failed to get subscription plans'
       },
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * Get the authenticated user's plan access/feature flags.
+ * Returns what features the current user can access based on their active subscription.
+ */
+export const getUserPlanAccess = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: { message: 'Authentication required' },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Find active subscription
+    const subscription = await Subscription.findOne({
+      userId,
+      status: 'completed',
+      endDate: { $gt: new Date() }
+    }).sort({ endDate: -1 });
+
+    const planId = subscription?.plan || 'basic';
+    const tierLevel = getPlanTierLevel(planId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        plan: planId,
+        displayName: planId === 'enterprise' ? 'Pro' : planId.charAt(0).toUpperCase() + planId.slice(1),
+        isActive: !!subscription,
+        tierLevel,
+        features: {
+          jobNotifications: true, // All plans get job notifications
+          priorityNotifications: planHasPriorityNotifications(planId),
+          basicResumeTemplate: true, // All plans get basic template
+          premiumResumeTemplates: planHasTemplateAccess(planId, 'premium'),
+          maxJobs: PLANS[planId]?.maxJobs || 50,
+          prioritySupport: PLANS[planId]?.prioritySupport || false
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Get user plan access failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: req.user?.id,
+      ip: req.ip
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to get plan access' },
       timestamp: new Date().toISOString()
     });
   }

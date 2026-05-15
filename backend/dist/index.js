@@ -66,23 +66,29 @@ const allowedOrigins = [
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // Debug logging
-        console.log(`🔍 CORS Request from origin: ${origin || 'No origin'}`);
-        console.log(`🔍 Allowed origins:`, allowedOrigins);
+        ;
+        void /* console.log */ ((..._args) => { })(`🔍 CORS Request from origin: ${origin || 'No origin'}`);
+        ;
+        void /* console.log */ ((..._args) => { })(`🔍 Allowed origins:`, allowedOrigins);
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) {
-            console.log('✅ Allowing request with no origin');
+            ;
+            void /* console.log */ ((..._args) => { })('✅ Allowing request with no origin');
             return callback(null, true);
         }
         if (allowedOrigins.includes(origin)) {
-            console.log('✅ Origin is in allowed list');
+            ;
+            void /* console.log */ ((..._args) => { })('✅ Origin is in allowed list');
             return callback(null, true);
         }
         // In development, allow any localhost origin
         if (process.env['NODE_ENV'] === 'development' && origin.includes('localhost')) {
-            console.log('✅ Allowing localhost origin in development');
+            ;
+            void /* console.log */ ((..._args) => { })('✅ Allowing localhost origin in development');
             return callback(null, true);
         }
-        console.log('❌ Origin not allowed:', origin);
+        ;
+        void /* console.log */ ((..._args) => { })('❌ Origin not allowed:', origin);
         const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
         return callback(new Error(msg), false);
     },
@@ -155,15 +161,18 @@ app.get('/debug/models', async (_req, res) => {
 app.get('/debug/jobs', async (_req, res) => {
     try {
         const { Job } = await Promise.resolve().then(() => __importStar(require('./models')));
-        console.log('Testing job query...');
+        ;
+        void /* console.log */ ((..._args) => { })('Testing job query...');
         const query = { isActive: true };
         const jobs = await Job.find(query)
             .sort({ createdAt: -1 })
             .limit(10)
             .populate('postedBy', 'name email');
-        console.log(`Found ${jobs.length} jobs`);
+        ;
+        void /* console.log */ ((..._args) => { })(`Found ${jobs.length} jobs`);
         const total = await Job.countDocuments(query);
-        console.log(`Total jobs: ${total}`);
+        ;
+        void /* console.log */ ((..._args) => { })(`Total jobs: ${total}`);
         res.status(200).json({
             success: true,
             data: {
@@ -182,7 +191,8 @@ app.get('/debug/jobs', async (_req, res) => {
         });
     }
     catch (error) {
-        console.error('Debug jobs error:', error);
+        ;
+        void /* console.error */ ((..._args) => { })('Debug jobs error:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -203,24 +213,30 @@ const startServer = async () => {
         // Connect to MongoDB
         await (0, database_1.connectDB)();
         app.listen(PORT, () => {
-            console.log(`🚀 NotifyX Backend server running on port ${PORT}`);
-            console.log(`📊 Health check: http://localhost:${PORT}/health`);
-            console.log(`🌍 Environment: ${process.env['NODE_ENV'] || 'development'}`);
+            ;
+            void /* console.log */ ((..._args) => { })(`🚀 NotifyX Backend server running on port ${PORT}`);
+            ;
+            void /* console.log */ ((..._args) => { })(`📊 Health check: http://localhost:${PORT}/health`);
+            ;
+            void /* console.log */ ((..._args) => { })(`🌍 Environment: ${process.env['NODE_ENV'] || 'development'}`);
         });
     }
     catch (error) {
-        console.error('❌ Failed to start server:', error);
+        ;
+        void /* console.error */ ((..._args) => { })('❌ Failed to start server:', error);
         process.exit(1);
     }
 };
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Promise Rejection:', err);
+    ;
+    void /* console.error */ ((..._args) => { })('❌ Unhandled Promise Rejection:', err);
     process.exit(1);
 });
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err);
+    ;
+    void /* console.error */ ((..._args) => { })('❌ Uncaught Exception:', err);
     process.exit(1);
 });
 startServer();

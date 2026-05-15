@@ -1,12 +1,4 @@
-export interface PaymentPlan {
-    id: string;
-    name: string;
-    price: number;
-    duration: number;
-    features: string[];
-    maxJobs: number;
-    priority: 'low' | 'medium' | 'high';
-}
+import { Plan as PaymentPlan } from '../config/plans';
 export interface CreateOrderOptions {
     userId: string;
     plan: string;

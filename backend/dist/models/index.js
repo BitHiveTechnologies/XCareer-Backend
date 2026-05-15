@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.COLLECTION_NAMES = exports.MODEL_NAMES = exports.jobNotificationSchema = exports.JobNotification = exports.subscriptionSchema = exports.Subscription = exports.adminSchema = exports.Admin = exports.JobApplication = exports.jobSchema = exports.Job = exports.userProfileSchema = exports.UserProfile = exports.userSchema = exports.User = void 0;
+exports.COLLECTION_NAMES = exports.MODEL_NAMES = exports.Customer = exports.jobNotificationSchema = exports.JobNotification = exports.subscriptionSchema = exports.Subscription = exports.adminSchema = exports.Admin = exports.JobApplication = exports.jobSchema = exports.Job = exports.userProfileSchema = exports.UserProfile = exports.userSchema = exports.User = void 0;
 // Export all models
 var User_1 = require("./User");
 Object.defineProperty(exports, "User", { enumerable: true, get: function () { return User_1.User; } });
@@ -36,6 +36,8 @@ Object.defineProperty(exports, "subscriptionSchema", { enumerable: true, get: fu
 var JobNotification_1 = require("./JobNotification");
 Object.defineProperty(exports, "JobNotification", { enumerable: true, get: function () { return JobNotification_1.JobNotification; } });
 Object.defineProperty(exports, "jobNotificationSchema", { enumerable: true, get: function () { return JobNotification_1.jobNotificationSchema; } });
+var Customer_1 = require("./Customer");
+Object.defineProperty(exports, "Customer", { enumerable: true, get: function () { return Customer_1.Customer; } });
 // Export all interfaces
 __exportStar(require("./interfaces"), exports);
 // Export model names for reference
@@ -46,7 +48,8 @@ exports.MODEL_NAMES = {
     JOB_APPLICATION: 'JobApplication',
     ADMIN: 'Admin',
     SUBSCRIPTION: 'Subscription',
-    JOB_NOTIFICATION: 'JobNotification'
+    JOB_NOTIFICATION: 'JobNotification',
+    CUSTOMER: 'Customer'
 };
 // Export collection names for reference
 exports.COLLECTION_NAMES = {
@@ -56,6 +59,7 @@ exports.COLLECTION_NAMES = {
     JOB_APPLICATIONS: 'jobapplications',
     ADMINS: 'admins',
     SUBSCRIPTIONS: 'subscriptions',
-    JOB_NOTIFICATIONS: 'jobnotifications'
+    JOB_NOTIFICATIONS: 'jobnotifications',
+    CUSTOMERS: 'customers'
 };
 //# sourceMappingURL=index.js.map

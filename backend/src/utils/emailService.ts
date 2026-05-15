@@ -17,8 +17,10 @@ export interface EmailTemplate {
 export interface EmailData {
   to: string;
   subject: string;
-  template: string;
-  context: Record<string, any>;
+  template?: string;
+  context?: Record<string, any>;
+  html?: string;
+  text?: string;
   attachments?: Array<{
     filename: string;
     content: string | Buffer;
@@ -124,74 +126,178 @@ export class EmailService {
 
   async sendEmail(emailData: EmailData): Promise<boolean> {
     try {
-      // MOCK BYPASS FOR TESTING
-      logger.info('MOCK EMAIL SUCCESS: Skipping real email send', { to: emailData.to, subject: emailData.subject });
-      return true;
-
-      /*
       if (!this.isInitialized) {
         throw new Error('Email service not initialized');
       }
-      ...
-      */
-    } catch (error: any) {
+
+      let html = emailData.html;
+      let text = emailData.text;
+
+      // If template is provided, render it
+      if (emailData.template) {
+        const templateDelegate = this.templates.get(emailData.template);
+        if (templateDelegate) {
+          html = templateDelegate({
+            ...emailData.context,
+            frontendUrl: config.FRONTEND_URL
+          });
+        } else {
+          logger.warn(`Template ${emailData.template} not found, falling back to direct html/text`);
+        }
+      }
+
+      if (!html) {
+        throw new Error('Email HTML content is missing');
+      }
+
+      // Generate text fallback if not provided
+      if (!text) {
+        text = this.htmlToText(html);
+      }
+
+      const info = await this.transporter.sendMail({
+        from: `"XCareer Support" <${config.EMAIL_USER}>`,
+        to: emailData.to,
+        subject: emailData.subject,
+        text: text,
+        html: html,
+        attachments: emailData.attachments
+      });
+
+      logger.info('Email sent successfully', { messageId: info.messageId, to: emailData.to });
+      return true;
+    } catch (error) {
       logger.error('Failed to send email', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        code: error.code,
-        command: error.command,
         to: emailData.to,
-        stack: error.stack
+        subject: emailData.subject
       });
       return false;
     }
   }
 
   async sendWelcomeEmail(to: string, name: string, plan?: string, source?: string): Promise<boolean> {
-    const html = `
-      <h1>Welcome to NotifyX, ${name}!</h1>
-      <p>We're excited to have you on board with our ${plan || 'basic'} plan.</p>
-    `;
-    
     return this.sendEmail({
       to,
       subject: 'Welcome to NotifyX!',
       template: 'welcome',
-      context: { html, text: `Welcome to NotifyX, ${name}!` }
+      context: { 
+        name, 
+        plan: plan || 'basic', 
+        source,
+        frontendUrl: config.FRONTEND_URL
+      }
     });
   }
 
   async sendSubscriptionWelcomeCredentialsEmail(to: string, name: string, password?: string, plan?: string): Promise<boolean> {
-    const html = `
-      <h1>Welcome to NotifyX, ${name}!</h1>
-      <p>Your subscription to the ${plan || 'basic'} plan is now active.</p>
-      <p><strong>Your Temporary Credentials:</strong></p>
-      <ul>
-        <li><strong>Email:</strong> ${to}</li>
-        <li><strong>Password:</strong> ${password}</li>
-      </ul>
-      <p>Please change your password after logging in.</p>
-    `;
-
     return this.sendEmail({
       to,
       subject: 'Your NotifyX Account Credentials',
-      template: 'welcome-credentials',
-      context: { html, text: `Welcome ${name}! Your password is: ${password}` }
+      template: 'login-credentials',
+      context: { 
+        name,
+        email: to,
+        password,
+        plan: plan || 'basic',
+        loginUrl: `${config.FRONTEND_URL}/login`,
+        frontendUrl: config.FRONTEND_URL
+      }
     });
   }
 
-  async sendJobAlertEmail(to: string, jobData: any): Promise<boolean> {
-    const html = `
-      <h1>New Job Opportunity: ${jobData.title}</h1>
-      <p><strong>Company:</strong> ${jobData.company}</p>
-      <p><strong>Location:</strong> ${jobData.location}</p>
-    `;
-    
+  async sendSubscriptionUpgradeEmail(to: string, name: string, plan: string, features: string[]): Promise<boolean> {
     return this.sendEmail({
       to,
-      subject: `New Job Opportunity: ${jobData.title}`,
+      subject: `Your Upgrade to NotifyX ${plan.charAt(0).toUpperCase() + plan.slice(1)} is Complete!`,
+      template: 'subscription-upgrade',
+      context: {
+        name,
+        plan: plan.charAt(0).toUpperCase() + plan.slice(1),
+        features,
+        frontendUrl: config.FRONTEND_URL
+      }
+    });
+  }
+
+  async sendSubscriptionExpiryEmail(to: string, name: string, plan: string, daysLeft: number): Promise<boolean> {
+    return this.sendEmail({
+      to,
+      subject: `Your NotifyX ${plan} Subscription is Expiring Soon`,
+      template: 'subscription-expiry',
+      context: {
+        name,
+        plan,
+        daysLeft,
+        renewalUrl: `${config.FRONTEND_URL}/pricing`,
+        frontendUrl: config.FRONTEND_URL
+      }
+    });
+  }
+
+  async sendJobAlertEmail(to: string, jobData: {
+    userName?: string;
+    jobTitle: string;
+    companyName: string;
+    location: string;
+    jobType?: string;
+    description?: string;
+    applicationLink?: string;
+    matchScore?: number;
+    salary?: string;
+    stipend?: string;
+    applicationDeadline?: string;
+  }): Promise<boolean> {
+    return this.sendEmail({
+      to,
+      subject: `🚀 New Job Opportunity: ${jobData.jobTitle} at ${jobData.companyName}`,
       template: 'job-alert',
-      context: { html, text: `New Job: ${jobData.title} at ${jobData.company}` }
+      context: {
+        ...jobData,
+        userName: jobData.userName || 'there',
+        frontendUrl: config.FRONTEND_URL
+      }
+    });
+  }
+
+  /**
+   * Send a single email containing multiple job matches (Aggregated)
+   */
+  async sendAggregatedJobAlertEmail(to: string, data: {
+    name: string;
+    jobCount: number;
+    jobs: Array<{
+      title: string;
+      company: string;
+      location: string;
+      type: string;
+      matchPercentage: number;
+      description: string;
+      applicationLink: string;
+      salary?: string;
+    }>;
+    dashboardUrl: string;
+  }): Promise<boolean> {
+    return this.sendEmail({
+      to,
+      subject: `🚀 ${data.jobCount} New Job Matches Found for You!`,
+      template: 'bulk-job-alert',
+      context: {
+        ...data,
+        frontendUrl: config.FRONTEND_URL
+      }
+    });
+  }
+
+  async sendPasswordChangedEmail(to: string, name: string): Promise<boolean> {
+    return this.sendEmail({
+      to,
+      subject: 'Security Alert: Your NotifyX Password Has Been Changed',
+      template: 'password-changed',
+      context: { 
+        name,
+        frontendUrl: config.FRONTEND_URL
+      }
     });
   }
 

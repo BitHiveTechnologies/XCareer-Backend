@@ -80,8 +80,15 @@ export interface IJobNotification extends BaseDocument {
   jobId: ObjectId;
   userId: ObjectId;
   emailSent: boolean;
-  emailSentAt?: Date;
+  emailSentAt?: Date | null;
   emailStatus: 'pending' | 'sent' | 'failed';
+  matchScore: number;
+  matchReasons: string[];
+  isAutomatic: boolean;
+  triggeredBy?: string | null;
+  retryCount: number;
+  lastRetryAt?: Date | null;
+  deliveryStatus?: string | null;
 }
 
 // Admin interface
@@ -175,3 +182,18 @@ export interface ITestimonial extends BaseDocument {
   isVerified: boolean;
   linkedinUrl?: string;
 }
+
+// Customer interface (Track paying customers specifically)
+export interface ICustomer extends BaseDocument {
+  _id: ObjectId;
+  userId: ObjectId;
+  name: string;
+  email: string;
+  mobile: string;
+  totalPaid: number;
+  subscriptionCount: number;
+  lastSubscriptionDate: Date;
+  cashfreeCustomerId?: string;
+  status: 'active' | 'inactive';
+}
+

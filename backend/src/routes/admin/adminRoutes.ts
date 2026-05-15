@@ -4,7 +4,10 @@ import {
   getUserAnalytics, 
   getJobAnalytics, 
   getSystemHealth,
-  notifyUsersForJob 
+  notifyUsersForJob,
+  getAllUsers,
+  getAllPayments,
+  getAllCustomers
 } from '../../controllers/admin/adminController';
 import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 
@@ -48,5 +51,26 @@ router.get('/health', getSystemHealth);
  * @access  Admin only
  */
 router.post('/jobs/:jobId/notify', notifyUsersForJob);
+
+/**
+ * @route   GET /api/v1/admin/users
+ * @desc    Get all users (admin only)
+ * @access  Admin only
+ */
+router.get('/users', getAllUsers);
+
+/**
+ * @route   GET /api/v1/admin/payments
+ * @desc    Get all payment history (admin only)
+ * @access  Admin only
+ */
+router.get('/payments', getAllPayments);
+
+/**
+ * @route   GET /api/v1/admin/customers
+ * @desc    Get all customers (admin only)
+ * @access  Admin only
+ */
+router.get('/customers', getAllCustomers);
 
 export default router;

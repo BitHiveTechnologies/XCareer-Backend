@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Subscription Upgraded - NotifyX</title>
+    <title>Subscription Upgraded</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -10,45 +10,37 @@
         .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
         .button { display: inline-block; background: #10B981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
         .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
-        .highlight { background: #ECFDF5; padding: 15px; border-radius: 6px; border-left: 4px solid #10B981; margin: 20px 0; }
+        .feature-list { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Subscription Upgraded!</h1>
+            <h1>🚀 Plan Upgraded!</h1>
         </div>
         <div class="content">
-            <h2>Congratulations {{name}}!</h2>
-            <p>Your subscription has been successfully upgraded to <strong>{{plan}}</strong>!</p>
+            <h2>Hello {{name}}!</h2>
+            <p>Great news! Your NotifyX account has been successfully upgraded to the <strong>{{plan}}</strong> plan.</p>
             
-            <div class="highlight">
-                <h3>🎉 What's New:</h3>
+            <p>You now have access to premium features:</p>
+            <div class="feature-list">
                 <ul>
-                    {{#each newFeatures}}
+                    {{#each features}}
                     <li>{{this}}</li>
                     {{/each}}
                 </ul>
             </div>
             
-            <p>You now have access to:</p>
-            <ul>
-                {{#each features}}
-                <li>{{this}}</li>
-                {{/each}}
-            </ul>
+            <p>Start exploring your new features now!</p>
             
-            <p>Ready to explore your new features? Start by completing your profile to get the most out of your upgraded plan!</p>
+            <a href="{{frontendUrl}}/dashboard" class="button">Go to Dashboard</a>
             
-            <a href="{{frontendUrl}}/dashboard" class="button">Access Your Dashboard</a>
-            
-            <p>If you have any questions about your new features, feel free to reach out to our support team at {{supportEmail}}.</p>
+            <p>Thank you for choosing NotifyX for your career growth!</p>
             
             <p>Best regards,<br><strong>The NotifyX Team</strong></p>
         </div>
         <div class="footer">
             <p>© 2024 NotifyX. All rights reserved.</p>
-            <p>You received this email because your subscription was upgraded.</p>
         </div>
     </div>
 </body>
