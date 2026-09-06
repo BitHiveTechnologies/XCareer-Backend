@@ -46,8 +46,6 @@ const customerSchema = new Schema<ICustomer>({
 });
 
 // Indexes for performance
-customerSchema.index({ email: 1 });
-customerSchema.index({ userId: 1 });
 customerSchema.index({ status: 1 });
 customerSchema.index({ lastSubscriptionDate: -1 });
 
