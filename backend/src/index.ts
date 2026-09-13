@@ -27,9 +27,17 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'http://127.0.0.1:3002',
+  'https://www.xcareers.in',
+  'https://xcareers.in',
+  'https://x-career-website.vercel.app',
   process.env['FRONTEND_URL'],
   process.env['ADMIN_FRONTEND_URL']
 ].filter(Boolean); // Remove undefined values
+
+// Allow any Vercel preview/production deployment of the frontend
+// (e.g. x-career-website-*.vercel.app) without listing each one.
+const isAllowedOrigin = (origin: string): boolean =>
+  allowedOrigins.includes(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -43,7 +51,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       ; void /* console.log */ ((..._args) => {})('✅ Origin is in allowed list');
       return callback(null, true);
     }

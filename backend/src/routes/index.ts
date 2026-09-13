@@ -12,6 +12,8 @@ import jwtAuthRoutes from './auth/jwtAuthRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
 import adminAuthRoutes from './admin/adminAuth';
 import adminRoutes from './admin/adminRoutes';
+import resumeRoutes from './resumeRoutes';
+import resumeTemplateRoutes from './resumeTemplateRoutes';
 
 const router = express.Router();
 
@@ -58,6 +60,12 @@ router.use(`${API_VERSION}/admin`, adminAuthRoutes);
 
 // Admin management routes (protected)
 router.use(`${API_VERSION}/admin`, adminRoutes);
+
+// Resume routes (user resume load/save + public resume view)
+router.use(`${API_VERSION}/resumes`, resumeRoutes);
+
+// Resume template routes
+router.use(`${API_VERSION}/resume-templates`, resumeTemplateRoutes);
 
 // Mock testimonials route to prevent 404s
 router.get(`${API_VERSION}/testimonials`, (_req, res) => {

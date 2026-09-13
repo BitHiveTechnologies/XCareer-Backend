@@ -181,10 +181,9 @@ const verifyPayment = async (req, res) => {
             user = await User_1.User.findOne({ email });
         }
         if (!user && email) {
-            // Create guest user
+            // Create guest user. The generated password is delivered to the user
+            // via the credentials email below — never log it or write it to disk.
             tempPassword = Math.random().toString(36).slice(-8) + 'X!';
-            logger_1.logger.info('TEST_CREDENTIALS', { email, password: tempPassword });
-            require('fs').writeFileSync('/Users/apple/Desktop/Careerx/test_creds.txt', `Email: ${email}\nPassword: ${tempPassword}`);
             user = new User_1.User({
                 email,
                 name: payment.customer_details?.customer_name || 'User',

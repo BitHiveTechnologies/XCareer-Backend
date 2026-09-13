@@ -17,6 +17,8 @@ const jwtAuthRoutes_1 = __importDefault(require("./auth/jwtAuthRoutes"));
 const emailNotificationRoutes_1 = __importDefault(require("./notifications/emailNotificationRoutes"));
 const adminAuth_1 = __importDefault(require("./admin/adminAuth"));
 const adminRoutes_1 = __importDefault(require("./admin/adminRoutes"));
+const resumeRoutes_1 = __importDefault(require("./resumeRoutes"));
+const resumeTemplateRoutes_1 = __importDefault(require("./resumeTemplateRoutes"));
 const router = express_1.default.Router();
 // API version prefix
 const API_VERSION = '/v1';
@@ -47,6 +49,10 @@ router.use(`${API_VERSION}/notifications`, emailNotificationRoutes_1.default);
 router.use(`${API_VERSION}/admin`, adminAuth_1.default);
 // Admin management routes (protected)
 router.use(`${API_VERSION}/admin`, adminRoutes_1.default);
+// Resume routes (user resume load/save + public resume view)
+router.use(`${API_VERSION}/resumes`, resumeRoutes_1.default);
+// Resume template routes
+router.use(`${API_VERSION}/resume-templates`, resumeTemplateRoutes_1.default);
 // Mock testimonials route to prevent 404s
 router.get(`${API_VERSION}/testimonials`, (_req, res) => {
     res.status(200).json({
