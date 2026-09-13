@@ -524,17 +524,9 @@ exports.toggleJobStatus = toggleJobStatus;
  */
 const getJobStats = async (req, res) => {
     try {
-        const adminId = req.user?.id;
-        if (!adminId) {
-            res.status(401).json({
-                success: false,
-                error: {
-                    message: 'Authentication required'
-                },
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
+        // Public aggregate job statistics (global counts only, no per-user data).
+        // This route is mounted before the auth middleware, so req.user is never
+        // populated here — do not gate on it or the endpoint is unreachable (401).
         // Get job statistics
         const totalJobs = await Job_1.Job.countDocuments();
         const activeJobs = await Job_1.Job.countDocuments({ isActive: true });
