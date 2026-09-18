@@ -14,6 +14,7 @@ import adminAuthRoutes from './admin/adminAuth';
 import adminRoutes from './admin/adminRoutes';
 import resumeRoutes from './resumeRoutes';
 import resumeTemplateRoutes from './resumeTemplateRoutes';
+import testimonialRoutes from './testimonialRoutes';
 
 const router = express.Router();
 
@@ -67,13 +68,8 @@ router.use(`${API_VERSION}/resumes`, resumeRoutes);
 // Resume template routes
 router.use(`${API_VERSION}/resume-templates`, resumeTemplateRoutes);
 
-// Mock testimonials route to prevent 404s
-router.get(`${API_VERSION}/testimonials`, (_req, res) => {
-  res.status(200).json({
-    success: true,
-    data: [] // Frontend will fall back to dummy data if array is empty
-  });
-});
+// Testimonial routes (public list, user submit, admin list/moderate)
+router.use(`${API_VERSION}/testimonials`, testimonialRoutes);
 
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {

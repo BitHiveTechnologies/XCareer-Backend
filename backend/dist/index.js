@@ -44,6 +44,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("./config/database");
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFound_1 = require("./middleware/notFound");
+const schedulerService_1 = require("./services/schedulerService");
 // Import all models to ensure they are registered with mongoose
 require("./models");
 // Load environment variables
@@ -218,6 +219,15 @@ const startServer = async () => {
     try {
         // Connect to MongoDB
         await (0, database_1.connectDB)();
+        // Start the daily job-alert scheduler (24h trigger) + retry-failed cron.
+        // Without this the automated job-notification emails never fire.
+        try {
+            schedulerService_1.schedulerService.start();
+        }
+        catch (schedErr) {
+            ;
+            void /* console.error */ ((..._args) => { })('⚠️ Scheduler failed to start:', schedErr);
+        }
         app.listen(PORT, () => {
             ;
             void /* console.log */ ((..._args) => { })(`🚀 NotifyX Backend server running on port ${PORT}`);
