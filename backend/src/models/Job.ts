@@ -292,16 +292,21 @@ jobSchema.virtual('compensationDisplay').get(function() {
   return (this as any).getCompensationDisplay();
 });
 
-// Virtual for eligibility summary
+// Virtual for eligibility summary.
+// Null-safe: when a Job is loaded with a partial projection (e.g. .select()
+// or a narrow .populate() that omits `eligibility`), this virtual still runs
+// during JSON serialization. Without the guards it threw
+// "Cannot read properties of undefined (reading 'join')", 500-ing every
+// endpoint that returns a partially-selected Job (admin/health, job
+// applications, etc.).
 jobSchema.virtual('eligibilitySummary').get(function() {
-  const summary = {
-    qualifications: this.eligibility.qualifications.join(', '),
-    streams: this.eligibility.streams.join(', '),
-    passoutYears: this.eligibility.passoutYears.join(', '),
-    minCGPA: this.eligibility.minCGPA || 'Not specified'
+  const e = this.eligibility;
+  return {
+    qualifications: e?.qualifications?.join(', ') || '',
+    streams: e?.streams?.join(', ') || '',
+    passoutYears: e?.passoutYears?.join(', ') || '',
+    minCGPA: e?.minCGPA || 'Not specified'
   };
-  
-  return summary;
 });
 
 // Ensure virtuals are serialized

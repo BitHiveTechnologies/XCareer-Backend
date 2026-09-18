@@ -79,8 +79,6 @@ const customerSchema = new mongoose_1.Schema({
     timestamps: true
 });
 // Indexes for performance
-customerSchema.index({ email: 1 });
-customerSchema.index({ userId: 1 });
 customerSchema.index({ status: 1 });
 customerSchema.index({ lastSubscriptionDate: -1 });
 exports.Customer = mongoose_1.default.model('Customer', customerSchema);
