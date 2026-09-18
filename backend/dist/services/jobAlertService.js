@@ -13,6 +13,7 @@ const jobMatchingService_1 = require("../utils/jobMatchingService");
  * - Skips users with inactive subscriptions
  * - Records matchScore, matchReasons, retryCount in DB
  */
+const emailBatchControl_1 = require("./emailBatchControl");
 const sendJobAlertsForJob = async (options) => {
     const { jobId, minMatchScore = 50, maxUsers = 100, dryRun = false, force = false, isAutomatic = true, triggeredBy } = options;
     const stats = {
@@ -37,7 +38,14 @@ const sendJobAlertsForJob = async (options) => {
         const matchingUsers = await (0, jobMatchingService_1.findMatchingUsersForJob)(jobId, maxUsers, minMatchScore);
         stats.totalEligibleUsers = matchingUsers.length;
         logger_1.logger.info('Matching users found', { jobId, count: matchingUsers.length, minMatchScore });
+        (0, emailBatchControl_1.startBatch)('single-job', matchingUsers.length);
         for (const userMatch of matchingUsers) {
+            // Honour an admin stop request issued mid-batch.
+            if ((0, emailBatchControl_1.isStopRequested)()) {
+                stats.emailsSkipped = (stats.emailsSkipped || 0) + 1;
+                (0, emailBatchControl_1.recordSkipped)();
+                continue;
+            }
             try {
                 // Dedup check — skip if already notified about this job, unless forced
                 if (!force) {
@@ -60,6 +68,7 @@ const sendJobAlertsForJob = async (options) => {
                         jobTitle: job.title
                     });
                     stats.emailsSent++;
+                    (0, emailBatchControl_1.recordSent)();
                     continue;
                 }
                 // Create notification record (pending)
@@ -109,6 +118,7 @@ const sendJobAlertsForJob = async (options) => {
                         emailSentAt: new Date()
                     });
                     stats.emailsSent++;
+                    (0, emailBatchControl_1.recordSent)();
                     logger_1.logger.info('Job alert sent', { userId: userMatch.userId, email: userMatch.email, jobId, score: userMatch.matchScore });
                 }
                 else {
@@ -116,11 +126,13 @@ const sendJobAlertsForJob = async (options) => {
                         emailStatus: 'failed'
                     });
                     stats.emailsFailed++;
+                    (0, emailBatchControl_1.recordFailed)();
                     logger_1.logger.error('Job alert email failed', { userId: userMatch.userId, jobId });
                 }
             }
             catch (innerError) {
                 stats.emailsFailed++;
+                (0, emailBatchControl_1.recordFailed)();
                 logger_1.logger.error('Error processing individual user match', {
                     error: innerError instanceof Error ? innerError.message : String(innerError),
                     userId: userMatch.userId,
@@ -128,10 +140,13 @@ const sendJobAlertsForJob = async (options) => {
                 });
             }
         }
-        logger_1.logger.info('Job alert process completed', { jobId, stats, dryRun });
+        const finalState = (0, emailBatchControl_1.finishBatch)();
+        stats.cancelled = finalState.cancelled;
+        logger_1.logger.info('Job alert process completed', { jobId, stats, dryRun, cancelled: finalState.cancelled });
         return stats;
     }
     catch (error) {
+        (0, emailBatchControl_1.finishBatch)();
         logger_1.logger.error('Job alert process failed', {
             error: error instanceof Error ? error.message : String(error),
             jobId
@@ -219,11 +234,19 @@ const sendJobAlertsForAllActiveJobs = async (options = {}) => {
         }
         // 4. Send aggregated emails to each user
         const frontendUrl = process.env.FRONTEND_URL || 'https://careerx.co';
+        (0, emailBatchControl_1.startBatch)('all-jobs', userAggregator.size);
         for (const [email, data] of userAggregator.entries()) {
+            // Honour an admin stop request issued mid-batch.
+            if ((0, emailBatchControl_1.isStopRequested)()) {
+                (0, emailBatchControl_1.recordSkipped)();
+                continue;
+            }
             try {
                 const jobCount = data.matches.length;
-                if (jobCount === 0)
+                if (jobCount === 0) {
+                    (0, emailBatchControl_1.recordSkipped)();
                     continue;
+                }
                 // Create notification records in DB (one for each job)
                 const notificationIds = [];
                 for (const match of data.matches) {
@@ -246,6 +269,7 @@ const sendJobAlertsForAllActiveJobs = async (options = {}) => {
                 }
                 if (dryRun) {
                     result.totalEmailsSent++;
+                    (0, emailBatchControl_1.recordSent)();
                     for (const match of data.matches) {
                         result.perJob[match.job._id.toString()].emailsSent++;
                     }
@@ -274,6 +298,7 @@ const sendJobAlertsForAllActiveJobs = async (options = {}) => {
                         emailSentAt: new Date()
                     });
                     result.totalEmailsSent++;
+                    (0, emailBatchControl_1.recordSent)();
                     for (const match of data.matches) {
                         result.perJob[match.job._id.toString()].emailsSent++;
                     }
@@ -284,6 +309,7 @@ const sendJobAlertsForAllActiveJobs = async (options = {}) => {
                         emailStatus: 'failed'
                     });
                     result.totalEmailsFailed++;
+                    (0, emailBatchControl_1.recordFailed)();
                     for (const match of data.matches) {
                         result.perJob[match.job._id.toString()].emailsFailed++;
                     }
@@ -292,16 +318,20 @@ const sendJobAlertsForAllActiveJobs = async (options = {}) => {
             catch (userError) {
                 logger_1.logger.error(`Critical error processing user ${email}`, { error: userError instanceof Error ? userError.message : String(userError) });
                 result.totalEmailsFailed++;
+                (0, emailBatchControl_1.recordFailed)(userError);
             }
         }
+        const finalState = (0, emailBatchControl_1.finishBatch)();
         logger_1.logger.info('Aggregated bulk alert process completed', {
             totalUsersMatched: userAggregator.size,
             totalEmailsSent: result.totalEmailsSent,
+            cancelled: finalState.cancelled,
             dryRun
         });
         return result;
     }
     catch (error) {
+        (0, emailBatchControl_1.finishBatch)();
         logger_1.logger.error('Bulk aggregated job alerts failed', { error: error instanceof Error ? error.message : String(error) });
         throw error;
     }
