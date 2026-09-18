@@ -111,7 +111,12 @@ class EmailService {
                     auth: {
                         user: environment_1.config.EMAIL_USER,
                         pass: environment_1.config.EMAIL_PASS
-                    }
+                    },
+                    // Fail fast instead of hanging when the SMTP port is blocked
+                    // (e.g. some hosts block outbound 25/465/587) or unreachable.
+                    connectionTimeout: 10000,
+                    greetingTimeout: 10000,
+                    socketTimeout: 15000
                 });
                 logger_1.logger.info('Email transporter initialized with configured SMTP settings', {
                     host: environment_1.config.EMAIL_HOST,

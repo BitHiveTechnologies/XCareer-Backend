@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { connectDB } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { schedulerService } from './services/schedulerService';
 
 // Import all models to ensure they are registered with mongoose
 import './models';
@@ -192,7 +193,15 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    
+
+    // Start the daily job-alert scheduler (24h trigger) + retry-failed cron.
+    // Without this the automated job-notification emails never fire.
+    try {
+      schedulerService.start();
+    } catch (schedErr) {
+      ; void /* console.error */ ((..._args) => {})('⚠️ Scheduler failed to start:', schedErr);
+    }
+
     app.listen(PORT, () => {
       ; void /* console.log */ ((..._args) => {})(`🚀 NotifyX Backend server running on port ${PORT}`);
       ; void /* console.log */ ((..._args) => {})(`📊 Health check: http://localhost:${PORT}/health`);

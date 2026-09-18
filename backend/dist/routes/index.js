@@ -19,6 +19,7 @@ const adminAuth_1 = __importDefault(require("./admin/adminAuth"));
 const adminRoutes_1 = __importDefault(require("./admin/adminRoutes"));
 const resumeRoutes_1 = __importDefault(require("./resumeRoutes"));
 const resumeTemplateRoutes_1 = __importDefault(require("./resumeTemplateRoutes"));
+const testimonialRoutes_1 = __importDefault(require("./testimonialRoutes"));
 const router = express_1.default.Router();
 // API version prefix
 const API_VERSION = '/v1';
@@ -53,13 +54,8 @@ router.use(`${API_VERSION}/admin`, adminRoutes_1.default);
 router.use(`${API_VERSION}/resumes`, resumeRoutes_1.default);
 // Resume template routes
 router.use(`${API_VERSION}/resume-templates`, resumeTemplateRoutes_1.default);
-// Mock testimonials route to prevent 404s
-router.get(`${API_VERSION}/testimonials`, (_req, res) => {
-    res.status(200).json({
-        success: true,
-        data: [] // Frontend will fall back to dummy data if array is empty
-    });
-});
+// Testimonial routes (public list, user submit, admin list/moderate)
+router.use(`${API_VERSION}/testimonials`, testimonialRoutes_1.default);
 // Placeholder for future routes
 router.get(`${API_VERSION}`, (_req, res) => {
     res.status(200).json({
