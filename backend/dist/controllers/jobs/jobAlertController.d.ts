@@ -20,6 +20,16 @@ export declare const getJobAlertStatistics: (req: Request, res: Response) => Pro
  */
 export declare const retryFailedNotifications: (req: Request, res: Response) => Promise<void>;
 /**
+ * Stop the currently-running email/alert batch (Admin only)
+ * POST /api/v1/jobs/alerts/stop
+ */
+export declare const stopEmailSending: (req: Request, res: Response) => Promise<void>;
+/**
+ * Get live progress of the current/last email batch (Admin only)
+ * GET /api/v1/jobs/alerts/progress
+ */
+export declare const getEmailBatchProgress: (_req: Request, res: Response) => Promise<void>;
+/**
  * Get scheduler status (Admin only)
  * GET /api/v1/jobs/alerts/scheduler/status
  */

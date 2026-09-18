@@ -6,7 +6,9 @@ import {
   getJobAlertStatistics,
   retryFailedNotifications,
   getSchedulerStatus,
-  triggerSchedulerTask
+  triggerSchedulerTask,
+  stopEmailSending,
+  getEmailBatchProgress
 } from '../../controllers/jobs/jobAlertController';
 
 const router = Router();
@@ -26,6 +28,18 @@ router.post('/send/:jobId', sendJobAlerts);
  * Send job alerts for all active jobs
  */
 router.post('/send-all', sendAllJobAlerts);
+
+/**
+ * POST /api/v1/jobs/alerts/stop
+ * Stop the currently-running email/alert batch
+ */
+router.post('/stop', stopEmailSending);
+
+/**
+ * GET /api/v1/jobs/alerts/progress
+ * Live progress of the current/last email batch
+ */
+router.get('/progress', getEmailBatchProgress);
 
 /**
  * GET /api/v1/jobs/alerts/statistics

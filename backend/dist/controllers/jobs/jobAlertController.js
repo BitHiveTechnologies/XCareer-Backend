@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerSchedulerTask = exports.getSchedulerStatus = exports.retryFailedNotifications = exports.getJobAlertStatistics = exports.sendAllJobAlerts = exports.sendJobAlerts = void 0;
+exports.triggerSchedulerTask = exports.getSchedulerStatus = exports.getEmailBatchProgress = exports.stopEmailSending = exports.retryFailedNotifications = exports.getJobAlertStatistics = exports.sendAllJobAlerts = exports.sendJobAlerts = void 0;
 const logger_1 = require("../../utils/logger");
 const jobAlertService_1 = require("../../services/jobAlertService");
 const schedulerService_1 = require("../../services/schedulerService");
+const emailBatchControl_1 = require("../../services/emailBatchControl");
 /**
  * Send job alerts for a specific job (Admin only)
  * POST /api/v1/jobs/alerts/send/:jobId
@@ -130,6 +131,54 @@ const retryFailedNotifications = async (req, res) => {
     }
 };
 exports.retryFailedNotifications = retryFailedNotifications;
+/**
+ * Stop the currently-running email/alert batch (Admin only)
+ * POST /api/v1/jobs/alerts/stop
+ */
+const stopEmailSending = async (req, res) => {
+    try {
+        const stopped = (0, emailBatchControl_1.requestStop)();
+        const state = (0, emailBatchControl_1.getBatchState)();
+        logger_1.logger.info('Admin requested to stop email sending', { adminId: req.user?.id, stopped, batchId: state.batchId });
+        res.status(200).json({
+            success: true,
+            message: stopped
+                ? 'Stop requested — the batch will halt after the current email.'
+                : 'No email batch is currently running.',
+            data: { stopRequested: stopped, progress: state },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to stop email sending' },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.stopEmailSending = stopEmailSending;
+/**
+ * Get live progress of the current/last email batch (Admin only)
+ * GET /api/v1/jobs/alerts/progress
+ */
+const getEmailBatchProgress = async (_req, res) => {
+    try {
+        res.status(200).json({
+            success: true,
+            data: { progress: (0, emailBatchControl_1.getBatchState)() },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            error: { message: 'Failed to get email batch progress' },
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+exports.getEmailBatchProgress = getEmailBatchProgress;
 /**
  * Get scheduler status (Admin only)
  * GET /api/v1/jobs/alerts/scheduler/status

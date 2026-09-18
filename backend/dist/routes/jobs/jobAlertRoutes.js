@@ -18,6 +18,16 @@ router.post('/send/:jobId', jobAlertController_1.sendJobAlerts);
  */
 router.post('/send-all', jobAlertController_1.sendAllJobAlerts);
 /**
+ * POST /api/v1/jobs/alerts/stop
+ * Stop the currently-running email/alert batch
+ */
+router.post('/stop', jobAlertController_1.stopEmailSending);
+/**
+ * GET /api/v1/jobs/alerts/progress
+ * Live progress of the current/last email batch
+ */
+router.get('/progress', jobAlertController_1.getEmailBatchProgress);
+/**
  * GET /api/v1/jobs/alerts/statistics
  * Get job alert statistics (optionally filtered by ?jobId=)
  */
