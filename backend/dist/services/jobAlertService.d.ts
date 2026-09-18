@@ -1,4 +1,6 @@
 export interface JobAlertStats {
+    emailsSkipped?: number;
+    cancelled?: boolean;
     jobId: string;
     jobTitle: string;
     totalEligibleUsers: number;
@@ -25,12 +27,6 @@ export interface BulkAlertResult {
     totalDuplicates: number;
     perJob: Record<string, JobAlertStats>;
 }
-/**
- * Send job alerts to eligible users for a specific job.
- * - Skips users who already received this job notification (dedup) unless force=true
- * - Skips users with inactive subscriptions
- * - Records matchScore, matchReasons, retryCount in DB
- */
 export declare const sendJobAlertsForJob: (options: JobAlertOptions) => Promise<JobAlertStats>;
 /**
  * Send job alerts for ALL active jobs that have not yet expired.
