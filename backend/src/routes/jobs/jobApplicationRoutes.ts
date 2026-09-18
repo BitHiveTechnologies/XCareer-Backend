@@ -53,6 +53,10 @@ router.patch('/:applicationId/withdraw',
 );
 
 // Admin-only routes
+// Admin routes need authentication first, then the admin-role check.
+// (The user routes above authenticate per-route; without this line req.user
+// is never populated for the admin routes and requireAdmin always 401s.)
+router.use(authenticate);
 router.use(requireAdmin);
 
 // Get applications for a specific job
