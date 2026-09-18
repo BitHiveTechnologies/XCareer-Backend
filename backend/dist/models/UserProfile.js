@@ -268,8 +268,6 @@ const userProfileSchema = new mongoose_1.Schema({
 });
 exports.userProfileSchema = userProfileSchema;
 // Indexes for performance
-userProfileSchema.index({ userId: 1 });
-userProfileSchema.index({ email: 1 });
 userProfileSchema.index({ qualification: 1 });
 userProfileSchema.index({ stream: 1 });
 userProfileSchema.index({ yearOfPassout: 1 });

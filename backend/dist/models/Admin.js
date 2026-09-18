@@ -106,7 +106,6 @@ const adminSchema = new mongoose_1.Schema({
 });
 exports.adminSchema = adminSchema;
 // Indexes for performance
-adminSchema.index({ email: 1 });
 adminSchema.index({ role: 1 });
 adminSchema.index({ isActive: 1 });
 adminSchema.index({ createdAt: -1 });
