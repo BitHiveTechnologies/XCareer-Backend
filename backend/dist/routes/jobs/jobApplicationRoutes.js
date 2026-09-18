@@ -34,6 +34,10 @@ router.patch('/:applicationId/withdraw', jwtAuth_1.authenticate, (0, validation_
     })
 }), jobApplicationController_1.withdrawApplication);
 // Admin-only routes
+// Admin routes need authentication first, then the admin-role check.
+// (The user routes above authenticate per-route; without this line req.user
+// is never populated for the admin routes and requireAdmin always 401s.)
+router.use(jwtAuth_1.authenticate);
 router.use(jwtAuth_1.requireAdmin);
 // Get applications for a specific job
 router.get('/job/:jobId/applications', (0, validation_1.validate)({
