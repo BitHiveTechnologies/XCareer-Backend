@@ -92,3 +92,100 @@ export const moderateTestimonial = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, message: 'Failed to moderate testimonial' });
   }
 };
+
+/**
+ * Admin: Create a testimonial directly (already approved unless told otherwise).
+ * Separate from submitTestimonial, which is a user submission awaiting moderation.
+ */
+export const createTestimonial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, role, content, rating, avatar, linkedinUrl, isApproved, isVerified } = req.body;
+
+    if (!name || !role || !content || rating === undefined) {
+      res.status(400).json({ success: false, message: 'name, role, content and rating are required' });
+      return;
+    }
+
+    const testimonial = new Testimonial({
+      name,
+      role,
+      content,
+      rating,
+      avatar,
+      linkedinUrl,
+      isApproved: isApproved !== undefined ? isApproved : true,
+      isVerified: isVerified !== undefined ? isVerified : false
+    });
+
+    await testimonial.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Testimonial created successfully',
+      data: testimonial
+    });
+  } catch (error) {
+    logger.error('Create testimonial failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to create testimonial' });
+  }
+};
+
+/**
+ * Admin: Update any field of a testimonial.
+ */
+export const updateTestimonial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, role, content, rating, avatar, linkedinUrl, isApproved, isVerified } = req.body;
+
+    // Only set what was sent, so a partial edit doesn't blank the rest.
+    const updates: Record<string, unknown> = {};
+    if (name !== undefined) updates.name = name;
+    if (role !== undefined) updates.role = role;
+    if (content !== undefined) updates.content = content;
+    if (rating !== undefined) updates.rating = rating;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (linkedinUrl !== undefined) updates.linkedinUrl = linkedinUrl;
+    if (isApproved !== undefined) updates.isApproved = isApproved;
+    if (isVerified !== undefined) updates.isVerified = isVerified;
+
+    const testimonial = await Testimonial.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!testimonial) {
+      res.status(404).json({ success: false, message: 'Testimonial not found' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Testimonial updated successfully',
+      data: testimonial
+    });
+  } catch (error) {
+    logger.error('Update testimonial failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to update testimonial' });
+  }
+};
+
+/**
+ * Admin: Delete a testimonial.
+ */
+export const deleteTestimonial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const testimonial = await Testimonial.findByIdAndDelete(id);
+
+    if (!testimonial) {
+      res.status(404).json({ success: false, message: 'Testimonial not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Testimonial deleted successfully' });
+  } catch (error) {
+    logger.error('Delete testimonial failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to delete testimonial' });
+  }
+};
