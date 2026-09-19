@@ -1,5 +1,4 @@
-import nodemailer from 'nodemailer';
-import { createTransport } from 'nodemailer';
+import { Resend } from 'resend';
 import { logger } from './logger';
 import { config } from '../config/environment';
 import * as fs from 'fs';
@@ -39,7 +38,7 @@ export enum EmailStatus {
 
 // Email service class
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private resend: Resend | null = null;
   private templates: Map<string, HandlebarsTemplateDelegate>;
   private isInitialized: boolean = false;
 
@@ -85,41 +84,16 @@ export class EmailService {
   private initializeTransporter(): void {
     try {
       // Check if email configuration is provided
-      if (!config.EMAIL_HOST || !config.EMAIL_PORT || !config.EMAIL_USER || !config.EMAIL_PASS) {
-        logger.warn('Email configuration incomplete, using test mode');
-        // Use Ethereal for testing when credentials are not configured
-        this.transporter = createTransport({
-          host: 'smtp.ethereal.email',
-          port: 587,
-          secure: false,
-          auth: {
-            user: 'test@ethereal.email',
-            pass: 'test123'
-          }
-        });
-        logger.info('Email transporter initialized in test mode (Ethereal)');
-      } else {
-        // Use configured SMTP settings
-        this.transporter = createTransport({
-          host: config.EMAIL_HOST,
-          port: parseInt(config.EMAIL_PORT.toString()),
-          secure: parseInt(config.EMAIL_PORT.toString()) === 465,
-          auth: {
-            user: config.EMAIL_USER,
-            pass: config.EMAIL_PASS
-          },
-          // Fail fast instead of hanging when the SMTP port is blocked
-          // (e.g. some hosts block outbound 25/465/587) or unreachable.
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 15000
-        });
-        logger.info('Email transporter initialized with configured SMTP settings', {
-          host: config.EMAIL_HOST,
-          port: config.EMAIL_PORT,
-          user: config.EMAIL_USER
-        });
+      if (!config.RESEND_API_KEY || !config.EMAIL_FROM) {
+        logger.warn('Email configuration incomplete (RESEND_API_KEY / EMAIL_FROM), email sending disabled');
+        this.isInitialized = false;
+        return;
       }
+
+      this.resend = new Resend(config.RESEND_API_KEY);
+      logger.info('Email client initialized with Resend', {
+        from: config.EMAIL_FROM
+      });
       this.isInitialized = true;
     } catch (error) {
       logger.error('Failed to initialize email transporter', {
@@ -160,16 +134,24 @@ export class EmailService {
         text = this.htmlToText(html);
       }
 
-      const info = await this.transporter.sendMail({
-        from: `"XCareer Support" <${config.EMAIL_USER}>`,
+      const { data, error } = await this.resend!.emails.send({
+        from: config.EMAIL_FROM,
         to: emailData.to,
         subject: emailData.subject,
         text: text,
         html: html,
-        attachments: emailData.attachments
+        attachments: emailData.attachments?.map(a => ({
+          filename: a.filename,
+          content: a.content
+        }))
       });
 
-      logger.info('Email sent successfully', { messageId: info.messageId, to: emailData.to });
+      // Resend reports delivery problems in the response body, not by throwing.
+      if (error) {
+        throw new Error(`${error.name}: ${error.message}`);
+      }
+
+      logger.info('Email sent successfully', { messageId: data?.id, to: emailData.to });
       return true;
     } catch (error) {
       logger.error('Failed to send email', {
@@ -310,14 +292,12 @@ export class EmailService {
     return html.replace(/<[^>]*>/g, '').trim();
   }
 
+  /**
+   * Resend is an HTTPS API, so there is no connection to hand-shake with the way
+   * SMTP had. Reports whether the client is configured and ready to send.
+   */
   async verifyConnection(): Promise<boolean> {
-    try {
-      if (!this.isInitialized) return false;
-      await this.transporter.verify();
-      return true;
-    } catch (error) {
-      return false;
-    }
+    return this.isInitialized;
   }
 }
 

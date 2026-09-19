@@ -28,11 +28,9 @@ export const config = {
   // Frontend URL for CORS
   FRONTEND_URL: process.env['FRONTEND_URL'] || 'http://localhost:3000',
   
-  // Email configuration
-  EMAIL_HOST: process.env['EMAIL_HOST'] || 'smtp.gmail.com',
-  EMAIL_PORT: parseInt(process.env['EMAIL_PORT'] || '587', 10),
-  EMAIL_USER: process.env['EMAIL_USER'] || '',
-  EMAIL_PASS: process.env['EMAIL_PASS'] || '',
+  // Email configuration (Resend HTTP API — Railway blocks outbound SMTP ports)
+  RESEND_API_KEY: process.env['RESEND_API_KEY'] || '',
+  EMAIL_FROM: process.env['EMAIL_FROM'] || '',
   
   // Cashfree configuration
   CASHFREE_CLIENT_ID: process.env['CASHFREE_CLIENT_ID'] || '',
@@ -63,8 +61,8 @@ export const validateEnvironment = (): void => {
     'CLERK_PUBLISHABLE_KEY',
     'CASHFREE_CLIENT_ID',
     'CASHFREE_CLIENT_SECRET',
-    'EMAIL_USER',
-    'EMAIL_PASS'
+    'RESEND_API_KEY',
+    'EMAIL_FROM'
   ];
 
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
