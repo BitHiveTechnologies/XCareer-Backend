@@ -3,7 +3,8 @@ import {
   getSystemSettings, 
   updateSystemSetting, 
   getSettingByKey,
-  getHomeMetrics
+  getHomeMetrics,
+  deleteSystemSetting
 } from '../../controllers/admin/systemSettingsController';
 import { authenticate, requireAdmin } from '../../middleware/jwtAuth';
 
@@ -19,5 +20,6 @@ router.use(requireAdmin);
 router.get('/', getSystemSettings);
 router.get('/:key', getSettingByKey);
 router.post('/', updateSystemSetting);
+router.delete('/:key', deleteSystemSetting);
 
 export default router;

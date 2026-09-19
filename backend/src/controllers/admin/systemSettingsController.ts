@@ -70,9 +70,11 @@ export const updateSystemSetting = async (req: Request, res: Response): Promise<
  */
 export const getHomeMetrics = async (req: Request, res: Response): Promise<void> => {
   try {
-    const metricsKeys = ['total_placements', 'active_users_count', 'jobs_posted_count', 'partner_companies_count'];
-    const settings = await SystemSettings.find({ key: { $in: metricsKeys } });
-    
+    // Every setting in the metrics category, so a number the admin adds shows
+    // up without a code change. The previous fixed key list never matched the
+    // keys the homepage reads, so it always fell back to hardcoded values.
+    const settings = await SystemSettings.find({ category: 'metrics' }).sort({ createdAt: 1 });
+
     const metrics: Record<string, any> = {};
     settings.forEach(s => {
       metrics[s.key] = s.value;
@@ -85,5 +87,25 @@ export const getHomeMetrics = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     logger.error('Get home metrics failed', { error });
     res.status(500).json({ success: false, message: 'Failed to get metrics' });
+  }
+};
+
+/**
+ * Admin: delete a system setting by key.
+ */
+export const deleteSystemSetting = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { key } = req.params;
+    const setting = await SystemSettings.findOneAndDelete({ key });
+
+    if (!setting) {
+      res.status(404).json({ success: false, message: 'Setting not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Setting deleted successfully' });
+  } catch (error) {
+    logger.error('Delete system setting failed', { error });
+    res.status(500).json({ success: false, message: 'Failed to delete setting' });
   }
 };

@@ -12,6 +12,7 @@ import jwtAuthRoutes from './auth/jwtAuthRoutes';
 import emailNotificationRoutes from './notifications/emailNotificationRoutes';
 import adminAuthRoutes from './admin/adminAuth';
 import adminRoutes from './admin/adminRoutes';
+import systemSettingsRoutes from './admin/systemSettingsRoutes';
 import resumeRoutes from './resumeRoutes';
 import resumeTemplateRoutes from './resumeTemplateRoutes';
 import testimonialRoutes from './testimonialRoutes';
@@ -60,6 +61,9 @@ router.use(`${API_VERSION}/notifications`, emailNotificationRoutes);
 router.use(`${API_VERSION}/admin`, adminAuthRoutes);
 
 // Admin management routes (protected)
+// Before adminRoutes: its router applies authentication to every /admin path,
+// which would 401 the public homepage metrics.
+router.use(`${API_VERSION}/admin/settings`, systemSettingsRoutes);
 router.use(`${API_VERSION}/admin`, adminRoutes);
 
 // Resume routes (user resume load/save + public resume view)
