@@ -7,6 +7,7 @@ import { Customer } from '../../models/Customer';
 import { JobApplication } from '../../models/JobApplication';
 import { sendJobAlertsForJob } from '../../services/jobAlertService';
 import { logger } from '../../utils/logger';
+import { fetchPaymentDetails } from '../../utils/paymentService';
 
 import { AdminRequest } from '../../types/express';
 
@@ -642,18 +643,50 @@ export const getAllPayments = async (req: Request, res: Response): Promise<void>
 
     const total = await Subscription.countDocuments(query);
 
-    const transformedPayments = subscriptions.map((sub: any) => ({
-      id: sub._id,
-      transactionId: sub.paymentId || sub._id,
-      customerName: sub.userId?.name || 'Unknown User',
-      customerEmail: sub.userId?.email || 'N/A',
-      amount: sub.amount,
-      plan: sub.plan,
-      status: sub.status,
-      date: sub.createdAt,
-      type: 'Subscription',
-      paymentMethod: 'Cashfree'
-    }));
+    // Cashfree has no list-all-orders endpoint, so the rows come from our own
+    // records and each one is enriched with the gateway's live view of the order:
+    // real status, payment method and paid-at time rather than a hardcoded label.
+    const transformedPayments = await Promise.all(
+      subscriptions.map(async (sub: any) => {
+        const base = {
+          id: sub._id,
+          transactionId: sub.paymentId || sub._id,
+          customerName: sub.userId?.name || 'Unknown User',
+          customerEmail: sub.userId?.email || 'N/A',
+          amount: sub.amount,
+          plan: sub.plan,
+          status: sub.status,
+          date: sub.createdAt,
+          type: 'Subscription',
+          paymentMethod: 'Cashfree',
+          orderId: sub.orderId
+        };
+
+        if (!sub.orderId) return base;
+
+        try {
+          const details = await fetchPaymentDetails(sub.orderId);
+          if (!details.success || !details.payment) return base;
+
+          const order = details.payment as any;
+          return {
+            ...base,
+            // Gateway status wins: our record can lag a refund or a late failure.
+            status: order.order_status ? String(order.order_status).toLowerCase() : base.status,
+            amount: order.order_amount ?? base.amount,
+            paymentMethod: order.payment_method || base.paymentMethod,
+            currency: order.order_currency || 'INR',
+            gatewayStatus: order.order_status
+          };
+        } catch (enrichError) {
+          logger.warn('Could not enrich payment from Cashfree', {
+            orderId: sub.orderId,
+            error: enrichError instanceof Error ? enrichError.message : 'Unknown error'
+          });
+          return base;
+        }
+      })
+    );
 
     res.status(200).json({
       success: true,
