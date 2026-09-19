@@ -3,6 +3,7 @@ import { JobApplication } from '../models/JobApplication';
 import Notification from '../models/Notification';
 import { Subscription } from '../models/Subscription';
 import { logger } from '../utils/logger';
+import { resolveJobApplyUrl } from '../utils/jobApplyUrl';
 
 export interface NotificationData {
   userId: string;
@@ -118,11 +119,11 @@ class NotificationService {
           company: job.company,
           location: job.location,
           type: job.type,
-          applicationLink: job.applicationLink
+          applicationLink: resolveJobApplyUrl(job)
         },
         priority: 'medium',
         category: 'info',
-        actionUrl: job.applicationLink,
+        actionUrl: resolveJobApplyUrl(job),
         actionText: 'Apply Now',
         metadata: {
           source: 'job_matching',
