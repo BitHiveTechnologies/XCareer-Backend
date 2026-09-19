@@ -132,6 +132,140 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
+/** createOrder tags guest checkouts as the literal string 'guest', which is not an id. */
+const isLookupableUserId = (value: unknown): string | undefined =>
+  typeof value === 'string' && /^[0-9a-fA-F]{24}$/.test(value) ? value : undefined;
+
+/**
+ * Activate a paid subscription and send the customer their emails.
+ *
+ * Shared by verifyPayment (browser returns from Cashfree) and handleWebhook
+ * (server-to-server). Whichever arrives first does the work; the other finds the
+ * order already completed and becomes a no-op. Before this existed only
+ * verifyPayment could activate, so a customer who closed the tab paid and got
+ * nothing — no subscription, no credentials email, no way to log in.
+ */
+const activatePaidSubscription = async (params: {
+  orderId: string;
+  paymentId: string;
+  email?: string;
+  name?: string;
+  plan: string;
+  amount: number;
+  authUserId?: string;
+}): Promise<{ user: any; subscription: any; isNewUser: boolean } | null> => {
+  const { orderId, paymentId, email, name, plan, amount, authUserId } = params;
+
+  // Idempotency across both callers: one completed order, one activation.
+  const alreadyDone = await Subscription.findOne({ orderId, status: 'completed' });
+  if (alreadyDone) {
+    logger.info('Subscription already activated for order — skipping', { orderId });
+    return null;
+  }
+
+  let user = null;
+  let isNewUser = false;
+  let tempPassword = '';
+
+  if (authUserId) {
+    user = await User.findById(authUserId);
+  }
+  if (!user && email) {
+    user = await User.findOne({ email });
+  }
+  if (!user && email) {
+    // Create guest user. The generated password is delivered to the user
+    // via the credentials email below — never log it or write it to disk.
+    tempPassword = Math.random().toString(36).slice(-8) + 'X!';
+    user = new User({
+      email,
+      name: name || 'User',
+      password: tempPassword,
+      role: 'user',
+      mustChangePassword: true
+    });
+    await user.save();
+    isNewUser = true;
+  }
+  if (!user) return null;
+
+  const userId = user._id;
+  const planValue = plan as 'basic' | 'premium' | 'enterprise';
+  const now = new Date();
+  const endDate = calculateSubscriptionEndDate(plan, now);
+
+  let subscription = await Subscription.findOne({ userId });
+  if (subscription) {
+    subscription.plan = planValue;
+    subscription.amount = amount;
+    subscription.paymentId = paymentId;
+    subscription.orderId = orderId;
+    subscription.status = 'completed';
+    subscription.startDate = now;
+    subscription.endDate = endDate;
+    subscription.updatedAt = now;
+  } else {
+    subscription = new Subscription({
+      userId,
+      plan: planValue,
+      amount,
+      paymentId,
+      orderId,
+      status: 'completed',
+      startDate: now,
+      endDate
+    });
+  }
+  await subscription.save();
+
+  await User.findByIdAndUpdate(userId, {
+    subscriptionPlan: plan,
+    subscriptionStatus: 'active',
+    subscriptionStartDate: now,
+    subscriptionEndDate: endDate
+  });
+
+  try {
+    await Customer.findOneAndUpdate(
+      { userId },
+      {
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        $inc: { totalPaid: amount, subscriptionCount: 1 },
+        lastSubscriptionDate: now,
+        status: 'active'
+      },
+      { upsert: true, new: true }
+    );
+  } catch (customerError) {
+    logger.error('Failed to update customer record', { error: customerError, userId });
+  }
+
+  const planDisplayName = plan === 'enterprise' ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1);
+  await emailService.sendEmail({
+    to: user.email,
+    subject: `Your CareerX ${planDisplayName} Subscription is Active!`,
+    template: 'subscription-confirmation',
+    context: {
+      plan: planDisplayName,
+      amount,
+      endDate: endDate.toDateString()
+    }
+  }).catch(err => logger.error('Failed to send confirmation email', { error: err }));
+
+  if (isNewUser) {
+    await emailService.sendSubscriptionWelcomeCredentialsEmail(
+      user.email,
+      user.name,
+      tempPassword,
+      plan
+    ).catch(err => logger.error('Failed to send credentials email', { error: err }));
+  }
+
+  return { user, subscription, isNewUser };
+};
+
 export const verifyPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { orderId } = req.body;
@@ -185,34 +319,17 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
     const amount = payment.order_amount;
     const paymentId = payment.payment_session_id || orderId; // or appropriate payment ID
 
-    let user = null;
-    let isNewUser = false;
-    let tempPassword = '';
+    const activation = await activatePaidSubscription({
+      orderId,
+      paymentId,
+      email,
+      name: payment.customer_details?.customer_name,
+      plan,
+      amount,
+      authUserId
+    });
 
-    if (authUserId) {
-      user = await User.findById(authUserId);
-    }
-
-    if (!user && email) {
-      user = await User.findOne({ email });
-    }
-
-    if (!user && email) {
-      // Create guest user. The generated password is delivered to the user
-      // via the credentials email below — never log it or write it to disk.
-      tempPassword = Math.random().toString(36).slice(-8) + 'X!';
-      user = new User({
-        email,
-        name: payment.customer_details?.customer_name || 'User',
-        password: tempPassword,
-        role: 'user',
-        mustChangePassword: true
-      });
-      await user.save();
-      isNewUser = true;
-    }
-
-    if (!user) {
+    if (!activation) {
       res.status(404).json({
         success: false,
         error: { message: 'User could not be determined or created' },
@@ -221,59 +338,7 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const userId = user._id;
-
-    let subscription = await Subscription.findOne({ userId });
-    const now = new Date();
-    const endDate = calculateSubscriptionEndDate(plan, now);
-    
-    if (subscription) {
-      subscription.plan = plan;
-      subscription.amount = amount;
-      subscription.paymentId = paymentId;
-      subscription.orderId = orderId;
-      subscription.status = 'completed';
-      subscription.startDate = now;
-      subscription.endDate = endDate;
-      subscription.updatedAt = now;
-    } else {
-      subscription = new Subscription({
-        userId,
-        plan,
-        amount,
-        paymentId,
-        orderId,
-        status: 'completed',
-        startDate: now,
-        endDate
-      });
-    }
-    await subscription.save();
-
-    await User.findByIdAndUpdate(userId, {
-      subscriptionPlan: plan,
-      subscriptionStatus: 'active',
-      subscriptionStartDate: now,
-      subscriptionEndDate: endDate
-    });
-
-    // Create or update Customer record
-    try {
-      await Customer.findOneAndUpdate(
-        { userId },
-        {
-          name: user.name,
-          email: user.email,
-          mobile: user.mobile,
-          $inc: { totalPaid: amount, subscriptionCount: 1 },
-          lastSubscriptionDate: now,
-          status: 'active'
-        },
-        { upsert: true, new: true }
-      );
-    } catch (customerError) {
-      logger.error('Failed to update customer record', { error: customerError, userId });
-    }
+    const { user, subscription, isNewUser } = activation;
 
     // Generate tokens for auto-login
     const tokenPayload: any = {
@@ -292,34 +357,12 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
     });
 
     logger.info('Payment verified and subscription created', {
-      userId,
+      userId: user._id,
       orderId,
       plan,
       amount,
       ip: req.ip
     });
-
-    // Send confirmation email
-    const planDisplayName = plan === 'enterprise' ? 'Pro' : plan.charAt(0).toUpperCase() + plan.slice(1);
-    await emailService.sendEmail({
-      to: email,
-      subject: `Your CareerX ${planDisplayName} Subscription is Active!`,
-      template: 'subscription-confirmation',
-      context: { 
-        plan: planDisplayName,
-        amount: amount,
-        endDate: endDate.toDateString()
-      }
-    }).catch(err => logger.error('Failed to send confirmation email', { error: err }));
-
-    if (isNewUser) {
-      await emailService.sendSubscriptionWelcomeCredentialsEmail(
-        email, 
-        user.name, 
-        tempPassword,
-        plan
-      ).catch(err => logger.error('Failed to send credentials email', { error: err }));
-    }
 
     res.status(200).json({
       success: true,
@@ -523,42 +566,31 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
     const { type, data } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
     if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
-      const paymentId = data.payment.payment_id;
-      const orderId = data.order.order_id;
-      
-      const subscription = await Subscription.findOne({ orderId });
-      if (subscription && subscription.status !== 'completed') {
-        subscription.status = 'completed';
-        subscription.paymentId = paymentId;
-        await subscription.save();
+      const order = data.order || {};
+      const payment = data.payment || {};
+      const customer = data.customer_details || {};
+      const orderId = order.order_id;
+      const rawPlan = (order.order_tags || {}).plan || 'premium';
+      const plan = rawPlan.toLowerCase() === 'pro' ? 'enterprise' : rawPlan.toLowerCase();
 
-        await User.findByIdAndUpdate(subscription.userId, {
-          subscriptionPlan: subscription.plan,
-          subscriptionStatus: 'active'
+      // Same activation path as verifyPayment. Whichever arrives first wins;
+      // the second call sees a completed order and returns null.
+      const activation = await activatePaidSubscription({
+        orderId,
+        paymentId: payment.cf_payment_id ? String(payment.cf_payment_id) : orderId,
+        email: customer.customer_email,
+        name: customer.customer_name,
+        plan,
+        amount: payment.payment_amount ?? order.order_amount,
+        authUserId: isLookupableUserId((order.order_tags || {}).userId)
+      });
+
+      if (activation) {
+        logger.info('Subscription activated via webhook', {
+          orderId,
+          userId: activation.user._id,
+          isNewUser: activation.isNewUser
         });
-
-        // Create or update Customer record
-        try {
-          const user = await User.findById(subscription.userId);
-          if (user) {
-            await Customer.findOneAndUpdate(
-              { userId: user._id },
-              {
-                name: user.name,
-                email: user.email,
-                mobile: user.mobile,
-                $inc: { totalPaid: subscription.amount, subscriptionCount: 1 },
-                lastSubscriptionDate: subscription.startDate,
-                status: 'active'
-              },
-              { upsert: true, new: true }
-            );
-          }
-        } catch (customerError) {
-          logger.error('Failed to update customer record via webhook', { error: customerError, userId: subscription.userId });
-        }
-
-        logger.info('Subscription activated via webhook', { orderId, subscriptionId: subscription._id });
       }
     }
 
