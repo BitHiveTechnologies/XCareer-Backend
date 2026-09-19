@@ -36,7 +36,7 @@ router.post('/',
       eligibility: commonSchemas.object({
         qualifications: commonSchemas.array().items(commonSchemas.string()).min(1).required(),
         streams: commonSchemas.array().items(commonSchemas.string()).min(1).required(),
-        passoutYears: commonSchemas.array().items(commonSchemas.number().integer().min(2020).max(2030)).min(1).required(),
+        passoutYears: commonSchemas.array().items(commonSchemas.number().integer().min(2000).max(2030)).min(1).required(),
         minCGPA: commonSchemas.number().min(0).max(10).optional()
       }).required(),
       applicationDeadline: commonSchemas.date.min(new Date().toISOString()).required(),
@@ -63,7 +63,7 @@ router.put('/:jobId',
       eligibility: commonSchemas.object({
         qualifications: commonSchemas.array().items(commonSchemas.string()).min(1).optional(),
         streams: commonSchemas.array().items(commonSchemas.string()).min(1).optional(),
-        passoutYears: commonSchemas.array().items(commonSchemas.number().integer().min(2020).max(2030)).min(1).optional(),
+        passoutYears: commonSchemas.array().items(commonSchemas.number().integer().min(2000).max(2030)).min(1).optional(),
         minCGPA: commonSchemas.number().min(0).max(10).optional()
       }).optional(),
       applicationDeadline: commonSchemas.date.min(new Date().toISOString()).optional(),
