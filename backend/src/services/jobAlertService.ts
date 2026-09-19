@@ -3,6 +3,7 @@ import { JobNotification } from '../models/JobNotification';
 import { emailService } from '../utils/emailService';
 import { logger } from '../utils/logger';
 import { findMatchingUsersForJob } from '../utils/jobMatchingService';
+import { resolveJobApplyUrl } from '../utils/jobApplyUrl';
 
 export interface JobAlertStats {
   emailsSkipped?: number;
@@ -158,7 +159,7 @@ export const sendJobAlertsForJob = async (options: JobAlertOptions): Promise<Job
           description: job.description
             ? job.description.substring(0, 200) + (job.description.length > 200 ? '...' : '')
             : 'Exciting opportunity matching your profile!',
-          applicationLink: job.applicationLink || '#',
+          applicationLink: resolveJobApplyUrl(job),
           matchScore: userMatch.matchScore,
           salary: job.salary,
           stipend: job.stipend,
@@ -310,7 +311,7 @@ export const sendJobAlertsForAllActiveJobs = async (options: {
     }
 
     // 4. Send aggregated emails to each user
-    const frontendUrl = process.env.FRONTEND_URL || 'https://careerx.co';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://xcareers.in';
 
     startBatch('all-jobs', userAggregator.size);
 
@@ -363,7 +364,7 @@ export const sendJobAlertsForAllActiveJobs = async (options: {
             type: m.job.type === 'internship' ? 'Internship' : 'Full-time Job',
             matchPercentage: m.score,
             description: m.job.description ? m.job.description.substring(0, 150) + (m.job.description.length > 150 ? '...' : '') : 'Exciting opportunity!',
-            applicationLink: m.job.applicationLink || `${frontendUrl}/jobs/${m.job._id}`,
+            applicationLink: resolveJobApplyUrl(m.job),
             salary: m.job.salary || m.job.stipend
           })),
           dashboardUrl: `${frontendUrl}/dashboard`
@@ -461,7 +462,7 @@ export const retryFailedJobNotifications = async (jobId?: string): Promise<{
           location: job.location,
           jobType: job.type === 'internship' ? 'Internship' : 'Full-time Job',
           description: job.description?.substring(0, 200) || 'Exciting opportunity!',
-          applicationLink: job.applicationLink || '#',
+          applicationLink: resolveJobApplyUrl(job),
           matchScore: notification.matchScore || 0,
           applicationDeadline: job.applicationDeadline
             ? new Date(job.applicationDeadline).toLocaleDateString('en-IN')

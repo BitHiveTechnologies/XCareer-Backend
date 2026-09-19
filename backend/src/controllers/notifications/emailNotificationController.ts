@@ -4,7 +4,7 @@ import { emailService } from '../../utils/emailService';
 import { emailQueueService } from '../../utils/emailQueue';
 import { User } from '../../models/User';
 import { Job } from '../../models/Job';
-
+import { resolveJobApplyUrl } from '../../utils/jobApplyUrl';
 import { AuthenticatedRequest } from '../../types/express';
 
 
@@ -121,7 +121,7 @@ export const sendJobAlertEmail = async (req: AuthenticatedRequest, res: Response
         location: job.location,
         jobType: job.type,
         description: job.description,
-        applicationLink: job.applicationLink
+        applicationLink: resolveJobApplyUrl(job)
       }
     });
 

@@ -9,6 +9,7 @@ import {
   MatchingCriteria,
   DEFAULT_CRITERIA 
 } from '../utils/enhancedJobMatching';
+import { resolveJobApplyUrl } from '../utils/jobApplyUrl';
 
 export interface EnhancedJobAlertResult {
   jobId: string;
@@ -163,7 +164,7 @@ export const sendJobAlertsEnhanced = async (
         location: job.location,
         jobType: job.type === 'internship' ? 'Internship' : 'Full-time Job',
         description: job.description ? job.description.substring(0, 200) : '',
-        applicationLink: job.applicationLink || `${process.env.FRONTEND_URL}/jobs`,
+        applicationLink: resolveJobApplyUrl(job),
         matchScore: Math.round(userMatch.matchPercentage)
       };
 
