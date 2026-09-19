@@ -7,6 +7,8 @@ import { connectDB } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { schedulerService } from './services/schedulerService';
+import { validateEnvironment } from './config/environment';
+import { logger } from './utils/logger';
 
 // Import all models to ensure they are registered with mongoose
 import './models';
@@ -191,6 +193,10 @@ app.use(errorHandler);
 // Start server
 const startServer = async () => {
   try {
+    // Fail loudly on missing/blank production config instead of booting a
+    // half-working service (a missing RESEND_API_KEY silently disabled email).
+    validateEnvironment();
+
     // Connect to MongoDB
     await connectDB();
 
@@ -203,12 +209,15 @@ const startServer = async () => {
     }
 
     app.listen(PORT, () => {
+      logger.info('Server listening', { port: PORT, environment: process.env['NODE_ENV'] || 'development' });
       ; void /* console.log */ ((..._args) => {})(`🚀 NotifyX Backend server running on port ${PORT}`);
       ; void /* console.log */ ((..._args) => {})(`📊 Health check: http://localhost:${PORT}/health`);
       ; void /* console.log */ ((..._args) => {})(`🌍 Environment: ${process.env['NODE_ENV'] || 'development'}`);
     });
   } catch (error) {
-    ; void /* console.error */ ((..._args) => {})('❌ Failed to start server:', error);
+    logger.error('Failed to start server', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     process.exit(1);
   }
 };

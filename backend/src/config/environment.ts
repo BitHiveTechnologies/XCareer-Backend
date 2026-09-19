@@ -56,11 +56,15 @@ export const config = {
 
 // Validate required environment variables
 export const validateEnvironment = (): void => {
+  // Only what the service genuinely cannot run without. The CLERK_* vars are
+  // deliberately absent: production has never had them, so requiring them here
+  // would crash a currently-working deployment.
   const requiredVars = [
-    'CLERK_SECRET_KEY',
-    'CLERK_PUBLISHABLE_KEY',
+    'MONGODB_URI',
+    'JWT_SECRET',
     'CASHFREE_CLIENT_ID',
     'CASHFREE_CLIENT_SECRET',
+    'CASHFREE_WEBHOOK_SECRET',
     'RESEND_API_KEY',
     'EMAIL_FROM'
   ];
